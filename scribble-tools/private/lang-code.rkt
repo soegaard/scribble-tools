@@ -5,6 +5,7 @@
          racket/string
          racket/file
          racket/runtime-path
+         syntax-color/scribble-lexer
          "mdn-map.rkt"
          scribble/base
          scribble/core
@@ -17,12 +18,15 @@
 (provide css-code
          html-code
          js-code
+         scribble-code
          cssblock
          htmlblock
          jsblock
+         scribbleblock
          cssblock0
          htmlblock0
-         jsblock0)
+         jsblock0
+         scribbleblock0)
 
 (define omitable (make-style #f '(omitable)))
 ;; Dedicated style for HTML tag names; do not rely on .RktSym/.RktKw theme mappings.
@@ -55,6 +59,10 @@
 (define mdn-link-style
   (make-style #f (list (attributes '((class . "mdn-code-link")
                                      (style . "color: inherit; text-decoration: none;"))))))
+(define inline-code-font-style
+  ;; Ensure inline snippets inherit the same monospace face as Racket docs.
+  ;; This keeps tokens with custom color-only styles in Fira Mono, too.
+  (make-style #f (list (attributes '((class . "RktBlk"))))))
 
 (define css-color-keywords
   (list->set
@@ -713,6 +721,14 @@ JS
        [(private-name) js-private-name-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(scribble)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) keyword-color]
+       [(name) symbol-color]
+       [(value) value-color]
        [(punct) paren-color]
        [else no-color])]
     [else no-color]))
@@ -1715,11 +1731,50 @@ JS
                 [else (find (add1 k))])))
           (emit 'plain i next-special)])])))
 
+(define (scribble-token-type->symbol t)
+  (cond
+    [(symbol? t) t]
+    [(hash? t) (hash-ref t 'type 'text)]
+    [else 'text]))
+
+(define (scribble-token-class typ txt)
+  (case typ
+    [(comment) 'comment]
+    [(constant string) 'value]
+    [(parenthesis) 'punct]
+    [(symbol)
+     ;; In Scribble source snippets, symbols most often represent commands
+     ;; and embedded expression identifiers.
+     'keyword]
+    [(text) 'plain]
+    [(white-space) 'plain]
+    [else
+     (if (regexp-match? #px"^[a-zA-Z_][a-zA-Z0-9_?!-]*$" txt)
+         'name
+         'plain)]))
+
+(define (tokenize-scribble s)
+  (define lx (make-scribble-inside-lexer))
+  (define in (open-input-string s))
+  (port-count-lines! in)
+  (let loop ([mode #f] [acc null])
+    (define-values (_lexeme type _paren start end _backup new-mode)
+      (lx in 0 mode))
+    (define typ (scribble-token-type->symbol type))
+    (if (eq? typ 'eof)
+        (reverse acc)
+        (let* ([a (max 0 (sub1 start))]
+               [b (min (string-length s) (max a (sub1 end)))]
+               [txt (substring s a b)]
+               [cls (scribble-token-class typ txt)])
+          (loop new-mode (cons (cons cls txt) acc))))))
+
 (define (tokenize lang s)
   (case lang
     [(css) (tokenize-css s)]
     [(html) (tokenize-html s)]
     [(js) (tokenize-js s)]
+    [(scribble) (tokenize-scribble s)]
     [else (list (cons 'plain s))]))
 
 (define (split-lines style s)
@@ -2706,7 +2761,7 @@ JS
                    [current-html-style-dimension-preview? html-style-dim?]
                    [current-html-style-preview-mode html-style-mode])
       (tokens-from-chunks lang chunks #:inline? #t)))
-  (make-element #f
+  (make-element inline-code-font-style
                 (parameterize ([current-preview-css-url preview-css-url]
                                [current-preview-tooltips? preview-tooltips?])
                   (tokens->pieces lang
@@ -2930,12 +2985,27 @@ JS
                                    #:mdn-links? mdn-links-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-syntax (scribble-code stx)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-inline/chunks 'scribble
+                                   #:mdn-links? #f
+                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
+
 (define-syntax (cssblock0 stx) (do-css-block stx #f))
 (define-syntax (cssblock stx) (do-css-block stx #t))
 (define-syntax (htmlblock0 stx) (do-block stx 'html #f))
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
 (define-syntax (jsblock0 stx) (do-js-block stx #f))
 (define-syntax (jsblock stx) (do-js-block stx #t))
+(define-syntax (scribbleblock0 stx) (do-block stx 'scribble #f))
+(define-syntax (scribbleblock stx) (do-block stx 'scribble #t))
 
 (module+ test
   (require rackunit)
@@ -2983,10 +3053,12 @@ JS
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
+  (check-true (block? (scribbleblock "@title{Hi}\nText.")))
   (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
+  (check-true (element? (scribble-code "@bold{Hi}")))
   (check-true (element? (js-code #:jsx? #t "const el = <A/>;")))
   (check-not-false
    (member 'name (classes 'css "h1.title { color: #c33; --gap: 1.5rem; }")))
@@ -3015,6 +3087,13 @@ JS
    (element? (css-code #:escape UNQ "a { color: " (UNQ (italic "red")) "; }")))
   (check-true
    (block? (htmlblock "<p>" (unsyntax (bold "hi")) "</p>")))
+  (check-true
+   (block? (scribbleblock "@para{" (unsyntax (bold "Hi")) "}")))
+  (let ([cls (classes 'scribble (read-fixture "scribble-basic.scrbl"))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'punct cls))
+    (check-not-false (member 'plain cls))
+    (check-true ((class-count 'keyword cls) . >= . 2)))
   (check-not-false (mdn-url-for-token 'css 'name "color"))
   (check-not-false (mdn-url-for-token 'html 'keyword "div"))
   (check-not-false (mdn-url-for-token 'js 'keyword "const"))

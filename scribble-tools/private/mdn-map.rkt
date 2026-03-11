@@ -159,9 +159,17 @@
    (list 'js 'name "Math" "Web/JavaScript/Reference/Global_Objects/Math")
    (list 'js 'name "JSON" "Web/JavaScript/Reference/Global_Objects/JSON")
    (list 'js 'name "console" "Web/API/console")
+   (list 'js 'name "fetch" "Web/API/Window/fetch")
    (list 'js 'prop-name "log" "Web/API/console/log_static")
    (list 'js 'prop-name "error" "Web/API/console/error_static")
    (list 'js 'prop-name "warn" "Web/API/console/warn_static")
+   (list 'js 'method-name "querySelector" "Web/API/Document/querySelector")
+   (list 'js 'method-name "querySelectorAll" "Web/API/Document/querySelectorAll")
+   (list 'js 'method-name "getElementById" "Web/API/Document/getElementById")
+   (list 'js 'method-name "createElement" "Web/API/Document/createElement")
+   (list 'js 'method-name "appendChild" "Web/API/Node/appendChild")
+   (list 'js 'method-name "addEventListener" "Web/API/EventTarget/addEventListener")
+   (list 'js 'method-name "json" "Web/API/Response/json")
    (list 'js 'method-name "map" "Web/JavaScript/Reference/Global_Objects/Array/map")
    (list 'js 'method-name "filter" "Web/JavaScript/Reference/Global_Objects/Array/filter")
    (list 'js 'method-name "reduce" "Web/JavaScript/Reference/Global_Objects/Array/reduce")
@@ -203,6 +211,79 @@
 (define (mk-entries lang cls toks mk-path)
   (for/list ([t (in-list toks)])
     (list lang cls t (mk-path t))))
+
+(define js-webapi-objects
+  '("CanvasRenderingContext2D"
+    "WebGLRenderingContext"
+    "WebGL2RenderingContext"
+    "ImageBitmapRenderingContext"
+    "console"
+    "Document" "Window" "Element" "HTMLElement" "Node" "EventTarget"
+    "Navigator" "Location" "History"
+    "Response" "HTMLCanvasElement"))
+
+(define js-webapi-method-owner-pairs
+  ;; Mirrors the API-owner heuristics used in lang-code.rkt.
+  '(("querySelector" . "Document")
+    ("querySelectorAll" . "Document")
+    ("getElementById" . "Document")
+    ("getElementsByClassName" . "Document")
+    ("getElementsByTagName" . "Document")
+    ("createElement" . "Document")
+    ("createTextNode" . "Document")
+    ("matches" . "Element")
+    ("closest" . "Element")
+    ("setAttribute" . "Element")
+    ("getAttribute" . "Element")
+    ("hasAttribute" . "Element")
+    ("removeAttribute" . "Element")
+    ("appendChild" . "Node")
+    ("removeChild" . "Node")
+    ("insertBefore" . "Node")
+    ("replaceChild" . "Node")
+    ("cloneNode" . "Node")
+    ("addEventListener" . "EventTarget")
+    ("removeEventListener" . "EventTarget")
+    ("dispatchEvent" . "EventTarget")
+    ("requestAnimationFrame" . "Window")
+    ("cancelAnimationFrame" . "Window")
+    ("setTimeout" . "Window")
+    ("clearTimeout" . "Window")
+    ("setInterval" . "Window")
+    ("clearInterval" . "Window")
+    ("getContext" . "HTMLCanvasElement")
+    ("fillRect" . "CanvasRenderingContext2D")
+    ("json" . "Response")
+    ("log" . "console")
+    ("info" . "console")
+    ("warn" . "console")
+    ("error" . "console")
+    ("debug" . "console")
+    ("dir" . "console")
+    ("table" . "console")
+    ("trace" . "console")
+    ("assert" . "console")
+    ("group" . "console")
+    ("groupCollapsed" . "console")
+    ("groupEnd" . "console")
+    ("time" . "console")
+    ("timeLog" . "console")
+    ("timeEnd" . "console")
+    ("count" . "console")
+    ("countReset" . "console")))
+
+(define (webapi-method-path owner method)
+  (define canonical-owner
+    (cond
+      [(string=? owner "console") "console"]
+      [(member method '("addEventListener" "removeEventListener" "dispatchEvent"))
+       "EventTarget"]
+      [(member method '("appendChild" "removeChild" "insertBefore" "replaceChild" "cloneNode"))
+       "Node"]
+      [else owner]))
+  (if (string=? canonical-owner "console")
+      (format "Web/API/console/~a_static" method)
+      (format "Web/API/~a/~a" canonical-owner method)))
 
 (define mdn-generated-extra-entries
   (append
@@ -302,7 +383,13 @@
    (mk-entries
     'html 'name
     '("display" "position" "opacity" "visibility" "text-align")
-    (lambda (t) (string-append "Web/CSS/" t)))))
+    (lambda (t) (string-append "Web/CSS/" t)))
+   (mk-entries
+    'js 'name
+    js-webapi-objects
+    (lambda (t) (string-append "Web/API/" t)))
+   (for/list ([p (in-list js-webapi-method-owner-pairs)])
+     (list 'js 'method-name (car p) (webapi-method-path (cdr p) (car p))))))
 
 (define mdn-default-map-entries
   (append mdn-default-map-entries/base mdn-generated-extra-entries))
@@ -417,7 +504,23 @@
 (define (mdn-url-for-token lang cls token)
   (define t (normalize-token token))
   (define key (list lang cls t))
+  (define css-name-key (list 'css 'name t))
+  (define js-keyword-key (list 'js 'keyword t))
+  (define js-method-key (list 'js 'method-name t))
+  (define js-prop-key (list 'js 'prop-name t))
   (or (hash-ref (effective-map) key #f)
+      ;; CSS snippets without declaration context can classify property-like
+      ;; identifiers as keywords. Reuse CSS property docs in that case.
+      (and (eq? lang 'css)
+           (eq? cls 'keyword)
+           (hash-ref (effective-map) css-name-key #f))
+      ;; JS snippets can classify standalone API methods as plain names.
+      ;; If so, reuse known JS keyword/method/property docs.
+      (and (eq? lang 'js)
+           (eq? cls 'name)
+           (or (hash-ref (effective-map) js-keyword-key #f)
+               (hash-ref (effective-map) js-method-key #f)
+               (hash-ref (effective-map) js-prop-key #f)))
       (fallback-url-for-token lang cls t)))
 
 (define (mdn-install-map! entries-or-path)
@@ -457,6 +560,13 @@
   (check-not-false (mdn-url-for-token 'css 'name "display"))
   (check-not-false (mdn-url-for-token 'css 'name "accent-color"))
   (check-not-false (mdn-url-for-token 'css 'name "mask-border-repeat"))
+  (check-not-false (mdn-url-for-token 'css 'keyword "display"))
+  (check-not-false (mdn-url-for-token 'css 'keyword "grid"))
+  (check-not-false (mdn-url-for-token 'js 'name "querySelector"))
+  (check-not-false (mdn-url-for-token 'js 'name "async"))
+  (check-not-false (mdn-url-for-token 'js 'name "await"))
+  (check-not-false (mdn-url-for-token 'js 'name "fetch"))
+  (check-not-false (mdn-url-for-token 'js 'method-name "json"))
   (check-not-false (mdn-url-for-token 'html 'keyword "dialog"))
   (check-not-false (mdn-url-for-token 'html 'keyword "acronym"))
   (check-false (mdn-url-for-token 'html 'keyword "not-a-real-tag"))

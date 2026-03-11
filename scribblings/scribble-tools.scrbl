@@ -9,12 +9,222 @@
 @author+email["Jens Axel Søgaard" "jensaxel@soegaard.net"]
 @defmodule[scribble-tools]
 
-This library provides Scribble forms for typesetting CSS, HTML, and
-JavaScript snippets with syntax coloring. The inline forms
-(@racket[css-code], @racket[html-code], and @racket[js-code]) produce
-content, while the block forms (@racket[cssblock], @racket[htmlblock],
-and @racket[jsblock]) produce code blocks with optional line numbers,
+This library provides Scribble forms for typesetting CSS, HTML,
+JavaScript, and Scribble snippets with syntax coloring. The inline
+forms (@racket[css-code], @racket[html-code], @racket[js-code], and
+@racket[scribble-code]) produce content, while the block forms
+(@racket[cssblock], @racket[htmlblock], @racket[jsblock], and
+@racket[scribbleblock]) produce code blocks with optional line numbers,
 file labels, and escapes.
+
+@section{Guide}
+
+This section gives a practical introduction to the forms and the most
+useful options.
+
+@subsection[#:tag "reference-inline-forms"]{Inline Forms}
+
+Use inline forms when you want code inside running text:
+
+@tabular[
+ #:sep @hspace[2]
+  (list
+  (list @bold{Language} @bold{Scribble Form})
+  (list "CSS"
+        @scribble-code["@css-code{.card { color: #c33; }}"])
+  (list "HTML"
+        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
+  (list "JavaScript"
+        @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
+  (list "Scribble"
+        @scribble-code["@scribble-code{\"@bold{Hello} world.\"}"]))]
+
+@tabular[
+ #:sep @hspace[2]
+ (list
+  (list @bold{Language} @bold{Result})
+  (list "CSS"           @css-code{.card { color: #c33; }})
+  (list "HTML"          @html-code{<button class="primary">Save</button>})
+  (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
+  (list "Scribble"      @scribble-code["@bold{Hello} world."]))]
+
+@subsection[#:tag "reference-block-forms"]{Block Forms}
+
+Use block forms for larger snippets:
+
+@tabular[
+ #:sep @hspace[3]
+ (list
+  (list
+   @nested{@bold{CSS form}
+
+           @italic{Scribble source}
+           @scribbleblock[
+             "@cssblock{\n"
+             ".card {\n"
+             "  color: #c33;\n"
+             "  border-radius: 12px;\n"
+             "}\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @cssblock{
+           .card {
+             color: #c33;
+             border-radius: 12px;
+           }
+           }})
+  (list
+   @nested{@bold{HTML form}
+
+           @italic{Scribble source}
+           @scribbleblock[
+             "@htmlblock{\n"
+             "<main>\n"
+             "  <h1>Hello</h1>\n"
+             "  <p>Welcome</p>\n"
+             "</main>\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @htmlblock{
+           <main>
+             <h1>Hello</h1>
+             <p>Welcome</p>
+           </main>
+           }})
+  (list
+   @nested{@bold{JavaScript form}
+
+           @italic{Scribble source}
+           @scribbleblock[
+             "@jsblock{\n"
+             "async function loadData() {\n"
+             "  const r = await fetch(\"/api/data\");\n"
+             "  return r.json();\n"
+             "}\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @jsblock{
+           async function loadData() {
+             const r = await fetch("/api/data");
+             return r.json();
+           }
+           }})
+  (list
+   @nested{@bold{Scribble form}
+
+           @italic{Scribble source}
+           @scribbleblock[
+             "@scribbleblock[\"@section{Greeting}\\n\"\n"
+             "               \"@bold{Hello}, Scribble!\\n\"]\n"]}
+   @nested{@italic{Rendered result}
+           @scribbleblock["@section{Greeting}\n"
+                          "@bold{Hello}, Scribble!\n"]}))]
+
+@subsection{Block Form Decorations}
+
+Use these options to add decorations to block output:
+
+@tabular[
+ #:sep @hspace[3]
+ (list
+  (list @italic{Scribble source} @italic{Rendered result})
+  (list
+   @nested{@bold{Line numbers}
+
+           @scribbleblock[
+             "@cssblock[#:line-numbers 1]{\n"
+             ".card {\n"
+             "  color: #c33;\n"
+             "}\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @cssblock[#:line-numbers 1]{
+           .card {
+             color: #c33;
+           }
+           }})
+  (list
+   @nested{@bold{File name}
+
+           @scribbleblock[
+             "@cssblock[#:file \"styles.css\"]{\n"
+             ".card {\n"
+             "  color: #c33;\n"
+             "}\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @cssblock[#:file "styles.css"]{
+           .card {
+             color: #c33;
+           }
+           }})
+  (list
+   @nested{@bold{Line numbers + file name}
+
+           @scribbleblock[
+             "@cssblock[#:line-numbers 1 #:file \"styles.css\"]{\n"
+             ".card {\n"
+             "  color: #c33;\n"
+             "}\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @cssblock[#:line-numbers 1 #:file "styles.css"]{
+           .card {
+             color: #c33;
+           }
+           }}))]
+
+@subsection{Preview Visualizations}
+
+@racket[css-code] and @racket[cssblock] can show visual helpers:
+
+@cssblock[
+  #:color-swatch? #t
+  #:font-preview? #t
+  #:dimension-preview? #t
+  #:preview-mode 'always]{
+.badge {
+  color: #0a7;
+  background: linear-gradient(90deg, #0a7, #5cf);
+  font-family: "Fira Code", monospace;
+  margin: 16px;
+  border-radius: 4px;
+  border-radius: 8px;
+}
+}
+
+@subsection{Escapes}
+
+All forms support escapes to splice Scribble content:
+
+@italic{Scribble source}
+@scribbleblock[
+  "@cssblock[#:escape unq\n"
+  "          \".notice { color: \"\n"
+  "          (unq (bold \"tomato\"))\n"
+  "          \"; }\"]\n"]
+
+@italic{Rendered result}
+@cssblock[#:escape unq
+          ".notice { color: "
+          (unq (bold "tomato"))
+          "; }"]
+
+@subsection{MDN Documentation Links}
+
+By default, code output includes links to MDN documentation for common:
+
+@itemlist[
+ @item{CSS properties (for example @css-code{display}, @css-code{grid}, @css-code{border-radius}).}
+ @item{HTML elements (for example @html-code{<section>}, @html-code{<button>}, @html-code{<script>}).}
+ @item{Common JavaScript classes, methods, and language keywords (for example @js-code{Array}, @js-code{querySelector}, @js-code{map}, @js-code{const}).}
+]
+
+@section{Reference}
+
+This section contains the reference documentation for the forms and procedures.
+
+@subsection{Inline Forms}
 
 @defform/subs[(css-code maybe-option ... str-expr ...+)
               ([maybe-option code:blank
@@ -43,7 +253,7 @@ declarations such as @racket[margin], @racket[padding], @racket[gap],
 and @racket[border-radius] get tiny inline visualizers (default:
 @racket[#f]).
 
-@racket[#:mdn-links?] controls whether common CSS/HTML/JS tokens are
+@racket[#:mdn-links?] controls whether common CSS tokens are
 wrapped as hyperlinks to MDN documentation (default: @racket[#t]).
 
 @racket[#:preview-mode] controls when previews are shown:
@@ -76,8 +286,10 @@ An optional @racket[#:escape] identifier configures escapes of the
 form @racket[(escape-id expr)] to splice @racket[expr]-produced
 elements into the typeset output.
 
-@racket[#:mdn-links?] controls whether common CSS/HTML/JS tokens are
-wrapped as hyperlinks to MDN documentation (default: @racket[#t]).
+@racket[#:mdn-links?] controls whether common HTML tokens are wrapped
+as hyperlinks to MDN documentation, including CSS and JavaScript
+tokens that appear inside @tt{<style>} and @tt{<script>} sections
+(default: @racket[#t]).
 
 Example: @html-code{<em class="note">Hi</em>}
 }
@@ -93,7 +305,7 @@ Newlines and surrounding whitespace are collapsed to single spaces.
 @racket[#:jsx?] enables JSX-aware tokenization for snippets that contain
 embedded tags (default: @racket[#f]).
 
-@racket[#:mdn-links?] controls whether common CSS/HTML/JS tokens are
+@racket[#:mdn-links?] controls whether common JavaScript tokens are
 wrapped as hyperlinks to MDN documentation (default: @racket[#t]).
 
 An optional @racket[#:escape] identifier configures escapes of the
@@ -102,6 +314,21 @@ elements into the typeset output.
 
 Example: @js-code{const n = 42;}
 }
+
+@defform/subs[(scribble-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Scribble source code.
+Newlines and surrounding whitespace are collapsed to single spaces.
+
+An optional @racket[#:escape] identifier configures escapes of the
+form @racket[(escape-id expr)] to splice @racket[expr]-produced
+elements into the typeset output.
+
+Example: @scribble-code["@bold{Hi} there."]
+}
+
+@subsection{Block Forms}
 
 @defform/subs[(cssblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
@@ -129,7 +356,7 @@ Options:
  @item{@racket[#:color-swatch?] controls whether detected CSS color literals are followed by a small swatch; gradient literals are shown as a small bar (default: @racket[#t]).}
  @item{@racket[#:font-preview?] controls whether @racket[font-family] declarations are followed by a small @tt{Aa} preview (default: @racket[#t]).}
  @item{@racket[#:dimension-preview?] controls whether spacing and radius declarations (for example @racket[margin], @racket[padding], @racket[gap], @racket[letter-spacing], @racket[text-indent], @racket[filter: blur(...)], and @racket[border-radius]) are followed by small visualizer decorations (default: @racket[#f]).}
- @item{@racket[#:mdn-links?] controls whether common CSS/HTML/JS tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
+ @item{@racket[#:mdn-links?] controls whether common CSS tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
  @item{@racket[#:preview-mode] controls when previews are shown: @racket['always], @racket['hover], or @racket['none] (default: @racket['always]).}
  @item{@racket[#:preview-tooltips?] controls whether preview decorations include tooltip text and interactive hover/focus tooltip UI (default: @racket[#t]).}
  @item{@racket[#:preview-css-url] optionally points to an external stylesheet URL/path for preview classes; when set, runtime links that stylesheet instead of injecting inline preview CSS (default: @racket[#f]).}
@@ -146,7 +373,7 @@ Example:
 }
 }
 
-@section{Preview Legend}
+@subsection{Preview Legend}
 
 @itemlist[
  @item{Color square: a detected color literal such as @tt{#c33} or @racket[red].}
@@ -186,7 +413,7 @@ Options:
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
- @item{@racket[#:mdn-links?] controls whether common CSS/HTML/JS tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
+ @item{@racket[#:mdn-links?] controls whether common HTML tokens are wrapped as hyperlinks to MDN documentation, including CSS and JavaScript tokens that appear inside @tt{<style>} and @tt{<script>} sections (default: @racket[#t]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
  @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
 ]
@@ -232,7 +459,7 @@ Options:
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:jsx?] enables JSX-aware tokenization for snippets containing embedded tags (default: @racket[#f]).}
- @item{@racket[#:mdn-links?] controls whether common CSS/HTML/JS tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
+ @item{@racket[#:mdn-links?] controls whether common JavaScript tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
  @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
 ]
@@ -256,9 +483,48 @@ for (const n of [1, 2, 3]) {
   total += n;
 }
 }
+
+@defform/subs[(scribbleblock option ... str-expr ...+)
+              ([option (code:line #:indent indent-expr)
+                       (code:line #:line-numbers line-number-expr)
+                       (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:file filename-expr)
+                       (code:line #:escape escape-id)])
+              #:contracts ([indent-expr exact-nonnegative-integer?]
+                           [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [line-number-sep-expr exact-nonnegative-integer?])]{
+Typesets Scribble source as a block inset using @racket['code-inset].
+Options:
+
+@itemlist[
+ @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
+ @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
+ @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
+]
+
+Example:
+
+@scribbleblock[#:line-numbers 1
+               "@title{Small Example}\n"
+               "This is @bold{Scribble} source.\n"]
 }
 
-@section{MDN Maps}
+@defform[(scribbleblock0 option ... str-expr ...+)]{
+Like @racket[scribbleblock], but without the inset wrapper.
+
+Example:
+
+@scribbleblock0[#:indent 2
+                "@itemlist[\n"
+                " @item{Alpha}\n"
+                " @item{Beta}\n"
+                "]\n"]
+}
+}
+
+@subsection{MDN Maps}
 
 @defproc[(mdn-map-path) path?]{
 Returns the user override map path used by @racket[#:mdn-links?].

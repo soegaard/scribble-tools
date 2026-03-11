@@ -2,11 +2,12 @@
 
 @(require scribble-tools)
 
-@title{Example: CSS, HTML, and JavaScript Code Forms}
+@title{Example: CSS, HTML, JavaScript, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
-inline JS with @js-code{const n = 42;}.
+inline JS with @js-code{const n = 42;} and
+inline Scribble with @scribble-code["@bold{Hi} there."].
 
 @section{Inline Forms}
 
@@ -31,6 +32,8 @@ Inline CSS (external preview stylesheet):
 Inline HTML: @html-code{<em class="highlight">Hi</em>}
 
 Inline JS: @js-code{const n = 42;}
+
+Inline Scribble: @scribble-code["@bold{Hi} there."]
 
 Inline JS (JSX mode): @js-code[#:jsx? #t]{const el = <Badge tone="ok">{label}</Badge>;}
 
@@ -216,6 +219,46 @@ for (const n of [1, 2, 3]) {
   total += n;
 }
 }
+
+@section{Scribble Block}
+
+@scribbleblock[
+  "@title{Mini Document}\n"
+  "\n"
+  "This is @bold{Scribble} source shown as code.\n"]
+
+@section{Scribble Block With Line Numbers}
+
+@scribbleblock[#:line-numbers 1
+               #:line-number-sep 2
+               "@section{List}\n"
+               "@itemlist[\n"
+               "  @item{One}\n"
+               "  @item{Two}\n"
+               "]\n"]
+
+@section{Scribble Block With File Name}
+
+@scribbleblock[#:file "snippet.scrbl"
+               "@title{With File Label}\n"
+               "@para{A paragraph in Scribble source.}\n"]
+
+@section{Scribble Block With Escape}
+
+@scribbleblock[
+  #:escape unq
+  "@para{Status: "
+  (unq (italic "ok"))
+  "}"
+]
+
+@subsection{Scribble Block0}
+
+@scribbleblock0[#:indent 2
+                "@itemlist[\n"
+                "  @item{Alpha}\n"
+                "  @item{Beta}\n"
+                "]\n"]
 
 @section{HTML Document With Inline Style and Script}
 

@@ -6,9 +6,11 @@ Current forms:
 - `css-code`
 - `html-code`
 - `js-code`
+- `scribble-code`
 - `cssblock` / `cssblock0`
 - `htmlblock` / `htmlblock0`
 - `jsblock` / `jsblock0`
+- `scribbleblock` / `scribbleblock0`
 
 ## Usage
 
