@@ -76,9 +76,13 @@ Example: @html-code{<em class="note">Hi</em>}
 
 @defform/subs[(js-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
+                             (code:line #:jsx? jsx?-expr)
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline JavaScript code.
 Newlines and surrounding whitespace are collapsed to single spaces.
+
+@racket[#:jsx?] enables JSX-aware tokenization for snippets that contain
+embedded tags (default: @racket[#f]).
 
 An optional @racket[#:escape] identifier configures escapes of the
 form @racket[(escape-id expr)] to splice @racket[expr]-produced
@@ -197,6 +201,7 @@ Example:
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:jsx? jsx?-expr)
                        (code:line #:file filename-expr)
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
@@ -209,6 +214,7 @@ Options:
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:jsx?] enables JSX-aware tokenization for snippets containing embedded tags (default: @racket[#f]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
  @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
 ]

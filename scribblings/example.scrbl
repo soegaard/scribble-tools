@@ -32,6 +32,8 @@ Inline HTML: @html-code{<em class="highlight">Hi</em>}
 
 Inline JS: @js-code{const n = 42;}
 
+Inline JS (JSX mode): @js-code[#:jsx? #t]{const el = <Badge tone="ok">{label}</Badge>;}
+
 @section{CSS Block}
 
 @cssblock[#:dimension-preview? #t]{
@@ -136,6 +138,13 @@ h1.title {
 @jsblock{
 const square = (x) => x * x;
 console.log(square(5));
+}
+
+@section{JavaScript Block (JSX)}
+
+@jsblock[#:jsx? #t]{
+const title = "Hi";
+const view = <Card className="x">{title}</Card>;
 }
 
 @section{JavaScript Block With Line Numbers}

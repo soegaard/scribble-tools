@@ -27,6 +27,18 @@
 ;; Dedicated style for HTML tag names; do not rely on .RktSym/.RktKw theme mappings.
 (define html-tag-color
   (make-style #f (list (attributes '((style . "color: #07A;"))))))
+(define js-keyword-color
+  (make-style #f (list (attributes '((style . "color: #07A;"))))))
+(define js-name-color
+  (make-style #f (list (attributes '((style . "color: #262680;"))))))
+(define js-decl-name-color
+  (make-style #f (list (attributes '((style . "color: #795E26;"))))))
+(define js-operator-color
+  (make-style #f (list (attributes '((style . "color: #8A4F00;"))))))
+(define css-keyword-color
+  (make-style #f (list (attributes '((style . "color: #07A;"))))))
+(define css-name-color
+  (make-style #f (list (attributes '((style . "color: #262680;"))))))
 
 (define css-color-keywords
   (list->set
@@ -59,6 +71,8 @@
 
 (define current-preview-css-url (make-parameter #f))
 (define current-preview-tooltips? (make-parameter #t))
+(define current-jsx? (make-parameter #f))
+(define current-js-template-depth (make-parameter 0))
 (define current-html-style-color-swatch? (make-parameter #t))
 (define current-html-style-font-preview? (make-parameter #t))
 (define current-html-style-dimension-preview? (make-parameter #t))
@@ -648,9 +662,9 @@ JS
     [(css)
      (case cls
        [(comment) comment-color]
-       [(keyword) keyword-color]
+       [(keyword) css-keyword-color]
        [(value) value-color]
-       [(name) symbol-color]
+       [(name) css-name-color]
        [(punct) paren-color]
        [else no-color])]
     [(html)
@@ -658,15 +672,19 @@ JS
        [(comment) comment-color]
        [(keyword) html-tag-color]
        [(value) value-color]
+       [(decl-name) js-decl-name-color]
        [(name) symbol-color]
+       [(operator) js-operator-color]
        [(punct) paren-color]
        [else no-color])]
     [(js)
      (case cls
        [(comment) comment-color]
-       [(keyword) keyword-color]
+       [(keyword) js-keyword-color]
        [(value) value-color]
-       [(name) symbol-color]
+       [(decl-name) js-decl-name-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
        [(punct) paren-color]
        [else no-color])]
     [else no-color]))
@@ -807,7 +825,8 @@ JS
 (define js-keywords
   '(break case catch class const continue debugger default delete do else export extends
           false finally for function if import in instanceof let new null of return super
-          switch this throw true try typeof var void while with yield await))
+          switch this throw true try typeof var void while with yield await
+          as from static get set enum implements interface package private protected public))
 
 (define js-literal-keywords
   '(true false null this super))
@@ -821,13 +840,30 @@ JS
 (define (js-ident-char? c)
   (or (js-ident-start? c) (char-numeric? c)))
 
+(define (read-js-digit-seq s i pred?)
+  ;; Accept separators but only between digits (reject leading/trailing/consecutive _).
+  (define len (string-length s))
+  (let loop ([k i] [saw-digit? #f] [prev-us? #f])
+    (if (>= k len)
+        (if prev-us? (sub1 k) k)
+        (let ([c (string-ref s k)])
+          (cond
+            [(pred? c) (loop (add1 k) #t #f)]
+            [(char=? c #\_)
+             (if (and saw-digit?
+                      (not prev-us?)
+                      (< (add1 k) len)
+                      (pred? (string-ref s (add1 k))))
+                 (loop (add1 k) saw-digit? #t)
+                 k)]
+            [else k])))))
+
 (define (read-js-number s i)
   (define len (string-length s))
   (define j0
     (if (and (< i len) (member (string-ref s i) '(#\+ #\-)))
         (add1 i)
         i))
-  (define (digit-or-underscore? c) (or (char-numeric? c) (char=? c #\_)))
   (cond
     [(and (<= (+ j0 2) len)
           (char=? (string-ref s j0) #\0)
@@ -835,24 +871,62 @@ JS
      (define kind (char-downcase (string-ref s (add1 j0))))
      (define pred
        (case kind
-         [(#\x) (lambda (c) (or (hex-digit? c) (char=? c #\_)))]
-         [(#\o) (lambda (c) (or (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7))
-                                (char=? c #\_)))]
-         [else (lambda (c) (or (member c '(#\0 #\1)) (char=? c #\_)))]))
-     (read-while s (+ j0 2) pred)]
+         [(#\x) hex-digit?]
+         [(#\o) (lambda (c) (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7)))]
+         [else (lambda (c) (member c '(#\0 #\1)))]))
+     (define jx (read-js-digit-seq s (+ j0 2) pred))
+     (if (and (< jx len) (char=? (string-ref s jx) #\n))
+         (add1 jx)
+         jx)]
     [else
-     (define j1 (read-while s j0 digit-or-underscore?))
-     (define j2
-       (if (and (< j1 len) (char=? (string-ref s j1) #\.))
-           (read-while s (add1 j1) digit-or-underscore?)
-           j1))
-     (if (and (< j2 len) (member (string-ref s j2) '(#\e #\E)))
-         (let* ([j3 (if (and (< (add1 j2) len)
-                             (member (string-ref s (add1 j2)) '(#\+ #\-)))
-                        (+ j2 2)
-                        (add1 j2))])
-           (read-while s j3 digit-or-underscore?))
-         j2)]))
+     (define has-dot-leading?
+       (and (< j0 len)
+            (char=? (string-ref s j0) #\.)
+            (< (add1 j0) len)
+            (char-numeric? (string-ref s (add1 j0)))))
+     (define j-int
+       (if has-dot-leading?
+           j0
+           (read-js-digit-seq s j0 char-numeric?)))
+     (define-values (j-frac has-dot?)
+       (if (and (< j-int len) (char=? (string-ref s j-int) #\.))
+           (values (read-js-digit-seq s (add1 j-int) char-numeric?) #t)
+           (values j-int #f)))
+     (define-values (j-exp has-exp?)
+       (if (and (< j-frac len) (member (string-ref s j-frac) '(#\e #\E)))
+           (let* ([k0 (add1 j-frac)]
+                  [k1 (if (and (< k0 len) (member (string-ref s k0) '(#\+ #\-)))
+                          (add1 k0)
+                          k0)]
+                  [k2 (read-js-digit-seq s k1 char-numeric?)])
+             (if (> k2 k1)
+                 (values k2 #t)
+                 (values j-frac #f)))
+           (values j-frac #f)))
+     (define j-end
+       (if (and (< j-exp len)
+                (char=? (string-ref s j-exp) #\n)
+                (not has-dot?)
+                (not has-exp?))
+           (add1 j-exp)
+           j-exp))
+     (if (> j-end j0) j-end (add1 i))]))
+
+(define (read-js-string-literal s i)
+  ;; For recovery, stop at line boundary if the quote is not closed on this line.
+  (define len (string-length s))
+  (define q (string-ref s i))
+  (let loop ([k (add1 i)] [escaped? #f])
+    (cond
+      [(>= k len) len]
+      [else
+       (define c (string-ref s k))
+       (cond
+         [escaped? (loop (add1 k) #f)]
+         [(char=? c #\\) (loop (add1 k) #t)]
+         [(char=? c q) (add1 k)]
+         [(or (char=? c #\newline) (char=? c #\return)) k]
+         [else (loop (add1 k) #f)])])))
 
 (define (read-js-regex s i)
   (define len (string-length s))
@@ -870,6 +944,165 @@ JS
          [(char=? c #\[) (loop (add1 k) #f #t)]
          [(and in-class? (char=? c #\])) (loop (add1 k) #f #f)]
          [else (loop (add1 k) #f in-class?)])])))
+
+(define (prev-nonspace-char s i)
+  (let loop ([k (sub1 i)])
+    (cond
+      [(negative? k) #f]
+      [(char-whitespace? (string-ref s k)) (loop (sub1 k))]
+      [else (string-ref s k)])))
+
+(define js-operators
+  '(">>>=" "<<=" ">>=" "&&=" "||=" "??=" "**=" "===" "!=="
+    ">>>" "<<" ">>" "==" "!=" "<=" ">=" "&&" "||" "??"
+    "++" "--" "+=" "-=" "*=" "/=" "%=" "&=" "|=" "^=" "=>"
+    "**" "?." "=" "<" ">" "!" "~" "+" "-" "*" "/" "%" "&"
+    "|" "^" "?" ":" "@"))
+
+(define (string-prefix-at? s i prefix)
+  (define n (string-length prefix))
+  (and (<= (+ i n) (string-length s))
+       (string=? (substring s i (+ i n)) prefix)))
+
+(define (read-js-operator s i)
+  (for/or ([op (in-list js-operators)])
+    (and (string-prefix-at? s i op)
+         (+ i (string-length op)))))
+
+(define (js-operator-can-start-regex? txt)
+  (and (not (member txt '("++" "--")))
+       (member txt
+               '("=" "==" "===" "!=" "!==" "+" "-" "*" "/" "%" "+=" "-="
+                 "*=" "/=" "%=" "&&" "||" "&&=" "||=" "&" "|" "^" "~"
+                 "<" ">" "<=" ">=" "<<" ">>" ">>>" "<<=" ">>=" ">>>="
+                 "=>" "??" "??=" "?." "?" ":" "!" "@"))))
+
+(define js-condition-open-keywords
+  '(if while for switch catch with))
+
+(define (js-delimiter-char? ch)
+  (member ch '(#\{ #\} #\( #\) #\[ #\] #\, #\; #\.)))
+
+(define (js-ident-can-start-regex? id kw?)
+  (and kw?
+       (not (memq id js-literal-keywords))
+       (memq id js-regex-context-keywords)))
+
+(define (jsx-ident-char? c)
+  (or (js-ident-char? c) (member c '(#\- #\: #\.))))
+
+(define (jsx-start-candidate? s i)
+  (define len (string-length s))
+  (and (< (add1 i) len)
+       (let ([n (string-ref s (add1 i))])
+         (or (char=? n #\/) (char=? n #\>) (char-alphabetic? n)))
+       (let ([p (prev-nonspace-char s i)])
+         (or (not p)
+             (member p
+                     '(#\( #\[ #\{ #\= #\, #\: #\? #\; #\! #\> #\| #\&
+                       #\+ #\- #\* #\/))))))
+
+(define (read-jsx-brace-expr s i)
+  (define len (string-length s))
+  (if (or (>= i len) (not (char=? (string-ref s i) #\{)))
+      (values null (min len (add1 i)))
+      (let* ([expr-start (add1 i)]
+             [expr-end (js-template-expr-end s expr-start)]
+             [expr-src (if (<= expr-end len) (substring s expr-start expr-end) "")]
+             [inner (tokenize-js expr-src)])
+        (values (append (list (cons 'punct "{"))
+                        inner
+                        (if (< expr-end len) (list (cons 'punct "}")) null))
+                (if (< expr-end len) (add1 expr-end) len)))))
+
+(define (tokenize-jsx-tag s i)
+  (define len (string-length s))
+  (define tokens null)
+  (define (push cls a b)
+    (when (< a b)
+      (set! tokens (cons (cons cls (substring s a b)) tokens))))
+  (define (skip-ws j)
+    (define k (read-while s j char-whitespace?))
+    (push 'plain j k)
+    k)
+  (define (read-attr-value j)
+    (cond
+      [(>= j len) j]
+      [else
+       (define q (string-ref s j))
+       (cond
+         [(or (char=? q #\") (char=? q #\'))
+          (define end (read-string-literal s j))
+          (push 'value j end)
+          end]
+         [(char=? q #\{)
+          (define-values (expr k) (read-jsx-brace-expr s j))
+          (set! tokens (append (reverse expr) tokens))
+          k]
+         [else
+          (define end
+            (read-while s j
+                        (lambda (x)
+                          (not (or (char-whitespace? x)
+                                   (char=? x #\>)
+                                   (char=? x #\/))))))
+          (push 'value j end)
+          end])]))
+  (define j i)
+  (push 'punct j (add1 j)) ; <
+  (set! j (add1 j))
+  (when (and (< j len) (char=? (string-ref s j) #\/))
+    (push 'punct j (add1 j))
+    (set! j (add1 j)))
+  (cond
+    [(and (< j len) (char=? (string-ref s j) #\>))
+     (push 'punct j (add1 j))
+     (values (reverse tokens) (add1 j))]
+    [else
+     (define name-start j)
+     (set! j (read-while s j jsx-ident-char?))
+     (if (> j name-start)
+         (push 'keyword name-start j)
+         (push 'plain name-start (min len (add1 name-start))))
+     (let loop ()
+       (cond
+         [(>= j len) (values (reverse tokens) j)]
+         [else
+          (define c (string-ref s j))
+          (define c2 (next-char s (add1 j)))
+          (cond
+            [(char-whitespace? c)
+             (set! j (skip-ws j))
+             (loop)]
+            [(char=? c #\>)
+             (push 'punct j (add1 j))
+             (values (reverse tokens) (add1 j))]
+            [(and c2 (char=? c #\/) (char=? c2 #\>))
+             (push 'punct j (add1 j))
+             (push 'punct (add1 j) (+ j 2))
+             (values (reverse tokens) (+ j 2))]
+            [(char=? c #\{)
+             (define-values (expr k) (read-jsx-brace-expr s j))
+             (set! tokens (append (reverse expr) tokens))
+             (set! j k)
+             (loop)]
+            [else
+             (define attr-start j)
+             (set! j (read-while s j jsx-ident-char?))
+             (if (= attr-start j)
+                 (begin
+                   (push 'plain j (add1 j))
+                   (set! j (add1 j))
+                   (loop))
+                 (begin
+                   (push 'name attr-start j)
+                   (set! j (skip-ws j))
+                   (when (and (< j len) (char=? (string-ref s j) #\=))
+                     (push 'punct j (add1 j))
+                     (set! j (add1 j))
+                     (set! j (skip-ws j))
+                     (set! j (read-attr-value j)))
+                   (loop)))])]))]))
 
 (define (js-template-expr-end s start)
   (define len (string-length s))
@@ -955,11 +1188,15 @@ JS
           (push 'punct k (+ k 2))
           (define expr-start (+ k 2))
           (define expr-end (js-template-expr-end s expr-start))
+          (define expr-src
+            (if (<= expr-end len)
+                (substring s expr-start expr-end)
+                ""))
           (define expr-tokens
-            (tokenize-js
-             (if (<= expr-end len)
-                 (substring s expr-start expr-end)
-                 "")))
+            (if (>= (current-js-template-depth) 8)
+                (list (cons 'plain expr-src))
+                (parameterize ([current-js-template-depth (add1 (current-js-template-depth))])
+                  (tokenize-js expr-src))))
           (set! tokens (append (reverse expr-tokens) tokens))
           (if (< expr-end len)
               (begin
@@ -974,82 +1211,121 @@ JS
 
 (define (tokenize-js s)
   (define len (string-length s))
-  (let loop ([i 0] [acc null] [can-start-regex? #t])
+  (let loop ([i 0]
+             [acc null]
+             [can-start-regex? #t]
+             [last-keyword #f]
+             [paren-stack null]
+             [decl-state 'none])
     (cond
       [(>= i len) (reverse acc)]
       [else
        (define ch (string-ref s i))
-       (define (emit cls j [next-can-start-regex? #f])
-         (loop j (cons (cons cls (substring s i j)) acc) next-can-start-regex?))
+       (define (emit cls j [next-can-start-regex? #f] [next-last-keyword #f] [next-paren-stack paren-stack] [next-decl-state decl-state])
+         (loop j
+               (cons (cons cls (substring s i j)) acc)
+               next-can-start-regex?
+               next-last-keyword
+               next-paren-stack
+               next-decl-state))
        (cond
+         [(and (current-jsx?)
+               (char=? ch #\<)
+               (jsx-start-candidate? s i))
+          (define-values (jsx-tokens j) (tokenize-jsx-tag s i))
+          (loop j (append (reverse jsx-tokens) acc) #f #f paren-stack decl-state)]
          [(and (char=? ch #\/)
                (< (add1 i) len)
                (char=? (string-ref s (add1 i)) #\*))
-          (emit 'comment (read-until s (+ i 2) "*/") can-start-regex?)]
+          (emit 'comment (read-until s (+ i 2) "*/") can-start-regex? last-keyword paren-stack decl-state)]
          [(and (char=? ch #\/)
                (< (add1 i) len)
                (char=? (string-ref s (add1 i)) #\/))
           (define j (read-until s (+ i 2) "\n"))
-          (emit 'comment j can-start-regex?)]
+          (emit 'comment j can-start-regex? last-keyword paren-stack decl-state)]
          [(or (char=? ch #\") (char=? ch #\'))
-          (emit 'value (read-string-literal s i) #f)]
+          (emit 'value (read-js-string-literal s i) #f #f paren-stack decl-state)]
          [(char=? ch #\`)
           (define-values (template-tokens j) (tokenize-js-template s i))
-          (loop j (append (reverse template-tokens) acc) #f)]
+          (loop j (append (reverse template-tokens) acc) #f #f paren-stack decl-state)]
          [(char-whitespace? ch)
-          (emit 'plain (add1 i) can-start-regex?)]
+          (emit 'plain (add1 i) can-start-regex? last-keyword paren-stack decl-state)]
          [(or (char-numeric? ch)
+              (and (char=? ch #\.)
+                   (< (add1 i) len)
+                   (char-numeric? (string-ref s (add1 i))))
               (and (member ch '(#\+ #\-))
                    (< (add1 i) len)
                    (let ([c2 (string-ref s (add1 i))])
                      (or (char-numeric? c2) (char=? c2 #\.)))))
-          (emit 'value (read-js-number s i) #f)]
+          (emit 'value (read-js-number s i) #f #f paren-stack decl-state)]
          [(js-ident-start? ch)
           (define j (read-while s i js-ident-char?))
           (define id (string->symbol (substring s i j)))
           (define kw? (memq id js-keywords))
-          (emit (if kw? 'keyword 'name)
+          (define decl-name?
+            (and (not kw?)
+                 (member decl-state '(var-name function-name class-name))))
+          (define next-decl
+            (cond
+              [(and kw? (member id '(const let var))) 'var-name]
+              [(and kw? (eq? id 'function)) 'function-name]
+              [(and kw? (eq? id 'class)) 'class-name]
+              [(and kw? (member id '(in of))) 'none]
+              [decl-name? 'none]
+              [else decl-state]))
+          (emit (cond [kw? 'keyword]
+                      [decl-name? 'decl-name]
+                      [else 'name])
                 j
-                (if kw?
-                    (and (not (memq id js-literal-keywords))
-                         (or (memq id js-regex-context-keywords)
-                             (eq? id 'return)
-                             (eq? id 'throw)))
-                    #f))]
-         [(and (char=? ch #\/)
-               (or (and (< (add1 i) len)
-                        (char=? (string-ref s (add1 i)) #\=))
-                   #t))
+                (if kw? (js-ident-can-start-regex? id kw?) #f)
+                (and kw? id)
+                paren-stack
+                next-decl)]
+         [(char=? ch #\/)
           (cond
             [can-start-regex?
              (define j (read-js-regex s i))
              (if j
                  (emit 'value j #f)
-                 (emit 'punct (if (and (< (add1 i) len)
-                                        (char=? (string-ref s (add1 i)) #\=))
-                                   (+ i 2)
-                                   (add1 i))
-                       #t))]
+                 (emit 'operator (or (read-js-operator s i) (add1 i))
+                       (js-operator-can-start-regex? (substring s i (or (read-js-operator s i) (add1 i))))
+                       #f paren-stack 'none))]
             [else
-             (emit 'punct (if (and (< (add1 i) len)
-                                   (char=? (string-ref s (add1 i)) #\=))
-                              (+ i 2)
-                              (add1 i))
-                   #t)])]
-         [(member ch
-                  '(#\{ #\} #\( #\) #\[ #\] #\, #\. #\; #\: #\? #\! #\= #\+ #\- #\* #\/ #\% #\< #\> #\& #\|))
-          (emit 'punct
-                (let ([c2 (next-char s (add1 i))])
-                  (if (and c2
-                           (or (and (member ch '(#\= #\! #\< #\>))
-                                    (char=? c2 #\=))
-                               (and (member ch '(#\+ #\- #\& #\| #\* #\%))
-                                    (or (char=? c2 #\=) (char=? c2 ch)))))
-                      (+ i 2)
-                      (add1 i)))
-                (not (member ch '(#\) #\] #\}))))] ; closers tend to precede division
+             (define j (or (read-js-operator s i) (add1 i)))
+             (define op (substring s i j))
+             (emit 'operator j (js-operator-can-start-regex? op) #f paren-stack 'none)])]
+         [(js-delimiter-char? ch)
+          (define j (add1 i))
+          (cond
+            [(char=? ch #\()
+             (define open-kind
+               (if (and last-keyword (memq last-keyword js-condition-open-keywords))
+                   'condition
+                   'group))
+             (emit 'punct j #t #f (cons open-kind paren-stack) decl-state)]
+            [(char=? ch #\))
+             (define popped (and (pair? paren-stack) (car paren-stack)))
+             (define rest-stack (if (pair? paren-stack) (cdr paren-stack) paren-stack))
+             (emit 'punct j (eq? popped 'condition) #f rest-stack
+                   (if (eq? decl-state 'var-name) 'none decl-state))]
+            [(or (char=? ch #\]) (char=? ch #\}))
+             (emit 'punct j #f #f paren-stack 'none)]
+            [(char=? ch #\;)
+             (emit 'punct j #t #f paren-stack 'none)]
+            [else
+             (emit 'punct j #t #f paren-stack decl-state)])]
+         [(read-js-operator s i)
+          (define j (read-js-operator s i))
+          (define op (substring s i j))
+          (define next-decl
+            (cond
+              [(and (eq? decl-state 'var-name) (string=? op ",")) 'var-name]
+              [(eq? decl-state 'var-name) 'none]
+              [else decl-state]))
+          (emit 'operator j (js-operator-can-start-regex? op) #f paren-stack next-decl)]
          [else
-          (emit 'plain (add1 i) can-start-regex?)])])))
+          (emit 'plain (add1 i) can-start-regex? last-keyword paren-stack decl-state)])])))
 
 (define (string-ci-prefix-at? s i prefix)
   (define n (string-length prefix))
@@ -1792,6 +2068,7 @@ JS
                                    #:preview-tooltips? [preview-tooltips? #t]
                                    #:preview-mode [preview-mode 'always]
                                    #:preview-css-url [preview-css-url #f]
+                                   #:jsx? [jsx? #f]
                                    #:inset? [inset? #t]
                                    chunks)
   (define html-style-color? (if (eq? lang 'html) #t color-swatch?))
@@ -1801,6 +2078,7 @@ JS
   (define tokens
     (parameterize ([current-preview-css-url preview-css-url]
                    [current-preview-tooltips? preview-tooltips?]
+                   [current-jsx? (and (eq? lang 'js) jsx?)]
                    [current-html-style-color-swatch? html-style-color?]
                    [current-html-style-font-preview? html-style-font?]
                    [current-html-style-dimension-preview? html-style-dim?]
@@ -1832,7 +2110,8 @@ JS
                                     #:dimension-preview? [dimension-preview? #f]
                                     #:preview-tooltips? [preview-tooltips? #t]
                                     #:preview-mode [preview-mode 'always]
-                                    #:preview-css-url [preview-css-url #f])
+                                    #:preview-css-url [preview-css-url #f]
+                                    #:jsx? [jsx? #f])
   (define html-style-color? (if (eq? lang 'html) #t color-swatch?))
   (define html-style-font? (if (eq? lang 'html) #t font-preview?))
   (define html-style-dim? (if (eq? lang 'html) #t dimension-preview?))
@@ -1840,6 +2119,7 @@ JS
   (define tokens
     (parameterize ([current-preview-css-url preview-css-url]
                    [current-preview-tooltips? preview-tooltips?]
+                   [current-jsx? (and (eq? lang 'js) jsx?)]
                    [current-html-style-color-swatch? html-style-color?]
                    [current-html-style-font-preview? html-style-font?]
                    [current-html-style-dimension-preview? html-style-dim?]
@@ -1947,6 +2227,39 @@ JS
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-for-syntax (do-js-block stx inset?)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:indent indent-expr:expr)
+                              #:defaults ([indent-expr #'0])
+                              #:name "#:indent keyword")
+                   (~optional (~seq #:line-numbers line-numbers-expr:expr)
+                              #:defaults ([line-numbers-expr #'#f])
+                              #:name "#:line-numbers keyword")
+                   (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
+                              #:defaults ([line-number-sep-expr #'1])
+                              #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:jsx? jsx-expr:expr)
+                              #:defaults ([jsx-expr #'#f])
+                              #:name "#:jsx? keyword")
+                   (~optional (~seq #:file filename-expr:expr)
+                              #:defaults ([filename-expr #'#f])
+                              #:name "#:file keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-block/chunks 'js
+                                  #:file filename-expr
+                                  #:indent indent-expr
+                                  #:line-numbers line-numbers-expr
+                                  #:line-number-sep line-number-sep-expr
+                                  #:jsx? jsx-expr
+                                  #:inset? #,inset?
+                                  (list #,@(chunks-template #'(str ...) esc-id)))]))
+
 (define-syntax (css-code stx)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:color-swatch? color-swatch-expr:expr)
@@ -1997,7 +2310,10 @@ JS
 
 (define-syntax (js-code stx)
   (syntax-parse stx
-    [(_ (~seq (~or (~optional (~seq #:escape escape-id:identifier)
+    [(_ (~seq (~or (~optional (~seq #:jsx? jsx-expr:expr)
+                              #:defaults ([jsx-expr #'#f])
+                              #:name "#:jsx? keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
                               #:name "#:escape keyword"))
               ...)
         str ...)
@@ -2005,14 +2321,15 @@ JS
                         #'escape-id
                         (datum->syntax stx 'unsyntax)))
      #`(typeset-lang-inline/chunks 'js
+                                   #:jsx? jsx-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
 (define-syntax (cssblock0 stx) (do-css-block stx #f))
 (define-syntax (cssblock stx) (do-css-block stx #t))
 (define-syntax (htmlblock0 stx) (do-block stx 'html #f))
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
-(define-syntax (jsblock0 stx) (do-block stx 'js #f))
-(define-syntax (jsblock stx) (do-block stx 'js #t))
+(define-syntax (jsblock0 stx) (do-js-block stx #f))
+(define-syntax (jsblock stx) (do-js-block stx #t))
 
 (module+ test
   (require rackunit)
@@ -2029,9 +2346,11 @@ JS
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
+  (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
+  (check-true (element? (js-code #:jsx? #t "const el = <A/>;")))
   (check-not-false
    (member 'name (classes 'css "h1.title { color: #c33; --gap: 1.5rem; }")))
   (check-not-false
@@ -2048,6 +2367,9 @@ JS
    (member 'comment (classes 'html "<!-- note -->")))
   (check-not-false
    (member 'keyword (classes 'js "const x = 1; if (x) { console.log(x); }")))
+  (let ([cls (classes 'js "const x = 1; function f() { return x; } class C {}")])
+    (check-not-false (member 'decl-name cls))
+    (check-not-false (member 'operator cls)))
   (check-not-false
    (member 'comment (classes 'js "// hi\nconst x = 1;")))
   (check-true
@@ -2189,9 +2511,48 @@ JS
     (check-not-false (member 'value cls)))
   (let ([cls (classes 'js (read-fixture "js-regex-vs-division.js"))])
     (check-not-false (member 'value cls))   ; regex literal
-    (check-not-false (member 'punct cls))   ; division/operator punctuation
+    (check-not-false (member 'operator cls)) ; division/operator
     (check-true ((class-count 'value cls) . >= . 2))
-    (check-true ((class-count 'punct cls) . >= . 6)))
+    (check-true ((class-count 'operator cls) . >= . 3)))
+  (let ([cls (classes 'js (read-fixture "js-regex-condition.js"))])
+    (check-not-false (member 'value cls))    ; /ab+c/
+    (check-not-false (member 'operator cls)) ; divisions
+    (check-true ((class-count 'value cls) . >= . 1))
+    (check-true ((class-count 'operator cls) . >= . 4)))
+  (let ([cls (classes 'js (read-fixture "js-numeric-edge.js"))])
+    (check-not-false (member 'value cls))
+    (check-true ((class-count 'value cls) . >= . 5)))
+  (let ([cls (classes 'js (read-fixture "js-recovery-edge.js"))])
+    (check-not-false (member 'punct cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'name cls)))
+  (let ([cls (classes 'js (read-fixture "js-recovery-string-edge.js"))])
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'keyword cls))
+    (check-true ((class-count 'keyword cls) . >= . 2)))
+  (let ([cls (parameterize ([current-jsx? #t])
+               (classes 'js (read-fixture "js-jsx.js")))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'punct cls))
+    (check-true ((class-count 'keyword cls) . >= . 5)))
+  (let ([cls (parameterize ([current-jsx? #t])
+               (classes 'js (read-fixture "js-real-react.jsx")))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'punct cls))
+    (check-not-false (member 'operator cls))
+    (check-true ((class-count 'punct cls) . >= . 8)))
+  (let ([cls (classes 'js (read-fixture "js-modern-ops.js"))])
+    (check-not-false (member 'operator cls))
+    (check-not-false (member 'decl-name cls))
+    (check-not-false (member 'keyword cls))
+    (check-true ((class-count 'operator cls) . >= . 8)))
+  (let ([cls (classes 'js (read-fixture "js-real-config.js"))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'operator cls)))
   (let ([cls (classes 'js (read-fixture "js-template-interpolation.js"))])
     (check-not-false (member 'value cls))   ; template chunks
     (check-not-false (member 'punct cls))   ; ${ and }
