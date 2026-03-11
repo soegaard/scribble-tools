@@ -59,6 +59,13 @@
 (define mdn-link-style
   (make-style #f (list (attributes '((class . "mdn-code-link")
                                      (style . "color: inherit; text-decoration: none;"))))))
+;; Wrapper/source styles for block copy button UI.
+(define copy-wrap-style
+  (make-style #f (list (attributes '((class . "scribble-copy-wrap")
+                                     (data-copy-button . "on"))))))
+(define copy-source-style
+  (make-style #f (list (attributes '((class . "scribble-copy-source")
+                                     (style . "display: none; white-space: pre;"))))))
 (define inline-code-font-style
   ;; Ensure inline snippets inherit the same monospace face as Racket docs.
   ;; This keeps tokens with custom color-only styles in Fira Mono, too.
@@ -401,7 +408,16 @@
         ".css-token-ref-preview-ui{background:transparent;border-style:dashed;}" +
         ".js-preview-ui{display:inline-block;margin-left:.35em;vertical-align:middle;user-select:none;-webkit-user-select:none;pointer-events:auto;color:var(--css-preview-text);font-size:.82em;line-height:1;}" +
         ".js-regex-preview-ui::before{content:\"/r/\";}" +
-        ".js-template-preview-ui::before{content:\"`...`\";}";
+        ".js-template-preview-ui::before{content:\"`...`\";}" +
+        ".scribble-copy-wrap{position:relative;}" +
+        ".scribble-copy-source{display:none!important;white-space:pre;}" +
+        ".scribble-copy-btn{position:absolute;top:.38rem;right:.38rem;display:inline-flex;align-items:center;justify-content:center;width:1.6rem;height:1.6rem;padding:0;border:1px solid rgba(120,120,120,.55);border-radius:.35rem;background:rgba(255,255,255,.92);color:rgba(35,35,35,.9);cursor:pointer;opacity:0;pointer-events:none;transition:opacity .14s ease, background-color .14s ease, border-color .14s ease, transform .12s ease;z-index:5;}" +
+        ".scribble-copy-wrap:hover .scribble-copy-btn,.scribble-copy-wrap:focus-within .scribble-copy-btn{opacity:1;pointer-events:auto;}" +
+        ".scribble-copy-btn:hover{background:rgba(245,245,245,.98);}" +
+        ".scribble-copy-btn:active{transform:scale(.96);}" +
+        ".scribble-copy-btn[data-copy-state=done]{background:rgba(46,160,67,.20);border-color:rgba(46,160,67,.65);}" +
+        ".scribble-copy-btn[data-copy-state=error]{background:rgba(201,58,58,.20);border-color:rgba(201,58,58,.62);}" +
+        ".scribble-copy-btn svg{width:14px;height:14px;display:block;}";
       document.head.appendChild(st);
     }
   }
@@ -651,10 +667,96 @@
     });
   }
 
+  var COPY_ICON_SVG =
+    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+    '<rect x="9" y="3" width="11" height="13" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"></rect>' +
+    '<rect x="4" y="8" width="11" height="13" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"></rect>' +
+    '</svg>';
+  var COPY_DONE_SVG =
+    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+    '<path d="M5 12l5 5L20 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>' +
+    '</svg>';
+
+  function setCopyState(btn, state) {
+    if (!state) {
+      btn.removeAttribute("data-copy-state");
+      btn.innerHTML = COPY_ICON_SVG;
+      btn.setAttribute("aria-label", "Copy code");
+      btn.setAttribute("title", "Copy code");
+      return;
+    }
+    btn.setAttribute("data-copy-state", state);
+    if (state === "done") {
+      btn.innerHTML = COPY_DONE_SVG;
+      btn.setAttribute("aria-label", "Copied");
+      btn.setAttribute("title", "Copied");
+    } else {
+      btn.innerHTML = COPY_ICON_SVG;
+      btn.setAttribute("aria-label", "Copy failed");
+      btn.setAttribute("title", "Copy failed");
+    }
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "true");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        var ok = document.execCommand("copy");
+        ta.remove();
+        if (ok) resolve();
+        else reject(new Error("copy command failed"));
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  function bindCopyButton(wrap) {
+    if (wrap.__scribbleCopyBound) return;
+    wrap.__scribbleCopyBound = true;
+    if (wrap.getAttribute("data-copy-button") === "off") return;
+
+    var src = wrap.querySelector(".scribble-copy-source");
+    if (!src) return;
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "scribble-copy-btn";
+    btn.innerHTML = COPY_ICON_SVG;
+    btn.setAttribute("aria-label", "Copy code");
+    btn.setAttribute("title", "Copy code");
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var text = src.textContent || "";
+      copyToClipboard(text).then(function () {
+        setCopyState(btn, "done");
+        window.setTimeout(function () { setCopyState(btn, null); }, 1200);
+      }).catch(function () {
+        setCopyState(btn, "error");
+        window.setTimeout(function () { setCopyState(btn, null); }, 1200);
+      });
+    });
+    wrap.appendChild(btn);
+  }
+
   function scan() {
     ensureStyles();
     var previews = document.querySelectorAll(".css-preview-ui");
     for (var i = 0; i < previews.length; i++) bindPreview(previews[i]);
+    var copyWraps = document.querySelectorAll(".scribble-copy-wrap");
+    for (var j = 0; j < copyWraps.length; j++) bindCopyButton(copyWraps[j]);
   }
 
   if (document.readyState === "loading") {
@@ -680,6 +782,15 @@ JS
       (begin
         (set-box! css-preview-runtime-emitted? #t)
         (list css-font-preview-runtime-element))))
+
+(define (tokens->copy-text tokens)
+  (apply string-append
+         (for/list ([t (in-list tokens)]
+                    #:when (string? (cdr t)))
+           (cdr t))))
+
+(define (copy-source-element text)
+  (make-element copy-source-style (list text)))
 
 (define (style-for lang cls)
   (case lang
@@ -2435,7 +2546,7 @@ JS
 (define (tokens->pieces lang tokens
                         #:color-swatch? [color-swatch? #f]
                         #:font-preview? [font-preview? #f]
-                        #:dimension-preview? [dimension-preview? #f]
+                        #:dimension-preview? [dimension-preview? #t]
                         #:mdn-links? [mdn-links? #t]
                         #:preview-tooltips? [preview-tooltips? #t]
                         #:preview-mode [preview-mode 'always])
@@ -2695,9 +2806,10 @@ JS
                                    #:indent [indent 0]
                                    #:line-numbers [line-numbers #f]
                                    #:line-number-sep [line-number-sep 1]
+                                   #:copy-button? [copy-button? #t]
                                    #:color-swatch? [color-swatch? #f]
                                    #:font-preview? [font-preview? #f]
-                                   #:dimension-preview? [dimension-preview? #f]
+                                   #:dimension-preview? [dimension-preview? #t]
                                    #:mdn-links? [mdn-links? #t]
                                    #:preview-tooltips? [preview-tooltips? #t]
                                    #:preview-mode [preview-mode 'always]
@@ -2735,14 +2847,21 @@ JS
   (define block (if inset?
                     (nested #:style 'code-inset tbl)
                     tbl))
-  (if filename
-      (filebox filename block)
-      block))
+  (define payload (if filename
+                      (filebox filename block)
+                      block))
+  (if copy-button?
+      (apply nested
+             #:style copy-wrap-style
+             (append (runtime-prefix-elements)
+                     (list payload
+                           (copy-source-element (tokens->copy-text tokens)))))
+      payload))
 
 (define (typeset-lang-inline/chunks lang chunks
                                     #:color-swatch? [color-swatch? #f]
                                     #:font-preview? [font-preview? #f]
-                                    #:dimension-preview? [dimension-preview? #f]
+                                    #:dimension-preview? [dimension-preview? #t]
                                     #:mdn-links? [mdn-links? #t]
                                     #:preview-tooltips? [preview-tooltips? #t]
                                     #:preview-mode [preview-mode 'always]
@@ -2793,6 +2912,9 @@ JS
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:copy-button? copy-button-expr:expr)
+                              #:defaults ([copy-button-expr #'#t])
+                              #:name "#:copy-button? keyword")
                    (~optional (~seq #:mdn-links? mdn-links-expr:expr)
                               #:defaults ([mdn-links-expr #'#t])
                               #:name "#:mdn-links? keyword")
@@ -2811,6 +2933,7 @@ JS
                                   #:indent indent-expr
                                   #:line-numbers line-numbers-expr
                                   #:line-number-sep line-number-sep-expr
+                                  #:copy-button? copy-button-expr
                                   #:mdn-links? mdn-links-expr
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
@@ -2826,6 +2949,9 @@ JS
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:copy-button? copy-button-expr:expr)
+                              #:defaults ([copy-button-expr #'#t])
+                              #:name "#:copy-button? keyword")
                    (~optional (~seq #:color-swatch? color-swatch-expr:expr)
                               #:defaults ([color-swatch-expr #'#t])
                               #:name "#:color-swatch? keyword")
@@ -2833,7 +2959,7 @@ JS
                               #:defaults ([font-preview-expr #'#t])
                               #:name "#:font-preview? keyword")
                    (~optional (~seq #:dimension-preview? dimension-preview-expr:expr)
-                              #:defaults ([dimension-preview-expr #'#f])
+                              #:defaults ([dimension-preview-expr #'#t])
                               #:name "#:dimension-preview? keyword")
                    (~optional (~seq #:mdn-links? mdn-links-expr:expr)
                               #:defaults ([mdn-links-expr #'#t])
@@ -2862,6 +2988,7 @@ JS
                                   #:indent indent-expr
                                   #:line-numbers line-numbers-expr
                                   #:line-number-sep line-number-sep-expr
+                                  #:copy-button? copy-button-expr
                                   #:color-swatch? color-swatch-expr
                                   #:font-preview? font-preview-expr
                                   #:dimension-preview? dimension-preview-expr
@@ -2883,6 +3010,9 @@ JS
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:copy-button? copy-button-expr:expr)
+                              #:defaults ([copy-button-expr #'#t])
+                              #:name "#:copy-button? keyword")
                    (~optional (~seq #:mdn-links? mdn-links-expr:expr)
                               #:defaults ([mdn-links-expr #'#t])
                               #:name "#:mdn-links? keyword")
@@ -2904,6 +3034,7 @@ JS
                                   #:indent indent-expr
                                   #:line-numbers line-numbers-expr
                                   #:line-number-sep line-number-sep-expr
+                                  #:copy-button? copy-button-expr
                                   #:mdn-links? mdn-links-expr
                                   #:jsx? jsx-expr
                                   #:inset? #,inset?
@@ -2918,7 +3049,7 @@ JS
                               #:defaults ([font-preview-expr #'#t])
                               #:name "#:font-preview? keyword")
                    (~optional (~seq #:dimension-preview? dimension-preview-expr:expr)
-                              #:defaults ([dimension-preview-expr #'#f])
+                              #:defaults ([dimension-preview-expr #'#t])
                               #:name "#:dimension-preview? keyword")
                    (~optional (~seq #:mdn-links? mdn-links-expr:expr)
                               #:defaults ([mdn-links-expr #'#t])
@@ -3054,6 +3185,10 @@ JS
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
   (check-true (block? (scribbleblock "@title{Hi}\nText.")))
+  (check-true (block? (cssblock #:copy-button? #f "h1 { color: red; }")))
+  (check-true (block? (htmlblock #:copy-button? #f "<h1 class=\"x\">Hi</h1>")))
+  (check-true (block? (jsblock #:copy-button? #f "const x = 1;")))
+  (check-true (block? (scribbleblock #:copy-button? #f "@title{Hi}\nText.")))
   (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))

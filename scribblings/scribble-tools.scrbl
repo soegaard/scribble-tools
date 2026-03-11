@@ -222,7 +222,7 @@ By default, code output includes links to MDN documentation for common:
 
 @section{Reference}
 
-This section contains the reference documentation for the forms and procedures.
+This section documents each form and procedure in detail.
 
 @subsection{Inline Forms}
 
@@ -251,7 +251,7 @@ font (default: @racket[#t]).
 @racket[#:dimension-preview?] controls whether spacing and radius
 declarations such as @racket[margin], @racket[padding], @racket[gap],
 and @racket[border-radius] get tiny inline visualizers (default:
-@racket[#f]).
+@racket[#t]).
 
 @racket[#:mdn-links?] controls whether common CSS tokens are
 wrapped as hyperlinks to MDN documentation (default: @racket[#t]).
@@ -265,7 +265,7 @@ tooltips (hover/focus) and related runtime tooltip behavior (default:
 @racket[#t]).
 
 @racket[#:preview-css-url] optionally points to an external stylesheet
-for preview UI classes. When provided, runtime loads that stylesheet
+for preview UI classes. When provided, the runtime loads that stylesheet
 instead of injecting inline preview CSS.
 
 An optional @racket[#:escape] identifier configures escapes of the
@@ -334,6 +334,7 @@ Example: @scribble-code["@bold{Hi} there."]
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:copy-button? copy-button?-expr)
                        (code:line #:color-swatch? color-swatch?-expr)
                        (code:line #:font-preview? font-preview?-expr)
                        (code:line #:dimension-preview? dimension-preview?-expr)
@@ -353,9 +354,10 @@ Options:
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:color-swatch?] controls whether detected CSS color literals are followed by a small swatch; gradient literals are shown as a small bar (default: @racket[#t]).}
  @item{@racket[#:font-preview?] controls whether @racket[font-family] declarations are followed by a small @tt{Aa} preview (default: @racket[#t]).}
- @item{@racket[#:dimension-preview?] controls whether spacing and radius declarations (for example @racket[margin], @racket[padding], @racket[gap], @racket[letter-spacing], @racket[text-indent], @racket[filter: blur(...)], and @racket[border-radius]) are followed by small visualizer decorations (default: @racket[#f]).}
+ @item{@racket[#:dimension-preview?] controls whether spacing and radius declarations (for example @racket[margin], @racket[padding], @racket[gap], @racket[letter-spacing], @racket[text-indent], @racket[filter: blur(...)], and @racket[border-radius]) are followed by small visualizer decorations (default: @racket[#t]).}
  @item{@racket[#:mdn-links?] controls whether common CSS tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
  @item{@racket[#:preview-mode] controls when previews are shown: @racket['always], @racket['hover], or @racket['none] (default: @racket['always]).}
  @item{@racket[#:preview-tooltips?] controls whether preview decorations include tooltip text and interactive hover/focus tooltip UI (default: @racket[#t]).}
@@ -373,17 +375,6 @@ Example:
 }
 }
 
-@subsection{Preview Legend}
-
-@itemlist[
- @item{Color square: a detected color literal such as @tt{#c33} or @racket[red].}
- @item{Gradient bar: a detected gradient literal such as @racket[linear-gradient(...)].}
- @item{Spacing bar: detected spacing-sized values (for example @racket[margin], @racket[gap], @racket[letter-spacing], or @racket[filter: blur(...)]) scaled to a compact width.}
- @item{Radius chip: detected @racket[border-radius] values, where the chip corner radius mirrors the declaration.}
- @item{Font @tt{Aa}: preview of @racket[font-family], including fallback resolution tooltip and missing-font warning.}
- @item{Keyboard accessibility: previews with tooltips are focusable and expose the same tooltip text on focus as on hover.}
-]
-
 @defform[(cssblock0 option ... str-expr ...+)]{
 Like @racket[cssblock], but without the inset wrapper.
 
@@ -400,6 +391,7 @@ Example:
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:copy-button? copy-button?-expr)
                        (code:line #:mdn-links? mdn-links?-expr)
                        (code:line #:file filename-expr)
                        (code:line #:escape escape-id)])
@@ -413,6 +405,7 @@ Options:
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:mdn-links?] controls whether common HTML tokens are wrapped as hyperlinks to MDN documentation, including CSS and JavaScript tokens that appear inside @tt{<style>} and @tt{<script>} sections (default: @racket[#t]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
  @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
@@ -444,6 +437,7 @@ Example:
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:copy-button? copy-button?-expr)
                        (code:line #:jsx? jsx?-expr)
                        (code:line #:mdn-links? mdn-links?-expr)
                        (code:line #:file filename-expr)
@@ -458,6 +452,7 @@ Options:
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:jsx?] enables JSX-aware tokenization for snippets containing embedded tags (default: @racket[#f]).}
  @item{@racket[#:mdn-links?] controls whether common JavaScript tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
@@ -488,6 +483,7 @@ for (const n of [1, 2, 3]) {
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:copy-button? copy-button?-expr)
                        (code:line #:file filename-expr)
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
@@ -500,6 +496,7 @@ Options:
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
  @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
 ]
@@ -524,7 +521,49 @@ Example:
 }
 }
 
+@subsection{Preview Legend}
+
+Rendered legend example:
+
+@cssblock[
+  #:color-swatch? #t
+  #:font-preview? #t
+  #:dimension-preview? #t
+  #:preview-mode 'always]{
+.legend {
+  color: #c33;
+  background: linear-gradient(90deg, red, blue);
+  margin: 4px;
+  margin: 12px;
+  margin: 28px;
+  filter: blur(2px);
+  filter: blur(8px);
+  filter: blur(18px);
+  border-radius: 2px;
+  border-radius: 6px;
+  border-radius: 9px;
+  font-family: "Fira Code", monospace;
+  font-family: "Georgia", serif;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+}
+
+@itemlist[
+ @item{Color square: a detected color literal such as @tt{#c33} or @racket[red].}
+ @item{Gradient bar: a detected gradient literal such as @racket[linear-gradient(...)].}
+ @item{Spacing bar: detected spacing-sized values (for example @racket[margin], @racket[gap], @racket[letter-spacing], or @racket[filter: blur(...)]) scaled to a compact width.}
+ @item{Radius chip: detected @racket[border-radius] values, where the chip corner radius mirrors the declaration.}
+ @item{Font @tt{Aa}: preview of @racket[font-family], including fallback resolution tooltip and missing-font warning.}
+]
+
 @subsection{MDN Maps}
+
+MDN maps control which CSS/HTML/JavaScript identifiers
+become links to the MDN documentation site.
+The procedures below let you inspect the active map, install overrides,
+reset to defaults, and export the bundled entries.
+Most users will not need these tools, but they are useful when you want
+to add links that are not covered by the default maps.
 
 @defproc[(mdn-map-path) path?]{
 Returns the user override map path used by @racket[#:mdn-links?].
