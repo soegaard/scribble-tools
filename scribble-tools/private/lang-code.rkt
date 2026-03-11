@@ -35,6 +35,18 @@
   (make-style #f (list (attributes '((style . "color: #795E26;"))))))
 (define js-operator-color
   (make-style #f (list (attributes '((style . "color: #8A4F00;"))))))
+(define js-object-key-color
+  (make-style #f (list (attributes '((style . "color: #1F5F8B;"))))))
+(define js-param-name-color
+  (make-style #f (list (attributes '((style . "color: #264F78;"))))))
+(define js-prop-name-color
+  (make-style #f (list (attributes '((style . "color: #5A3E8E;"))))))
+(define js-method-name-color
+  (make-style #f (list (attributes '((style . "color: #6B2F8A;"))))))
+(define js-private-name-color
+  (make-style #f (list (attributes '((style . "color: #AF00DB;"))))))
+(define js-static-keyword-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #07A;"))))))
 (define css-keyword-color
   (make-style #f (list (attributes '((style . "color: #07A;"))))))
 (define css-name-color
@@ -672,7 +684,13 @@ JS
        [(comment) comment-color]
        [(keyword) html-tag-color]
        [(value) value-color]
+       [(static-keyword) js-static-keyword-color]
+       [(object-key) js-object-key-color]
+       [(param-name) js-param-name-color]
        [(decl-name) js-decl-name-color]
+       [(prop-name) js-prop-name-color]
+       [(method-name) js-method-name-color]
+       [(private-name) js-private-name-color]
        [(name) symbol-color]
        [(operator) js-operator-color]
        [(punct) paren-color]
@@ -682,7 +700,13 @@ JS
        [(comment) comment-color]
        [(keyword) js-keyword-color]
        [(value) value-color]
+       [(static-keyword) js-static-keyword-color]
+       [(object-key) js-object-key-color]
+       [(param-name) js-param-name-color]
        [(decl-name) js-decl-name-color]
+       [(prop-name) js-prop-name-color]
+       [(method-name) js-method-name-color]
+       [(private-name) js-private-name-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
        [(punct) paren-color]
@@ -952,6 +976,18 @@ JS
       [(char-whitespace? (string-ref s k)) (loop (sub1 k))]
       [else (string-ref s k)])))
 
+(define (next-nonspace-index s i)
+  (define len (string-length s))
+  (let loop ([k i])
+    (cond
+      [(>= k len) #f]
+      [(char-whitespace? (string-ref s k)) (loop (add1 k))]
+      [else k])))
+
+(define (next-nonspace-char s i)
+  (define k (next-nonspace-index s i))
+  (and k (string-ref s k)))
+
 (define js-operators
   '(">>>=" "<<=" ">>=" "&&=" "||=" "??=" "**=" "===" "!=="
     ">>>" "<<" ">>" "==" "!=" "<=" ">=" "&&" "||" "??"
@@ -987,6 +1023,22 @@ JS
   (and kw?
        (not (memq id js-literal-keywords))
        (memq id js-regex-context-keywords)))
+
+(define (tsx-generic-angle-candidate? s i)
+  ;; In JSX mode, avoid treating TS-like generic arrows as JSX tags.
+  (define len (string-length s))
+  (and (< i len)
+       (char=? (string-ref s i) #\<)
+       (let* ([j0 (next-nonspace-index s (add1 i))])
+         (and j0
+              (js-ident-start? (string-ref s j0))
+              (let* ([j1 (read-while s j0 js-ident-char?)]
+                     [j2 (next-nonspace-index s j1)])
+                (and j2
+                     (< j2 len)
+                     (char=? (string-ref s j2) #\>)
+                     (let ([j3 (next-nonspace-index s (add1 j2))])
+                       (and j3 (< j3 len) (char=? (string-ref s j3) #\()))))))))
 
 (define (jsx-ident-char? c)
   (or (js-ident-char? c) (member c '(#\- #\: #\.))))
@@ -1211,29 +1263,50 @@ JS
 
 (define (tokenize-js s)
   (define len (string-length s))
+  (define (has-fn-kind? brace-stack kinds)
+    (for/or ([k (in-list brace-stack)])
+      (and (symbol? k) (member k kinds))))
   (let loop ([i 0]
              [acc null]
              [can-start-regex? #t]
              [last-keyword #f]
              [paren-stack null]
-             [decl-state 'none])
+             [decl-state 'none]
+             [brace-stack null]
+             [pending-fn-kind #f]
+             [expect-params? #f]
+             [pending-async? #f])
     (cond
       [(>= i len) (reverse acc)]
       [else
        (define ch (string-ref s i))
-       (define (emit cls j [next-can-start-regex? #f] [next-last-keyword #f] [next-paren-stack paren-stack] [next-decl-state decl-state])
+       (define (emit cls j
+                     [next-can-start-regex? #f]
+                     [next-last-keyword #f]
+                     [next-paren-stack paren-stack]
+                     [next-decl-state decl-state]
+                     [next-brace-stack brace-stack]
+                     [next-pending-fn-kind pending-fn-kind]
+                     [next-expect-params? expect-params?]
+                     [next-pending-async? pending-async?])
          (loop j
                (cons (cons cls (substring s i j)) acc)
                next-can-start-regex?
                next-last-keyword
                next-paren-stack
-               next-decl-state))
+               next-decl-state
+               next-brace-stack
+               next-pending-fn-kind
+               next-expect-params?
+               next-pending-async?))
        (cond
          [(and (current-jsx?)
                (char=? ch #\<)
-               (jsx-start-candidate? s i))
+               (jsx-start-candidate? s i)
+               (not (tsx-generic-angle-candidate? s i)))
           (define-values (jsx-tokens j) (tokenize-jsx-tag s i))
-          (loop j (append (reverse jsx-tokens) acc) #f #f paren-stack decl-state)]
+          (loop j (append (reverse jsx-tokens) acc) #f #f paren-stack decl-state
+                brace-stack pending-fn-kind expect-params? pending-async?)]
          [(and (char=? ch #\/)
                (< (add1 i) len)
                (char=? (string-ref s (add1 i)) #\*))
@@ -1243,11 +1316,17 @@ JS
                (char=? (string-ref s (add1 i)) #\/))
           (define j (read-until s (+ i 2) "\n"))
           (emit 'comment j can-start-regex? last-keyword paren-stack decl-state)]
+         [(and (char=? ch #\#)
+               (< (add1 i) len)
+               (js-ident-start? (string-ref s (add1 i))))
+          (define j (read-while s (add1 i) js-ident-char?))
+          (emit 'private-name j #f #f paren-stack decl-state)]
          [(or (char=? ch #\") (char=? ch #\'))
           (emit 'value (read-js-string-literal s i) #f #f paren-stack decl-state)]
          [(char=? ch #\`)
           (define-values (template-tokens j) (tokenize-js-template s i))
-          (loop j (append (reverse template-tokens) acc) #f #f paren-stack decl-state)]
+          (loop j (append (reverse template-tokens) acc) #f #f paren-stack decl-state
+                brace-stack pending-fn-kind expect-params? pending-async?)]
          [(char-whitespace? ch)
           (emit 'plain (add1 i) can-start-regex? last-keyword paren-stack decl-state)]
          [(or (char-numeric? ch)
@@ -1257,15 +1336,43 @@ JS
               (and (member ch '(#\+ #\-))
                    (< (add1 i) len)
                    (let ([c2 (string-ref s (add1 i))])
-                     (or (char-numeric? c2) (char=? c2 #\.)))))
+                     (or (char-numeric? c2)
+                         (char=? c2 #\.)))))
           (emit 'value (read-js-number s i) #f #f paren-stack decl-state)]
          [(js-ident-start? ch)
           (define j (read-while s i js-ident-char?))
           (define id (string->symbol (substring s i j)))
-          (define kw? (memq id js-keywords))
+          (define in-async?
+            (has-fn-kind? brace-stack '(fn-async fn-async-generator)))
+          (define in-generator?
+            (has-fn-kind? brace-stack '(fn-generator fn-async-generator)))
+          (define base-kw? (memq id js-keywords))
+          (define kw?
+            (cond
+              [(eq? id 'await) (and base-kw? in-async?)]
+              [(eq? id 'yield) (and base-kw? in-generator?)]
+              [else base-kw?]))
+          (define prevc (prev-nonspace-char s i))
+          (define nextc (next-nonspace-char s j))
           (define decl-name?
             (and (not kw?)
                  (member decl-state '(var-name function-name class-name))))
+          (define object-key?
+            (and (not kw?)
+                 nextc
+                 (char=? nextc #\:)
+                 (member prevc '(#\{ #\,))))
+          (define param-name?
+            (and (not kw?)
+                 (pair? paren-stack)
+                 (eq? (car paren-stack) 'params)
+                 (not object-key?)))
+          (define prop-name?
+            (and (not kw?) prevc (char=? prevc #\.)))
+          (define method-name?
+            (and prop-name? nextc (string=? (string nextc) "(")))
+          (define static-block?
+            (and kw? (eq? id 'static) nextc (char=? nextc #\{)))
           (define next-decl
             (cond
               [(and kw? (member id '(const let var))) 'var-name]
@@ -1274,14 +1381,33 @@ JS
               [(and kw? (member id '(in of))) 'none]
               [decl-name? 'none]
               [else decl-state]))
-          (emit (cond [kw? 'keyword]
+          (define next-fn-kind
+            (if (and kw? (eq? id 'function))
+                (let* ([k (next-nonspace-index s j)]
+                       [gen? (and k (< k len) (char=? (string-ref s k) #\*))])
+                  (cond
+                    [(and pending-async? gen?) 'fn-async-generator]
+                    [pending-async? 'fn-async]
+                    [gen? 'fn-generator]
+                    [else 'fn-normal]))
+                pending-fn-kind))
+          (emit (cond [static-block? 'static-keyword]
+                      [kw? 'keyword]
+                      [object-key? 'object-key]
+                      [method-name? 'method-name]
+                      [prop-name? 'prop-name]
+                      [param-name? 'param-name]
                       [decl-name? 'decl-name]
                       [else 'name])
                 j
                 (if kw? (js-ident-can-start-regex? id kw?) #f)
                 (and kw? id)
                 paren-stack
-                next-decl)]
+                next-decl
+                brace-stack
+                next-fn-kind
+                (or expect-params? (and kw? (member id '(function catch))))
+                (and kw? (eq? id 'async)))]
          [(char=? ch #\/)
           (cond
             [can-start-regex?
@@ -1300,19 +1426,34 @@ JS
           (cond
             [(char=? ch #\()
              (define open-kind
-               (if (and last-keyword (memq last-keyword js-condition-open-keywords))
-                   'condition
-                   'group))
-             (emit 'punct j #t #f (cons open-kind paren-stack) decl-state)]
+               (cond
+                 [expect-params? 'params]
+                 [(and last-keyword (memq last-keyword js-condition-open-keywords))
+                  'condition]
+                 [else 'group]))
+             (emit 'punct j #t #f (cons open-kind paren-stack) decl-state
+                   brace-stack pending-fn-kind #f pending-async?)]
+            [(char=? ch #\{)
+             (define new-brace
+               (if pending-fn-kind
+                   (cons pending-fn-kind brace-stack)
+                   (cons #f brace-stack)))
+             (emit 'punct j #t #f paren-stack decl-state
+                   new-brace #f expect-params? pending-async?)]
             [(char=? ch #\))
              (define popped (and (pair? paren-stack) (car paren-stack)))
              (define rest-stack (if (pair? paren-stack) (cdr paren-stack) paren-stack))
              (emit 'punct j (eq? popped 'condition) #f rest-stack
                    (if (eq? decl-state 'var-name) 'none decl-state))]
-            [(or (char=? ch #\]) (char=? ch #\}))
+            [(char=? ch #\})
+             (emit 'punct j #f #f paren-stack 'none
+                   (if (pair? brace-stack) (cdr brace-stack) brace-stack)
+                   pending-fn-kind expect-params? pending-async?)]
+            [(char=? ch #\])
              (emit 'punct j #f #f paren-stack 'none)]
             [(char=? ch #\;)
-             (emit 'punct j #t #f paren-stack 'none)]
+             (emit 'punct j #t #f paren-stack 'none
+                   brace-stack pending-fn-kind #f #f)]
             [else
              (emit 'punct j #t #f paren-stack decl-state)])]
          [(read-js-operator s i)
@@ -2519,6 +2660,9 @@ JS
     (check-not-false (member 'operator cls)) ; divisions
     (check-true ((class-count 'value cls) . >= . 1))
     (check-true ((class-count 'operator cls) . >= . 4)))
+  (let ([cls (classes 'js "for (;;) /ab+/.test(s); const q = a / b;")])
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'operator cls)))
   (let ([cls (classes 'js (read-fixture "js-numeric-edge.js"))])
     (check-not-false (member 'value cls))
     (check-true ((class-count 'value cls) . >= . 5)))
@@ -2530,6 +2674,23 @@ JS
     (check-not-false (member 'value cls))
     (check-not-false (member 'keyword cls))
     (check-true ((class-count 'keyword cls) . >= . 2)))
+  (let ([cls (classes 'js "const o = {a: 1, b: 2};")])
+    (check-not-false (member 'object-key cls)))
+  (let ([cls (classes 'js "function f({a, b: c}, d = 0) { return d + c; }")])
+    (check-not-false (member 'param-name cls)))
+  (let ([cls (classes 'js "obj.value = obj.run(1);")])
+    (check-not-false (member 'prop-name cls))
+    (check-not-false (member 'method-name cls)))
+  (let ([cls (classes 'js "class C { static { this.#x = 1; } #x = 0; }")])
+    (check-not-false (member 'static-keyword cls))
+    (check-not-false (member 'private-name cls)))
+  (let ([cls (parameterize ([current-jsx? #t])
+               (classes 'js "const id = <T>(x) => x;"))])
+    (check-not-false (member 'operator cls))
+    (check-not-false (member 'name cls)))
+  (let ([cls (classes 'js "async function f(){ await x; } function g(){ await x; }")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls)))
   (let ([cls (parameterize ([current-jsx? #t])
                (classes 'js (read-fixture "js-jsx.js")))])
     (check-not-false (member 'keyword cls))
@@ -2550,7 +2711,9 @@ JS
     (check-true ((class-count 'operator cls) . >= . 8)))
   (let ([cls (classes 'js (read-fixture "js-real-config.js"))])
     (check-not-false (member 'keyword cls))
-    (check-not-false (member 'name cls))
+    (check-not-false (or (member 'name cls)
+                         (member 'prop-name cls)
+                         (member 'object-key cls)))
     (check-not-false (member 'value cls))
     (check-not-false (member 'operator cls)))
   (let ([cls (classes 'js (read-fixture "js-template-interpolation.js"))])

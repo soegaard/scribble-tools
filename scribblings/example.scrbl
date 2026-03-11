@@ -140,6 +140,39 @@ const square = (x) => x * x;
 console.log(square(5));
 }
 
+@section{JavaScript Block (New Lexer Features)}
+
+@jsblock[#:jsx? #t]{
+const id = <T>(x) => x;
+
+const config = {
+  theme: "solarized",
+  retries: 2
+};
+
+function render({ title, count }, opts = {}) {
+  const label = opts.format?.(title) ?? title;
+  return `${label} (${count})`;
+}
+
+class Counter {
+  #value = 0;
+  static {
+    console.log("init");
+  }
+  inc(step = 1) {
+    this.#value += step;
+    return this.#value;
+  }
+}
+
+async function load(data) {
+  for (;;) /ok+/.test(data);
+  const value = await Promise.resolve(data / 2);
+  return value;
+}
+}
+
 @section{JavaScript Block (JSX)}
 
 @jsblock[#:jsx? #t]{
