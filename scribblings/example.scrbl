@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@(require "../scribble-tools/main.rkt")
+@(require scribble-tools)
 
 @title{Example: CSS, HTML, and JavaScript Code Forms}
 
