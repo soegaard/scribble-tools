@@ -27,7 +27,7 @@ Inline CSS (tooltips off):
 @css-code[#:dimension-preview? #t #:preview-tooltips? #f]{.plain { margin: clamp(0.5rem, 2vw, 2rem); }}
 
 Inline CSS (external preview stylesheet):
-@css-code[#:dimension-preview? #t #:preview-css-url "../scribblings/css-preview-ui.css"]{.x { text-indent: 2em; }}
+@css-code[#:dimension-preview? #t #:preview-css-url "../scribble-tools/scribblings/css-preview-ui.css"]{.x { text-indent: 2em; }}
 
 Inline HTML: @html-code{<em class="highlight">Hi</em>}
 
