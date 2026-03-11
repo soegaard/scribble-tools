@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Racket
+        uses: Bogdanp/setup-racket@v1.11
+        with:
+          architecture: x64
+          distribution: full
+          version: '8.12'
+
+      - name: Install Package
+        run: raco pkg install --auto --batch --name scribble-tools
+
+      - name: Run Tests
+        run: |
+          raco test scribble-tools/private/lang-code.rkt
+          raco test scribble-tools/private/mdn-map.rkt
+          raco test scribble-tools/code.rkt
+          raco test scribble-tools/mdn-map-tool.rkt
+          raco test scribble-tools/mdn-map-build.rkt
+
+      - name: Build Docs (Installed Package Mode)
+        run: raco setup --pkgs scribble-tools
+
+      - name: Build Example Doc (+m)
+        run: raco scribble +m --html --dest /tmp/scribble-tools-html scribblings/example.scrbl
+
+      - name: MDN Map Builder Smoke
+        run: |
+          racket -l scribble-tools/mdn-map-build -- --stats
+          racket -l scribble-tools/mdn-map-build -- --out /tmp/mdn-map-built.rktd

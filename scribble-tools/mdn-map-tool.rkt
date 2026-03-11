@@ -3,7 +3,8 @@
 (require racket/cmdline
          racket/format
          racket/path
-         "code.rkt")
+         "code.rkt"
+         "mdn-map-build.rkt")
 
 (provide main)
 
@@ -27,7 +28,19 @@
     (mdn-install-map! in)
     (printf "installed: ~a\n" in)
     (exit 0)]
+   ["--build-default" out
+    "Generate deduplicated bundled defaults to OUT (.rktd)."
+    (write-map! out (build-map-entries))
+    (printf "built: ~a\n" out)
+    (exit 0)]
+   ["--update-from" in
+    "Merge bundled defaults with IN (.rktd) and install as user map."
+    (define merged (merge-maps (build-map-entries)
+                               (call-with-input-file in read)))
+    (mdn-install-map! merged)
+    (printf "installed merged map from: ~a\n" in)
+    (exit 0)]
    #:args ()
-   (printf "No action given. Try --path, --export-default FILE, --install FILE, or --reset\n")))
+   (printf "No action given. Try --path, --export-default FILE, --build-default FILE, --install FILE, --update-from FILE, or --reset\n")))
 
 (module+ main (main))

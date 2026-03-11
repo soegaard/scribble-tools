@@ -296,6 +296,17 @@ Command-line helper:
 @verbatim|{
 racket -l scribble-tools/mdn-map-tool -- --path
 racket -l scribble-tools/mdn-map-tool -- --export-default mdn-map.rktd
+racket -l scribble-tools/mdn-map-tool -- --build-default mdn-map-built.rktd
 racket -l scribble-tools/mdn-map-tool -- --install mdn-map.rktd
+racket -l scribble-tools/mdn-map-tool -- --update-from mdn-map-custom.rktd
 racket -l scribble-tools/mdn-map-tool -- --reset
+}|
+
+Map build pipeline (dedupe + optional merge):
+
+@verbatim|{
+racket -l scribble-tools/mdn-map-build -- --stats
+racket -l scribble-tools/mdn-map-build -- --out mdn-map-built.rktd
+racket -l scribble-tools/mdn-map-build -- --merge mdn-map-custom.rktd --out mdn-map-merged.rktd
+racket -l scribble-tools/mdn-map-build -- --merge mdn-map-custom.rktd --install
 }|

@@ -31,3 +31,35 @@ Escapes are supported in all forms:
   (unq (bold "tomato"))
   "; }"]
 ```
+
+## MDN Link Maps
+
+The code forms support MDN links via `#:mdn-links?` (default `#t`).
+
+Map utilities:
+
+```sh
+racket -l scribble-tools/mdn-map-tool -- --path
+racket -l scribble-tools/mdn-map-tool -- --export-default mdn-map.rktd
+racket -l scribble-tools/mdn-map-tool -- --build-default mdn-map-built.rktd
+racket -l scribble-tools/mdn-map-tool -- --install mdn-map.rktd
+racket -l scribble-tools/mdn-map-tool -- --update-from mdn-map-custom.rktd
+racket -l scribble-tools/mdn-map-tool -- --reset
+```
+
+Builder pipeline:
+
+```sh
+racket -l scribble-tools/mdn-map-build -- --stats
+racket -l scribble-tools/mdn-map-build -- --out mdn-map-built.rktd
+racket -l scribble-tools/mdn-map-build -- --merge mdn-map-custom.rktd --out mdn-map-merged.rktd
+racket -l scribble-tools/mdn-map-build -- --merge mdn-map-custom.rktd --install
+```
+
+## Docs Check
+
+Use installed-package mode to validate docs/xrefs and build the example page:
+
+```sh
+./check-docs-installed.sh
+```

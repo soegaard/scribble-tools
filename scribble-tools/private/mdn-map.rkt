@@ -16,7 +16,7 @@
 (define mdn-base-url "https://developer.mozilla.org/en-US/docs/")
 
 ;; Compact tuple: (lang class token path-or-url)
-(define mdn-default-map-entries
+(define mdn-default-map-entries/base
   (list
    ;; CSS properties
    (list 'css 'name "color" "Web/CSS/color")
@@ -199,6 +199,113 @@
    (list 'html 'value "var" "Web/CSS/var")
    (list 'html 'value "calc" "Web/CSS/calc")))
 
+(define (mk-entries lang cls toks mk-path)
+  (for/list ([t (in-list toks)])
+    (list lang cls t (mk-path t))))
+
+(define mdn-generated-extra-entries
+  (append
+   (mk-entries
+    'css 'name
+    '("opacity" "visibility" "cursor" "z-index" "inset"
+      "place-items" "place-content" "align-content" "justify-items"
+      "justify-self" "grid-template-rows" "grid-template-areas"
+      "grid-auto-flow" "grid-auto-columns" "grid-auto-rows"
+      "flex-wrap" "flex-grow" "flex-shrink" "order"
+      "text-align" "text-decoration" "text-transform" "white-space"
+      "word-break" "overflow-wrap" "letter-spacing" "word-spacing"
+      "outline" "outline-color" "outline-offset"
+      "list-style" "list-style-type" "list-style-position"
+      "object-fit" "object-position"
+      "backdrop-filter" "mix-blend-mode" "isolation"
+      "clip-path" "mask-image"
+      "content" "counter-reset" "counter-increment"
+      "user-select" "pointer-events" "accent-color")
+    (lambda (t) (string-append "Web/CSS/" t)))
+   (mk-entries
+    'css 'keyword
+    '("@font-face" "@container" "@page" "@supports" "@namespace")
+    (lambda (t) (string-append "Web/CSS/" t)))
+   (list
+    (list 'css 'value "repeat" "Web/CSS/repeat")
+    (list 'css 'value "fit-content" "Web/CSS/fit-content")
+    (list 'css 'value "url" "Web/CSS/url_function")
+    (list 'css 'value "blur" "Web/CSS/filter-function/blur")
+    (list 'css 'value "rotate" "Web/CSS/transform-function/rotate")
+    (list 'css 'value "translate" "Web/CSS/transform-function/translate")
+    (list 'css 'value "scale" "Web/CSS/transform-function/scale")
+    (list 'css 'value "attr" "Web/CSS/attr"))
+   (mk-entries
+    'html 'keyword
+    '("h1" "h2" "h3" "h4" "h5" "h6" "aside" "figure" "figcaption"
+      "small" "strong" "em" "time" "blockquote" "cite" "details"
+      "summary" "dialog" "template" "slot" "canvas" "svg" "video"
+      "audio" "source" "iframe" "noscript" "dl" "dt" "dd")
+    (lambda (t) (string-append "Web/HTML/Element/" t)))
+   (mk-entries
+    'html 'name
+    '("role" "aria-label" "aria-hidden" "aria-expanded"
+      "data-*"
+      "title" "lang" "dir" "tabindex"
+      "rel" "target" "loading" "decoding"
+      "autofocus" "disabled" "checked" "selected"
+      "readonly" "required" "multiple")
+    (lambda (t) (string-append "Web/HTML/Global_attributes/" t)))
+   (mk-entries
+    'js 'keyword
+    '("do" "default" "break" "continue" "finally" "delete"
+      "void" "import" "export" "extends" "super" "this"
+      "in" "of" "typeof")
+    (lambda (t)
+      (case (string->symbol t)
+        [(do) "Web/JavaScript/Reference/Statements/do...while"]
+        [(default) "Web/JavaScript/Reference/Statements/switch"]
+        [(break) "Web/JavaScript/Reference/Statements/break"]
+        [(continue) "Web/JavaScript/Reference/Statements/continue"]
+        [(finally) "Web/JavaScript/Reference/Statements/try...catch"]
+        [(delete) "Web/JavaScript/Reference/Operators/delete"]
+        [(void) "Web/JavaScript/Reference/Operators/void"]
+        [(import) "Web/JavaScript/Reference/Statements/import"]
+        [(export) "Web/JavaScript/Reference/Statements/export"]
+        [(extends) "Web/JavaScript/Reference/Classes/extends"]
+        [(super) "Web/JavaScript/Reference/Operators/super"]
+        [(this) "Web/JavaScript/Reference/Operators/this"]
+        [(in) "Web/JavaScript/Reference/Operators/in"]
+        [(of) "Web/JavaScript/Reference/Statements/for...of"]
+        [else "Web/JavaScript/Reference/Operators/typeof"])))
+   (mk-entries
+    'js 'name
+    '("Error" "TypeError" "SyntaxError" "URL" "URLSearchParams"
+      "Intl" "Symbol" "BigInt" "WeakMap" "WeakSet")
+    (lambda (t) (string-append "Web/JavaScript/Reference/Global_Objects/" t)))
+   (mk-entries
+    'js 'method-name
+    '("find" "findIndex" "some" "every" "flatMap" "join" "slice"
+      "push" "pop" "shift" "unshift" "sort" "toSorted" "toReversed"
+      "toSpliced" "at" "startsWith" "endsWith" "split"
+      "parse" "stringify")
+    (lambda (t)
+      (cond
+        [(member t '("startsWith" "endsWith" "split"))
+         (string-append "Web/JavaScript/Reference/Global_Objects/String/" t)]
+        [(member t '("parse" "stringify"))
+         (string-append "Web/JavaScript/Reference/Global_Objects/JSON/" t)]
+        [else
+         (string-append "Web/JavaScript/Reference/Global_Objects/Array/" t)]))
+    )
+   ;; Mirror key JS/CSS symbols for html mode (inline script/style).
+   (mk-entries
+    'html 'name
+    '("Error" "TypeError" "URL" "Map" "Set" "Date" "Math" "JSON")
+    (lambda (t) (string-append "Web/JavaScript/Reference/Global_Objects/" t)))
+   (mk-entries
+    'html 'name
+    '("display" "position" "opacity" "visibility" "text-align")
+    (lambda (t) (string-append "Web/CSS/" t)))))
+
+(define mdn-default-map-entries
+  (append mdn-default-map-entries/base mdn-generated-extra-entries))
+
 (define (mdn-entry? v)
   (and (list? v)
        (= (length v) 4)
@@ -298,3 +405,11 @@
     (lambda (out) (write (map normalize-entry mdn-default-map-entries) out))
     #:exists 'truncate/replace)
   dest)
+
+(module+ test
+  (require rackunit)
+  (check-true (pair? mdn-default-map-entries))
+  (check-true (andmap mdn-entry? mdn-default-map-entries))
+  (check-not-false (mdn-url-for-token 'css 'name "display"))
+  (check-not-false (mdn-url-for-token 'html 'keyword "dialog"))
+  (check-not-false (mdn-url-for-token 'js 'method-name "flatMap")))
