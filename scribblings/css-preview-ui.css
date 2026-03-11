@@ -1,0 +1,116 @@
+:root {
+  --css-preview-stroke: #999;
+  --css-preview-text: rgba(0, 0, 0, 0.72);
+  --css-preview-accent-1: rgba(70, 150, 245, 0.70);
+  --css-preview-accent-2: rgba(70, 150, 245, 0.22);
+  --css-preview-fill: rgba(70, 150, 245, 0.15);
+}
+
+.css-preview-ui {
+  display: inline-block;
+  margin-left: 0.45em;
+  vertical-align: middle;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: auto;
+}
+
+.css-preview-ui:focus,
+.js-preview-ui:focus {
+  outline: 1px solid color-mix(in srgb, var(--css-preview-accent-1) 80%, #000 10%);
+  outline-offset: 1px;
+}
+
+.css-preview-ui[data-preview-mode="none"] {
+  display: none !important;
+}
+
+.css-preview-ui[data-preview-mode="hover"] {
+  display: none;
+}
+
+.css-color-preview-ui {
+  width: 0.75em;
+  height: 0.75em;
+  border: 1px solid var(--css-preview-stroke);
+  background: var(--css-preview-bg);
+}
+
+.css-gradient-preview-ui {
+  width: 1.4em;
+  height: 0.75em;
+  border: 1px solid var(--css-preview-stroke);
+  background: var(--css-preview-bg);
+}
+
+.css-spacing-preview-ui {
+  width: var(--css-preview-width, 10px);
+  height: 0.58em;
+  border: 1px solid color-mix(in srgb, var(--css-preview-stroke) 80%, transparent);
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--css-preview-accent-1), var(--css-preview-accent-2));
+}
+
+.css-radius-preview-ui {
+  width: 0.95em;
+  height: 0.95em;
+  border: 1px solid color-mix(in srgb, var(--css-preview-stroke) 85%, transparent);
+  border-radius: var(--css-preview-radius, 4px);
+  background: var(--css-preview-fill);
+}
+
+.css-font-preview-ui {
+  margin-left: 0.6em;
+  white-space: nowrap;
+  font-family: var(--css-preview-font, inherit);
+  font-size: 1em;
+  line-height: 1;
+  color: var(--css-preview-text);
+  pointer-events: auto;
+}
+
+.css-font-preview-warning {
+  color: #b45;
+  font-weight: 600;
+}
+
+.css-token-def-preview-ui,
+.css-token-ref-preview-ui {
+  margin-left: 0.45em;
+  padding: 0 0.3em;
+  height: 1.1em;
+  line-height: 1.05em;
+  border-radius: 0.35em;
+  border: 1px solid color-mix(in srgb, var(--css-preview-stroke) 80%, transparent);
+  font-size: 0.72em;
+  color: var(--css-preview-text);
+}
+
+.css-token-def-preview-ui {
+  background: color-mix(in srgb, var(--css-preview-fill) 75%, transparent);
+}
+
+.css-token-ref-preview-ui {
+  background: transparent;
+  border-style: dashed;
+}
+
+.js-preview-ui {
+  display: inline-block;
+  margin-left: 0.35em;
+  vertical-align: middle;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: auto;
+  color: var(--css-preview-text);
+  font-size: 0.82em;
+  line-height: 1;
+}
+
+.js-regex-preview-ui::before {
+  content: "/r/";
+}
+
+.js-template-preview-ui::before {
+  content: "`...`";
+}

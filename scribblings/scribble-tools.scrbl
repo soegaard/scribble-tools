@@ -16,11 +16,43 @@ content, while the block forms (@racket[cssblock], @racket[htmlblock],
 and @racket[jsblock]) produce code blocks with optional line numbers,
 file labels, and escapes.
 
-@defform/subs[(css-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
+@defform/subs[(css-code maybe-option ... str-expr ...+)
+              ([maybe-option code:blank
+                             (code:line #:color-swatch? color-swatch?-expr)
+                             (code:line #:font-preview? font-preview?-expr)
+                             (code:line #:dimension-preview? dimension-preview?-expr)
+                             (code:line #:preview-mode preview-mode-expr)
+                             (code:line #:preview-tooltips? preview-tooltips?-expr)
+                             (code:line #:preview-css-url preview-css-url-expr)
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline CSS code.
 Newlines and surrounding whitespace are collapsed to single spaces.
+
+@racket[#:color-swatch?] controls whether detected CSS color literals
+are followed by a small color swatch (default: @racket[#t]).
+Gradient literals (for example @racket[linear-gradient(...)]) are shown
+as a small bar swatch.
+
+@racket[#:font-preview?] controls whether @racket[font-family]
+declarations are followed by a small @tt{Aa} preview in the selected
+font (default: @racket[#t]).
+
+@racket[#:dimension-preview?] controls whether spacing and radius
+declarations such as @racket[margin], @racket[padding], @racket[gap],
+and @racket[border-radius] get tiny inline visualizers (default:
+@racket[#f]).
+
+@racket[#:preview-mode] controls when previews are shown:
+@racket['always], @racket['hover], or @racket['none]
+(default: @racket['always]).
+
+@racket[#:preview-tooltips?] controls whether preview decorations expose
+tooltips (hover/focus) and related runtime tooltip behavior (default:
+@racket[#t]).
+
+@racket[#:preview-css-url] optionally points to an external stylesheet
+for preview UI classes. When provided, runtime loads that stylesheet
+instead of injecting inline preview CSS.
 
 An optional @racket[#:escape] identifier configures escapes of the
 form @racket[(escape-id expr)] to splice @racket[expr]-produced
@@ -59,6 +91,12 @@ Example: @js-code{const n = 42;}
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:color-swatch? color-swatch?-expr)
+                       (code:line #:font-preview? font-preview?-expr)
+                       (code:line #:dimension-preview? dimension-preview?-expr)
+                       (code:line #:preview-mode preview-mode-expr)
+                       (code:line #:preview-tooltips? preview-tooltips?-expr)
+                       (code:line #:preview-css-url preview-css-url-expr)
                        (code:line #:file filename-expr)
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
@@ -71,6 +109,12 @@ Options:
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:color-swatch?] controls whether detected CSS color literals are followed by a small swatch; gradient literals are shown as a small bar (default: @racket[#t]).}
+ @item{@racket[#:font-preview?] controls whether @racket[font-family] declarations are followed by a small @tt{Aa} preview (default: @racket[#t]).}
+ @item{@racket[#:dimension-preview?] controls whether spacing and radius declarations (for example @racket[margin], @racket[padding], @racket[gap], @racket[letter-spacing], @racket[text-indent], @racket[filter: blur(...)], and @racket[border-radius]) are followed by small visualizer decorations (default: @racket[#f]).}
+ @item{@racket[#:preview-mode] controls when previews are shown: @racket['always], @racket['hover], or @racket['none] (default: @racket['always]).}
+ @item{@racket[#:preview-tooltips?] controls whether preview decorations include tooltip text and interactive hover/focus tooltip UI (default: @racket[#t]).}
+ @item{@racket[#:preview-css-url] optionally points to an external stylesheet URL/path for preview classes; when set, runtime links that stylesheet instead of injecting inline preview CSS (default: @racket[#f]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
  @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
 ]
@@ -83,6 +127,17 @@ Example:
 }
 }
 }
+
+@section{Preview Legend}
+
+@itemlist[
+ @item{Color square: a detected color literal such as @tt{#c33} or @racket[red].}
+ @item{Gradient bar: a detected gradient literal such as @racket[linear-gradient(...)].}
+ @item{Spacing bar: detected spacing-sized values (for example @racket[margin], @racket[gap], @racket[letter-spacing], or @racket[filter: blur(...)]) scaled to a compact width.}
+ @item{Radius chip: detected @racket[border-radius] values, where the chip corner radius mirrors the declaration.}
+ @item{Font @tt{Aa}: preview of @racket[font-family], including fallback resolution tooltip and missing-font warning.}
+ @item{Keyboard accessibility: previews with tooltips are focusable and expose the same tooltip text on focus as on hover.}
+]
 
 @defform[(cssblock0 option ... str-expr ...+)]{
 Like @racket[cssblock], but without the inset wrapper.

@@ -1,11 +1,13 @@
 #lang racket/base
 
 (require racket/list
+         racket/set
          racket/string
          racket/file
          racket/runtime-path
          scribble/base
          scribble/core
+         scribble/html-properties
          (only-in scribble/manual filebox)
          scribble/racket
          (for-syntax racket/base
@@ -22,6 +24,624 @@
          jsblock0)
 
 (define omitable (make-style #f '(omitable)))
+;; Dedicated style for HTML tag names; do not rely on .RktSym/.RktKw theme mappings.
+(define html-tag-color
+  (make-style #f (list (attributes '((style . "color: #07A;"))))))
+
+(define css-color-keywords
+  (list->set
+   '("transparent" "currentcolor"
+     "black" "white" "gray" "grey" "silver"
+     "red" "green" "blue"
+     "yellow" "orange" "purple" "pink" "brown"
+     "cyan" "magenta" "lime" "teal" "navy" "olive" "maroon"
+     "aqua" "fuchsia")))
+
+(define css-color-functions
+  (list->set
+   '("rgb" "rgba" "hsl" "hsla" "hwb" "lab" "lch" "oklab" "oklch"
+     "color" "color-mix" "device-cmyk" "light-dark")))
+
+(define css-gradient-functions
+  (list->set
+   '("linear-gradient" "radial-gradient" "conic-gradient"
+     "repeating-linear-gradient" "repeating-radial-gradient" "repeating-conic-gradient")))
+
+(define css-spacing-properties
+  (list->set
+   '("margin" "margin-top" "margin-right" "margin-bottom" "margin-left"
+     "padding" "padding-top" "padding-right" "padding-bottom" "padding-left"
+     "gap" "row-gap" "column-gap"
+     "letter-spacing" "word-spacing" "outline-offset" "text-indent")))
+
+(define css-blur-properties
+  (list->set '("filter" "backdrop-filter")))
+
+(define current-preview-css-url (make-parameter #f))
+(define current-preview-tooltips? (make-parameter #t))
+(define current-html-style-color-swatch? (make-parameter #t))
+(define current-html-style-font-preview? (make-parameter #t))
+(define current-html-style-dimension-preview? (make-parameter #t))
+(define current-html-style-preview-mode (make-parameter 'always))
+(define current-html-script-preview? (make-parameter #t))
+
+(define (preview-url-attrs)
+  (define u (current-preview-css-url))
+  (if (and (string? u) (not (string=? (string-trim u) "")))
+      `((data-preview-css-url . ,u))
+      null))
+
+(define (preview-tooltip-attrs label)
+  (if (current-preview-tooltips?)
+      `((data-preview-tooltips . "on")
+        (data-preview-title . ,label)
+        (title . ,label)
+        (role . "img")
+        (aria-label . ,label)
+        (tabindex . "0"))
+      `((data-preview-tooltips . "off")
+        (aria-hidden . "true")
+        (tabindex . "-1"))))
+
+(define (safe-css-color-literal? s)
+  (and (regexp-match? #px"^[#(),.%+\\-/_a-zA-Z0-9\\s]+$" s)
+       (not (regexp-match? #px";" s))))
+
+(define (css-color-literal? s)
+  (define down (string-downcase s))
+  (or (set-member? css-color-keywords down)
+      (regexp-match? #px"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$" s)))
+
+(define (safe-css-font-family-literal? s)
+  (and (not (string=? (string-trim s) ""))
+       (regexp-match? #px"^[a-zA-Z0-9\"' ,._-]+$" s)))
+
+(define (normalize-css-font-family s)
+  (string-trim
+   (regexp-replace* #px"(?i:!\\s*important\\s*$)" (string-trim s) "")))
+
+(define (normalize-css-decl-value s)
+  (string-trim
+   (regexp-replace* #px"(?i:!\\s*important\\s*$)" (string-trim s) "")))
+
+(define css-length-rx
+  #px"([-+]?[0-9]*\\.?[0-9]+)\\s*(px|rem|em|%|vw|vh|vmin|vmax|svw|svh|lvw|lvh|dvw|dvh|vi|vb|pt|pc|cm|mm|in|q|ch|ex|cap|ic|lh|rlh)")
+
+(define (parse-css-lengths s)
+  (let loop ([start 0] [acc null])
+    (define m (regexp-match-positions css-length-rx s start))
+    (cond
+      [(not m) (reverse acc)]
+      [else
+       (define whole (list-ref m 0))
+       (define num-pos (list-ref m 1))
+       (define unit-pos (list-ref m 2))
+       (define next-start (cdr whole))
+       (if (and num-pos unit-pos)
+           (let* ([num-str (substring s (car num-pos) (cdr num-pos))]
+                  [unit-str (string-downcase (substring s (car unit-pos) (cdr unit-pos)))]
+                  [num (string->number num-str)])
+             (if num
+                 (loop next-start (cons (cons num unit-str) acc))
+                 (loop next-start acc)))
+           (loop next-start acc))])))
+
+(define (css-length->px amount unit)
+  (case (string->symbol unit)
+    [(px) amount]
+    [(rem em) (* 16.0 amount)]
+    [(pt) (* (/ 96.0 72.0) amount)]
+    [(pc) (* 16.0 amount)]
+    [(in) (* 96.0 amount)]
+    [(cm) (* (/ 96.0 2.54) amount)]
+    [(mm) (* (/ 96.0 25.4) amount)]
+    [(q) (* (/ 96.0 101.6) amount)]
+    [(ch ex cap) (* 8.0 amount)]
+    [(ic lh rlh) (* 16.0 amount)]
+    [(vw vh vmin vmax svw svh lvw lvh dvw dvh vi vb) (* 10.0 amount)]
+    [(%) (* 0.5 amount)]
+    [else #f]))
+
+(define (clamp lo x hi)
+  (min hi (max lo x)))
+
+(define (max-css-length-px value-text)
+  (define pxs
+    (filter values
+            (for/list ([lu (in-list (parse-css-lengths value-text))])
+              (css-length->px (car lu) (cdr lu)))))
+  (and (pair? pxs) (apply max pxs)))
+
+(define (format-px px)
+  (format "~apx" (inexact->exact (round px))))
+
+(define (extract-blur-arg value-text)
+  (define m (regexp-match #px"(?i:blur\\(([^)]*)\\))" value-text))
+  (and m (string-trim (list-ref m 1))))
+
+(define (spacing-width-px value-text)
+  (define px (max-css-length-px value-text))
+  (and px
+       (let* ([px* (clamp 0.0 px 160.0)])
+         (and px*
+              (inexact->exact
+               (round (clamp 6.0 (+ 6.0 (* 0.28 px*)) 54.0)))))))
+
+(define (radius-size-px value-text)
+  (define px (max-css-length-px value-text))
+  (and px
+       (let* ([px* (clamp 0.0 px 999.0)])
+         (and px*
+              (inexact->exact
+               (round (clamp 0.0 px* 9.0)))))))
+
+(define (spacing-preview-title value-text)
+  (define px (max-css-length-px value-text))
+  (if px
+      (format "Spacing preview: ~a (~a)" value-text (format-px px))
+      (format "Spacing preview: ~a" value-text)))
+
+(define (radius-preview-title value-text)
+  (define px (max-css-length-px value-text))
+  (if px
+      (format "Border radius preview: ~a (~a)" value-text (format-px px))
+      (format "Border radius preview: ~a" value-text)))
+
+(define (normalize-preview-mode who mode)
+  (cond
+    [(memq mode '(none always hover)) mode]
+    [else (raise-argument-error who "(or/c 'none 'always 'hover)" mode)]))
+
+(define (preview-mode->string mode)
+  (case mode
+    [(none) "none"]
+    [(always) "always"]
+    [(hover) "hover"]
+    [else "always"]))
+
+(define (css-font-preview-style family-text preview-mode)
+  (define mode (preview-mode->string (normalize-preview-mode 'css-font-preview-style preview-mode)))
+  (make-style
+   #f
+   (list
+    (attributes
+     (append
+      `((class . "css-preview-ui css-font-preview-ui")
+        (data-preview-mode . ,mode)
+        (data-font-stack . ,family-text)
+        (style . ,(format "--css-preview-font: ~a;" family-text)))
+      (preview-tooltip-attrs (format "Preview stack: ~a" family-text))
+      (preview-url-attrs))))))
+
+(define (css-font-preview-element family-text preview-mode)
+  (make-element (css-font-preview-style family-text preview-mode) (list "Aa")))
+
+(define (css-swatch-style color-text preview-mode)
+  (define mode (preview-mode->string (normalize-preview-mode 'css-swatch-style preview-mode)))
+  (make-style
+   #f
+   (list
+    (attributes
+     (append
+      `((class . "css-preview-ui css-color-preview-ui")
+        (data-preview-mode . ,mode)
+        (style . ,(format "--css-preview-bg: ~a;" color-text)))
+      (preview-tooltip-attrs (format "Color preview: ~a" color-text))
+      (preview-url-attrs))))))
+
+(define (css-swatch-element color-text preview-mode)
+  (make-element (css-swatch-style color-text preview-mode) (list " ")))
+
+(define (css-gradient-swatch-style gradient-text preview-mode)
+  (define mode (preview-mode->string (normalize-preview-mode 'css-gradient-swatch-style preview-mode)))
+  (make-style
+   #f
+   (list
+    (attributes
+     (append
+      `((class . "css-preview-ui css-gradient-preview-ui")
+        (data-preview-mode . ,mode)
+        (style . ,(format "--css-preview-bg: ~a;" gradient-text)))
+      (preview-tooltip-attrs (format "Gradient preview: ~a" gradient-text))
+      (preview-url-attrs))))))
+
+(define (css-gradient-swatch-element gradient-text preview-mode)
+  (make-element (css-gradient-swatch-style gradient-text preview-mode) (list " ")))
+
+(define (css-spacing-preview-style width-px label preview-mode)
+  (define mode (preview-mode->string (normalize-preview-mode 'css-spacing-preview-style preview-mode)))
+  (make-style
+   #f
+   (list
+    (attributes
+     (append
+      `((class . "css-preview-ui css-spacing-preview-ui")
+        (data-preview-mode . ,mode)
+        (style . ,(format "--css-preview-width: ~apx;" width-px)))
+      (preview-tooltip-attrs (spacing-preview-title label))
+      (preview-url-attrs))))))
+
+(define (css-spacing-preview-element width-px label preview-mode)
+  (make-element (css-spacing-preview-style width-px label preview-mode) (list " ")))
+
+(define (css-radius-preview-style radius-px label preview-mode)
+  (define mode (preview-mode->string (normalize-preview-mode 'css-radius-preview-style preview-mode)))
+  (make-style
+   #f
+   (list
+    (attributes
+     (append
+      `((class . "css-preview-ui css-radius-preview-ui")
+        (data-preview-mode . ,mode)
+        (style . ,(format "--css-preview-radius: ~apx;" radius-px)))
+      (preview-tooltip-attrs (radius-preview-title label))
+      (preview-url-attrs))))))
+
+(define (css-radius-preview-element radius-px label preview-mode)
+  (make-element (css-radius-preview-style radius-px label preview-mode) (list " ")))
+
+(define (js-preview-style kind label)
+  (make-style
+   #f
+   (list
+    (attributes
+     `((class . ,(format "js-preview-ui ~a" kind))
+       ,@(preview-tooltip-attrs label))))))
+
+(define (js-regex-preview-element)
+  (make-element (js-preview-style "js-regex-preview-ui" "Regex literal") null))
+
+(define (js-template-preview-element)
+  (make-element (js-preview-style "js-template-preview-ui" "Template literal") null))
+
+(define (css-token-def-style name value)
+  (make-style
+   #f
+   (list
+    (attributes
+     (append
+      `((class . "css-preview-ui css-token-def-preview-ui")
+        (style . ,(format "--css-token-name: \"~a\";" name)))
+      (preview-tooltip-attrs (format "Design token ~a = ~a" name value))
+      (preview-url-attrs))))))
+
+(define (css-token-def-element name value)
+  (make-element (css-token-def-style name value) (list name)))
+
+(define (css-token-ref-style name)
+  (make-style
+   #f
+   (list
+    (attributes
+     (append
+      `((class . "css-preview-ui css-token-ref-preview-ui")
+        (style . ,(format "--css-token-name: \"~a\";" name)))
+      (preview-tooltip-attrs (format "Uses design token ~a" name))
+      (preview-url-attrs))))))
+
+(define (css-token-ref-element name)
+  (make-element (css-token-ref-style name) (list name)))
+
+(define css-font-preview-runtime-script
+  #<<JS
+(function () {
+  if (window.__scribbleCssFontPreviewUiInit) return;
+  window.__scribbleCssFontPreviewUiInit = true;
+
+  var styleId = "scribble-css-preview-ui-style";
+  function ensureStyles() {
+    var first = document.querySelector(".css-preview-ui, .js-preview-ui");
+    var external = first && first.getAttribute("data-preview-css-url");
+    if (external) {
+      var lid = "scribble-css-preview-ui-link";
+      if (!document.getElementById(lid)) {
+        var lk = document.createElement("link");
+        lk.id = lid;
+        lk.rel = "stylesheet";
+        lk.href = external;
+        document.head.appendChild(lk);
+      }
+      return;
+    }
+    if (!document.getElementById(styleId)) {
+      var st = document.createElement("style");
+      st.id = styleId;
+      st.textContent =
+        ":root{--css-preview-stroke:#999;--css-preview-text:rgba(0,0,0,.72);--css-preview-accent-1:rgba(70,150,245,.70);--css-preview-accent-2:rgba(70,150,245,.22);--css-preview-fill:rgba(70,150,245,.15);}" +
+        ".css-preview-ui{display:inline-block;margin-left:.45em;vertical-align:middle;user-select:none;-webkit-user-select:none;pointer-events:auto;}" +
+        ".css-preview-ui:focus,.js-preview-ui:focus{outline:1px solid color-mix(in srgb, var(--css-preview-accent-1) 80%, #000 10%);outline-offset:1px;}" +
+        ".css-preview-ui[data-preview-mode=none]{display:none!important;}" +
+        ".css-preview-ui[data-preview-mode=hover]{display:none;}" +
+        ".css-color-preview-ui{width:.75em;height:.75em;border:1px solid var(--css-preview-stroke);background:var(--css-preview-bg);}" +
+        ".css-gradient-preview-ui{width:1.4em;height:.75em;border:1px solid var(--css-preview-stroke);background:var(--css-preview-bg);}" +
+        ".css-spacing-preview-ui{width:var(--css-preview-width,10px);height:.58em;border:1px solid color-mix(in srgb, var(--css-preview-stroke) 80%, transparent);border-radius:2px;background:linear-gradient(to right, var(--css-preview-accent-1), var(--css-preview-accent-2));}" +
+        ".css-radius-preview-ui{width:.95em;height:.95em;border:1px solid color-mix(in srgb, var(--css-preview-stroke) 85%, transparent);border-radius:var(--css-preview-radius,4px);background:var(--css-preview-fill);}" +
+        ".css-font-preview-ui{margin-left:.6em;white-space:nowrap;font-family:var(--css-preview-font,inherit);font-size:1em;line-height:1;color:var(--css-preview-text);pointer-events:auto;}" +
+        ".css-font-preview-warning{color:#b45;font-weight:600;}" +
+        ".css-token-def-preview-ui,.css-token-ref-preview-ui{margin-left:.45em;padding:0 .3em;height:1.1em;line-height:1.05em;border-radius:.35em;border:1px solid color-mix(in srgb, var(--css-preview-stroke) 80%, transparent);font-size:.72em;color:var(--css-preview-text);}" +
+        ".css-token-def-preview-ui{background:color-mix(in srgb, var(--css-preview-fill) 75%, transparent);}" +
+        ".css-token-ref-preview-ui{background:transparent;border-style:dashed;}" +
+        ".js-preview-ui{display:inline-block;margin-left:.35em;vertical-align:middle;user-select:none;-webkit-user-select:none;pointer-events:auto;color:var(--css-preview-text);font-size:.82em;line-height:1;}" +
+        ".js-regex-preview-ui::before{content:\"/r/\";}" +
+        ".js-template-preview-ui::before{content:\"`...`\";}";
+      document.head.appendChild(st);
+    }
+  }
+
+  var tooltipEl = null;
+  function ensureTooltipEl() {
+    if (tooltipEl) return tooltipEl;
+    tooltipEl = document.createElement("div");
+    tooltipEl.id = "scribble-preview-tooltip";
+    tooltipEl.style.position = "fixed";
+    tooltipEl.style.zIndex = "99999";
+    tooltipEl.style.display = "none";
+    tooltipEl.style.pointerEvents = "none";
+    tooltipEl.style.maxWidth = "32rem";
+    tooltipEl.style.padding = "0.28rem 0.45rem";
+    tooltipEl.style.borderRadius = "0.32rem";
+    tooltipEl.style.background = "rgba(20,20,20,.92)";
+    tooltipEl.style.color = "#fff";
+    tooltipEl.style.font = "12px/1.25 sans-serif";
+    tooltipEl.style.whiteSpace = "pre-wrap";
+    tooltipEl.style.boxShadow = "0 3px 10px rgba(0,0,0,.28)";
+    document.body.appendChild(tooltipEl);
+    return tooltipEl;
+  }
+
+  function tooltipText(preview) {
+    if (preview.getAttribute("data-preview-tooltips") === "off") return "";
+    return preview.getAttribute("data-preview-title") || preview.getAttribute("title") || "";
+  }
+
+  function setPreviewLabel(preview, text) {
+    preview.setAttribute("data-preview-title", text);
+    preview.setAttribute("aria-label", text);
+    if (preview.getAttribute("data-preview-tooltips") === "off") {
+      preview.removeAttribute("title");
+    } else {
+      preview.setAttribute("title", text);
+    }
+  }
+
+  function showTooltip(preview, clientX, clientY) {
+    var text = tooltipText(preview);
+    if (!text) return;
+    var tip = ensureTooltipEl();
+    tip.textContent = text;
+    tip.style.display = "block";
+    moveTooltip(clientX, clientY);
+  }
+
+  function moveTooltip(clientX, clientY) {
+    if (!tooltipEl || tooltipEl.style.display === "none") return;
+    var x = (typeof clientX === "number" ? clientX : 0) + 12;
+    var y = (typeof clientY === "number" ? clientY : 0) + 12;
+    var vw = window.innerWidth || document.documentElement.clientWidth || 1024;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 768;
+    var tw = tooltipEl.offsetWidth || 0;
+    var th = tooltipEl.offsetHeight || 0;
+    if (x + tw + 8 > vw) x = Math.max(8, vw - tw - 8);
+    if (y + th + 8 > vh) y = Math.max(8, vh - th - 8);
+    tooltipEl.style.left = x + "px";
+    tooltipEl.style.top = y + "px";
+  }
+
+  function hideTooltip() {
+    if (tooltipEl) tooltipEl.style.display = "none";
+  }
+
+  function bindTooltip(preview) {
+    if (preview.__scribbleTooltipBound) return;
+    preview.__scribbleTooltipBound = true;
+    if (preview.getAttribute("data-preview-tooltips") === "off") return;
+    if (!tooltipText(preview)) return;
+    preview.style.cursor = "help";
+    preview.addEventListener("mouseenter", function (e) {
+      showTooltip(preview, e.clientX, e.clientY);
+    });
+    preview.addEventListener("mousemove", function (e) {
+      moveTooltip(e.clientX, e.clientY);
+    });
+    preview.addEventListener("mouseleave", hideTooltip);
+    preview.addEventListener("focus", function () {
+      var r = preview.getBoundingClientRect();
+      showTooltip(preview, r.left + r.width / 2, r.bottom);
+    });
+    preview.addEventListener("blur", hideTooltip);
+  }
+
+  var GENERIC = new Set([
+    "serif", "sans-serif", "monospace", "cursive", "fantasy",
+    "system-ui", "emoji", "math", "fangsong",
+    "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded"
+  ]);
+
+  function splitFontStack(raw) {
+    var s = (raw || "").trim();
+    var out = [];
+    var cur = "";
+    var quote = null;
+    var esc = false;
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (esc) {
+        cur += ch;
+        esc = false;
+        continue;
+      }
+      if (ch === "\\\\") {
+        cur += ch;
+        esc = true;
+        continue;
+      }
+      if (quote) {
+        cur += ch;
+        if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === "'" || ch === "\"") {
+        cur += ch;
+        quote = ch;
+        continue;
+      }
+      if (ch === ",") {
+        out.push(cur.trim());
+        cur = "";
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.trim() !== "") out.push(cur.trim());
+    return out.map(function (part) {
+      var p = part.trim();
+      if ((p.startsWith("\"") && p.endsWith("\"")) || (p.startsWith("'") && p.endsWith("'"))) {
+        p = p.slice(1, -1);
+      }
+      return p.trim();
+    }).filter(Boolean);
+  }
+
+  function isGenericFamily(name) {
+    return GENERIC.has((name || "").toLowerCase());
+  }
+
+  function hasFont(name) {
+    if (!name) return false;
+    if (isGenericFamily(name)) return true;
+    if (!document.fonts || !document.fonts.check) return null;
+    try {
+      var escaped = String(name).replace(/"/g, "\\\\\"");
+      return document.fonts.check('16px "' + escaped + '"');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function addWarning(preview) {
+    var warn = preview.querySelector(".css-font-preview-warning");
+    if (warn) return;
+    warn = document.createElement("span");
+    warn.className = "css-font-preview-warning";
+    warn.setAttribute("aria-hidden", "true");
+    warn.textContent = " \\u26A0";
+    preview.appendChild(warn);
+  }
+
+  function clearWarning(preview) {
+    var warn = preview.querySelector(".css-font-preview-warning");
+    if (warn) warn.remove();
+  }
+
+  function computeFontState(preview) {
+    var stack = preview.getAttribute("data-font-stack") || "";
+    var families = splitFontStack(stack);
+    var nonGeneric = families.filter(function (f) { return !isGenericFamily(f); });
+    var generic = families.filter(function (f) { return isGenericFamily(f); });
+    var available = null;
+    var availabilityUnknown = false;
+
+    for (var i = 0; i < families.length; i++) {
+      var ok = hasFont(families[i]);
+      if (ok === null) {
+        availabilityUnknown = true;
+      } else if (ok) {
+        available = families[i];
+        break;
+      }
+    }
+
+    var fallback = generic[0] || "monospace";
+    var firstRequested = nonGeneric[0] || generic[0] || "(default)";
+    var resolved = available || generic[0] || "(browser default)";
+    var usedFallback = available && firstRequested && (available !== firstRequested);
+    var missing = (!availabilityUnknown && nonGeneric.length > 0 && !available);
+
+    if (missing) {
+      addWarning(preview);
+      setPreviewLabel(preview, "Font not found on system\\nUsing fallback: " + fallback);
+    } else {
+      clearWarning(preview);
+      if (usedFallback) {
+        setPreviewLabel(preview, "Rendered using: " + resolved + " (fallback)");
+      } else {
+        setPreviewLabel(preview, "Rendered using: " + resolved);
+      }
+    }
+  }
+
+  function setVisible(preview, on) {
+    if (preview.getAttribute("data-preview-mode") !== "hover") return;
+    preview.style.display = on ? "inline-block" : "none";
+  }
+
+  function bindPreview(preview) {
+    if (preview.__scribblePreviewBound) return;
+    preview.__scribblePreviewBound = true;
+    var mode = preview.getAttribute("data-preview-mode") || "always";
+    var isFont = preview.classList.contains("css-font-preview-ui");
+
+    if (isFont) computeFontState(preview);
+    bindTooltip(preview);
+    if (mode !== "hover") return;
+
+    preview.__scribbleFontPreviewBound = true;
+    setVisible(preview, false);
+
+    var host =
+      preview.closest("tr") ||
+      preview.closest("p") ||
+      preview.closest("li") ||
+      preview.closest("dd") ||
+      preview.closest("dt") ||
+      preview.parentElement;
+    if (!host) return;
+
+    host.addEventListener("mouseenter", function () {
+      if (isFont) computeFontState(preview);
+      setVisible(preview, true);
+    });
+    host.addEventListener("mouseleave", function () {
+      setVisible(preview, false);
+    });
+    host.addEventListener("focusin", function () {
+      if (isFont) computeFontState(preview);
+      setVisible(preview, true);
+    });
+    host.addEventListener("focusout", function () {
+      setVisible(preview, false);
+    });
+  }
+
+  function scan() {
+    ensureStyles();
+    var previews = document.querySelectorAll(".css-preview-ui");
+    for (var i = 0; i < previews.length; i++) bindPreview(previews[i]);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", scan, { once: true });
+  } else {
+    scan();
+  }
+})();
+JS
+  )
+
+(define css-font-preview-runtime-element
+  (make-element
+   (make-style #f (list (script-property "text/javascript"
+                                         (list css-font-preview-runtime-script))))
+   null))
+
+(define css-preview-runtime-emitted? (box #f))
+
+(define (runtime-prefix-elements)
+  (if (unbox css-preview-runtime-emitted?)
+      null
+      (begin
+        (set-box! css-preview-runtime-emitted? #t)
+        (list css-font-preview-runtime-element))))
 
 (define (style-for lang cls)
   (case lang
@@ -36,7 +656,7 @@
     [(html)
      (case cls
        [(comment) comment-color]
-       [(keyword) keyword-color]
+       [(keyword) html-tag-color]
        [(value) value-color]
        [(name) symbol-color]
        [(punct) paren-color]
@@ -189,6 +809,12 @@
           false finally for function if import in instanceof let new null of return super
           switch this throw true try typeof var void while with yield await))
 
+(define js-literal-keywords
+  '(true false null this super))
+
+(define js-regex-context-keywords
+  '(return throw case delete void typeof new in instanceof do else if while for switch catch await yield))
+
 (define (js-ident-start? c)
   (or (char-alphabetic? c) (char=? c #\_) (char=? c #\$)))
 
@@ -201,57 +827,229 @@
     (if (and (< i len) (member (string-ref s i) '(#\+ #\-)))
         (add1 i)
         i))
-  (define j1 (read-while s j0 char-numeric?))
-  (define j2
-    (if (and (< j1 len) (char=? (string-ref s j1) #\.))
-        (read-while s (add1 j1) char-numeric?)
-        j1))
-  (if (and (< j2 len) (member (string-ref s j2) '(#\e #\E)))
-      (let* ([j3 (if (and (< (add1 j2) len)
-                          (member (string-ref s (add1 j2)) '(#\+ #\-)))
-                     (+ j2 2)
-                     (add1 j2))])
-        (read-while s j3 char-numeric?))
-      j2))
+  (define (digit-or-underscore? c) (or (char-numeric? c) (char=? c #\_)))
+  (cond
+    [(and (<= (+ j0 2) len)
+          (char=? (string-ref s j0) #\0)
+          (member (char-downcase (string-ref s (add1 j0))) '(#\x #\o #\b)))
+     (define kind (char-downcase (string-ref s (add1 j0))))
+     (define pred
+       (case kind
+         [(#\x) (lambda (c) (or (hex-digit? c) (char=? c #\_)))]
+         [(#\o) (lambda (c) (or (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7))
+                                (char=? c #\_)))]
+         [else (lambda (c) (or (member c '(#\0 #\1)) (char=? c #\_)))]))
+     (read-while s (+ j0 2) pred)]
+    [else
+     (define j1 (read-while s j0 digit-or-underscore?))
+     (define j2
+       (if (and (< j1 len) (char=? (string-ref s j1) #\.))
+           (read-while s (add1 j1) digit-or-underscore?)
+           j1))
+     (if (and (< j2 len) (member (string-ref s j2) '(#\e #\E)))
+         (let* ([j3 (if (and (< (add1 j2) len)
+                             (member (string-ref s (add1 j2)) '(#\+ #\-)))
+                        (+ j2 2)
+                        (add1 j2))])
+           (read-while s j3 digit-or-underscore?))
+         j2)]))
+
+(define (read-js-regex s i)
+  (define len (string-length s))
+  (let loop ([k (add1 i)] [escaped? #f] [in-class? #f])
+    (cond
+      [(>= k len) #f]
+      [else
+       (define c (string-ref s k))
+       (cond
+         [(or (char=? c #\newline) (char=? c #\return)) #f]
+         [escaped? (loop (add1 k) #f in-class?)]
+         [(char=? c #\\) (loop (add1 k) #t in-class?)]
+         [(and (not in-class?) (char=? c #\/))
+          (read-while s (add1 k) char-alphabetic?)]
+         [(char=? c #\[) (loop (add1 k) #f #t)]
+         [(and in-class? (char=? c #\])) (loop (add1 k) #f #f)]
+         [else (loop (add1 k) #f in-class?)])])))
+
+(define (js-template-expr-end s start)
+  (define len (string-length s))
+  (let loop ([k start]
+             [depth 1]
+             [in-single? #f]
+             [in-double? #f]
+             [in-backtick? #f]
+             [in-line-comment? #f]
+             [in-block-comment? #f]
+             [escaped? #f])
+    (cond
+      [(>= k len) len]
+      [else
+       (define c (string-ref s k))
+       (define c2 (next-char s (add1 k)))
+       (cond
+         [in-line-comment?
+          (if (or (char=? c #\newline) (char=? c #\return))
+              (loop (add1 k) depth in-single? in-double? in-backtick? #f in-block-comment? #f)
+              (loop (add1 k) depth in-single? in-double? in-backtick? in-line-comment? in-block-comment? #f))]
+         [in-block-comment?
+          (if (and c2 (char=? c #\*) (char=? c2 #\/))
+              (loop (+ k 2) depth in-single? in-double? in-backtick? #f #f #f)
+              (loop (add1 k) depth in-single? in-double? in-backtick? #f #t #f))]
+         [escaped?
+          (loop (add1 k) depth in-single? in-double? in-backtick? #f #f #f)]
+         [in-single?
+          (cond
+            [(char=? c #\\) (loop (add1 k) depth #t in-double? in-backtick? #f #f #t)]
+            [(char=? c #\') (loop (add1 k) depth #f in-double? in-backtick? #f #f #f)]
+            [else (loop (add1 k) depth #t in-double? in-backtick? #f #f #f)])]
+         [in-double?
+          (cond
+            [(char=? c #\\) (loop (add1 k) depth in-single? #t in-backtick? #f #f #t)]
+            [(char=? c #\") (loop (add1 k) depth in-single? #f in-backtick? #f #f #f)]
+            [else (loop (add1 k) depth in-single? #t in-backtick? #f #f #f)])]
+         [in-backtick?
+          (cond
+            [(char=? c #\\) (loop (add1 k) depth in-single? in-double? #t #f #f #t)]
+            [(char=? c #\`) (loop (add1 k) depth in-single? in-double? #f #f #f #f)]
+            [else (loop (add1 k) depth in-single? in-double? #t #f #f #f)])]
+         [else
+          (cond
+            [(and c2 (char=? c #\/) (char=? c2 #\/))
+             (loop (+ k 2) depth in-single? in-double? in-backtick? #t #f #f)]
+            [(and c2 (char=? c #\/) (char=? c2 #\*))
+             (loop (+ k 2) depth in-single? in-double? in-backtick? #f #t #f)]
+            [(char=? c #\') (loop (add1 k) depth #t in-double? in-backtick? #f #f #f)]
+            [(char=? c #\") (loop (add1 k) depth in-single? #t in-backtick? #f #f #f)]
+            [(char=? c #\`) (loop (add1 k) depth in-single? in-double? #t #f #f #f)]
+            [(char=? c #\{) (loop (add1 k) (add1 depth) in-single? in-double? in-backtick? #f #f #f)]
+            [(char=? c #\})
+             (if (= depth 1) k
+                 (loop (add1 k) (sub1 depth) in-single? in-double? in-backtick? #f #f #f))]
+            [else (loop (add1 k) depth in-single? in-double? in-backtick? #f #f #f)])])])))
+
+(define (tokenize-js-template s i)
+  (define len (string-length s))
+  (define tokens null)
+  (define (push cls a b)
+    (when (< a b)
+      (set! tokens (cons (cons cls (substring s a b)) tokens))))
+  (define k (add1 i))
+  (define seg-start i)
+  (let loop ()
+    (cond
+      [(>= k len)
+       (push 'value seg-start len)
+       (values (reverse tokens) len)]
+      [else
+       (define c (string-ref s k))
+       (define c2 (next-char s (add1 k)))
+       (cond
+         [(char=? c #\\)
+          (set! k (if c2 (+ k 2) (add1 k)))
+          (loop)]
+         [(char=? c #\`)
+          (push 'value seg-start (add1 k))
+          (values (reverse tokens) (add1 k))]
+         [(and c2 (char=? c #\$) (char=? c2 #\{))
+          (push 'value seg-start k)
+          (push 'punct k (+ k 2))
+          (define expr-start (+ k 2))
+          (define expr-end (js-template-expr-end s expr-start))
+          (define expr-tokens
+            (tokenize-js
+             (if (<= expr-end len)
+                 (substring s expr-start expr-end)
+                 "")))
+          (set! tokens (append (reverse expr-tokens) tokens))
+          (if (< expr-end len)
+              (begin
+                (push 'punct expr-end (add1 expr-end))
+                (set! k (add1 expr-end))
+                (set! seg-start k)
+                (loop))
+              (values (reverse tokens) len))]
+         [else
+          (set! k (add1 k))
+          (loop)])])))
 
 (define (tokenize-js s)
   (define len (string-length s))
-  (let loop ([i 0] [acc null])
+  (let loop ([i 0] [acc null] [can-start-regex? #t])
     (cond
       [(>= i len) (reverse acc)]
       [else
        (define ch (string-ref s i))
-       (define (emit cls j)
-         (loop j (cons (cons cls (substring s i j)) acc)))
+       (define (emit cls j [next-can-start-regex? #f])
+         (loop j (cons (cons cls (substring s i j)) acc) next-can-start-regex?))
        (cond
          [(and (char=? ch #\/)
                (< (add1 i) len)
                (char=? (string-ref s (add1 i)) #\*))
-          (emit 'comment (read-until s (+ i 2) "*/"))]
+          (emit 'comment (read-until s (+ i 2) "*/") can-start-regex?)]
          [(and (char=? ch #\/)
                (< (add1 i) len)
                (char=? (string-ref s (add1 i)) #\/))
           (define j (read-until s (+ i 2) "\n"))
-          (emit 'comment j)]
-         [(or (char=? ch #\") (char=? ch #\') (char=? ch #\`))
-          (emit 'value (read-string-literal s i))]
+          (emit 'comment j can-start-regex?)]
+         [(or (char=? ch #\") (char=? ch #\'))
+          (emit 'value (read-string-literal s i) #f)]
+         [(char=? ch #\`)
+          (define-values (template-tokens j) (tokenize-js-template s i))
+          (loop j (append (reverse template-tokens) acc) #f)]
          [(char-whitespace? ch)
-          (emit 'plain (add1 i))]
+          (emit 'plain (add1 i) can-start-regex?)]
          [(or (char-numeric? ch)
               (and (member ch '(#\+ #\-))
                    (< (add1 i) len)
                    (let ([c2 (string-ref s (add1 i))])
                      (or (char-numeric? c2) (char=? c2 #\.)))))
-          (emit 'value (read-js-number s i))]
+          (emit 'value (read-js-number s i) #f)]
          [(js-ident-start? ch)
           (define j (read-while s i js-ident-char?))
           (define id (string->symbol (substring s i j)))
-          (emit (if (memq id js-keywords) 'keyword 'name) j)]
+          (define kw? (memq id js-keywords))
+          (emit (if kw? 'keyword 'name)
+                j
+                (if kw?
+                    (and (not (memq id js-literal-keywords))
+                         (or (memq id js-regex-context-keywords)
+                             (eq? id 'return)
+                             (eq? id 'throw)))
+                    #f))]
+         [(and (char=? ch #\/)
+               (or (and (< (add1 i) len)
+                        (char=? (string-ref s (add1 i)) #\=))
+                   #t))
+          (cond
+            [can-start-regex?
+             (define j (read-js-regex s i))
+             (if j
+                 (emit 'value j #f)
+                 (emit 'punct (if (and (< (add1 i) len)
+                                        (char=? (string-ref s (add1 i)) #\=))
+                                   (+ i 2)
+                                   (add1 i))
+                       #t))]
+            [else
+             (emit 'punct (if (and (< (add1 i) len)
+                                   (char=? (string-ref s (add1 i)) #\=))
+                              (+ i 2)
+                              (add1 i))
+                   #t)])]
          [(member ch
                   '(#\{ #\} #\( #\) #\[ #\] #\, #\. #\; #\: #\? #\! #\= #\+ #\- #\* #\/ #\% #\< #\> #\& #\|))
-          (emit 'punct (add1 i))]
+          (emit 'punct
+                (let ([c2 (next-char s (add1 i))])
+                  (if (and c2
+                           (or (and (member ch '(#\= #\! #\< #\>))
+                                    (char=? c2 #\=))
+                               (and (member ch '(#\+ #\- #\& #\| #\* #\%))
+                                    (or (char=? c2 #\=) (char=? c2 ch)))))
+                      (+ i 2)
+                      (add1 i)))
+                (not (member ch '(#\) #\] #\}))))] ; closers tend to precede division
          [else
-          (emit 'plain (add1 i))])])))
+          (emit 'plain (add1 i) can-start-regex?)])])))
 
 (define (string-ci-prefix-at? s i prefix)
   (define n (string-length prefix))
@@ -297,6 +1095,9 @@
         (values (reverse tokens) j tag-name closing? #f)
         (let ((ch (string-ref s j)))
           (cond
+            [(or (char=? ch #\newline) (char=? ch #\return))
+             ;; Recover from malformed tags by stopping at line boundary.
+             (values (reverse tokens) j tag-name closing? #f)]
             ((char-whitespace? ch)
              (let ((k (read-while s j char-whitespace?)))
                (push 'plain j k)
@@ -333,8 +1134,13 @@
                        (when (< j len)
                          (let ((q (string-ref s j)))
                            (if (or (char=? q #\") (char=? q #\'))
-                               (let ((end (read-string-literal s j)))
-                                 (push 'value j end)
+                               (let* ([end (read-string-literal s j)]
+                                      [closed? (and (< (sub1 end) len)
+                                                    (> end j)
+                                                    (char=? (string-ref s (sub1 end)) q))])
+                                 (if closed?
+                                     (push 'value j end)
+                                     (push 'plain j end))
                                  (set! j end))
                                (let ((end
                                       (read-while s j
@@ -346,6 +1152,63 @@
                                  (set! j end))))))
                      (loop))))))))))
 
+(define (find-script/style-close s start tag)
+  (define len (string-length s))
+  (define close-mark (string-append "</" tag))
+  (let loop ([i start]
+             [in-single? #f]
+             [in-double? #f]
+             [in-backtick? #f]
+             [in-line-comment? #f]
+             [in-block-comment? #f]
+             [escaped? #f])
+    (cond
+      [(>= i len) len]
+      [else
+       (define c (string-ref s i))
+       (define c2 (next-char s (add1 i)))
+       (define close? (string-ci-prefix-at? s i close-mark))
+       (cond
+         [(and close?
+               (not in-single?) (not in-double?) (not in-backtick?)
+               (not in-line-comment?) (not in-block-comment?))
+          i]
+         [in-line-comment?
+          (if (or (char=? c #\newline) (char=? c #\return))
+              (loop (add1 i) in-single? in-double? in-backtick? #f in-block-comment? #f)
+              (loop (add1 i) in-single? in-double? in-backtick? #t in-block-comment? #f))]
+         [in-block-comment?
+          (if (and c2 (char=? c #\*) (char=? c2 #\/))
+              (loop (+ i 2) in-single? in-double? in-backtick? #f #f #f)
+              (loop (add1 i) in-single? in-double? in-backtick? #f #t #f))]
+         [escaped?
+          (loop (add1 i) in-single? in-double? in-backtick? #f #f #f)]
+         [in-single?
+          (cond
+            [(char=? c #\\) (loop (add1 i) #t in-double? in-backtick? #f #f #t)]
+            [(char=? c #\') (loop (add1 i) #f in-double? in-backtick? #f #f #f)]
+            [else (loop (add1 i) #t in-double? in-backtick? #f #f #f)])]
+         [in-double?
+          (cond
+            [(char=? c #\\) (loop (add1 i) in-single? #t in-backtick? #f #f #t)]
+            [(char=? c #\") (loop (add1 i) in-single? #f in-backtick? #f #f #f)]
+            [else (loop (add1 i) in-single? #t in-backtick? #f #f #f)])]
+         [in-backtick?
+          (cond
+            [(char=? c #\\) (loop (add1 i) in-single? in-double? #t #f #f #t)]
+            [(char=? c #\`) (loop (add1 i) in-single? in-double? #f #f #f #f)]
+            [else (loop (add1 i) in-single? in-double? #t #f #f #f)])]
+         [else
+          (cond
+            [(and c2 (char=? c #\/) (char=? c2 #\/))
+             (loop (+ i 2) in-single? in-double? in-backtick? #t #f #f)]
+            [(and c2 (char=? c #\/) (char=? c2 #\*))
+             (loop (+ i 2) in-single? in-double? in-backtick? #f #t #f)]
+            [(char=? c #\') (loop (add1 i) #t in-double? in-backtick? #f #f #f)]
+            [(char=? c #\") (loop (add1 i) in-single? #t in-backtick? #f #f #f)]
+            [(char=? c #\`) (loop (add1 i) in-single? in-double? #t #f #f #f)]
+            [else (loop (add1 i) #f #f #f #f #f #f)])])])))
+
 (define (tokenize-html s)
   (define len (string-length s))
   (let loop ([i 0] [mode 'text] [acc null])
@@ -356,10 +1219,16 @@
     (cond
       [(>= i len) (reverse acc)]
       [(eq? mode 'script)
-       (define close-i (or (find-ci s i "</script") len))
+       (define close-i (find-script/style-close s i "script"))
+       (define js-body-tokens
+         (if (< i close-i)
+             (insert-js-preview-tokens
+              (tokenize-js (substring s i close-i))
+              (current-html-script-preview?))
+             null))
        (define acc2
          (if (< i close-i)
-             (append (reverse (tokenize-js (substring s i close-i))) acc)
+             (append (reverse js-body-tokens) acc)
              acc))
        (if (>= close-i len)
            (reverse acc2)
@@ -367,10 +1236,21 @@
                          (parse-html-tag s close-i)])
              (loop j 'text (append (reverse tag-tokens) acc2))))]
       [(eq? mode 'style)
-       (define close-i (or (find-ci s i "</style") len))
+       (define close-i (find-script/style-close s i "style"))
+       (define mode-val (current-html-style-preview-mode))
+       (define enabled? (not (eq? mode-val 'none)))
+       (define css-body-tokens
+         (if (< i close-i)
+             (let* ([base (tokenize-css (substring s i close-i))]
+                    [with-color (insert-css-color-swatch-tokens base (and enabled? (current-html-style-color-swatch?)))]
+                    [with-font (insert-css-font-preview-tokens with-color (and enabled? (current-html-style-font-preview?)))]
+                    [with-dim (insert-css-dimension-preview-tokens with-font (and enabled? (current-html-style-dimension-preview?)))]
+                    [with-token (insert-css-design-token-tokens with-dim enabled?)])
+               (move-css-decorations-to-decl-end with-token))
+             null))
        (define acc2
          (if (< i close-i)
-             (append (reverse (tokenize-css (substring s i close-i))) acc)
+             (append (reverse css-body-tokens) acc)
              acc))
        (if (>= close-i len)
            (reverse acc2)
@@ -443,13 +1323,394 @@
     [(list? v) (make-element #f v)]
     [else (make-element #f (list v))]))
 
-(define (tokens->pieces lang tokens)
-  (apply append
-         (for/list ([t (in-list tokens)])
-           (if (eq? (car t) 'escape)
-               (list (escape->element (cdr t)))
-               (split-lines (style-for lang (car t))
-                            (cdr t))))))
+(define (consume-css-color-function tokens)
+  (define first (and (pair? tokens) (car tokens)))
+  (define second (and (pair? (cdr tokens)) (cadr tokens)))
+  (cond
+    [(and first second
+          (eq? (car first) 'value)
+          (or (set-member? css-color-functions (string-downcase (cdr first)))
+              (set-member? css-gradient-functions (string-downcase (cdr first))))
+          (eq? (car second) 'punct)
+          (string=? (cdr second) "("))
+     (define fn-name (string-downcase (cdr first)))
+     (let loop ([rest (cddr tokens)]
+                [depth 1]
+                [taken-rev (list second first)])
+       (cond
+         [(null? rest) (values #f tokens #f #f)]
+         [else
+          (define t (car rest))
+          (define cls (car t))
+          (define txt (cdr t))
+          (define new-depth
+            (cond
+              [(and (eq? cls 'punct) (string=? txt "(")) (add1 depth)]
+              [(and (eq? cls 'punct) (string=? txt ")")) (sub1 depth)]
+              [else depth]))
+          (define new-taken-rev (cons t taken-rev))
+          (if (zero? new-depth)
+              (let ([taken (reverse new-taken-rev)])
+                (values taken
+                        (cdr rest)
+                        (apply string-append (map cdr taken))
+                        fn-name))
+              (loop (cdr rest) new-depth new-taken-rev))]))]
+    [else (values #f tokens #f #f)]))
+
+(define (insert-css-color-swatch-tokens tokens enabled?)
+  (if (not enabled?)
+      tokens
+      (let loop ([rest tokens] [acc null])
+        (cond
+          [(null? rest) (reverse acc)]
+          [else
+           (define-values (taken tail color-fn fn-name) (consume-css-color-function rest))
+           (cond
+             [taken
+              (define acc2 (append (reverse taken) acc))
+              (if (and color-fn (safe-css-color-literal? color-fn))
+                  (loop tail (cons (cons (if (set-member? css-gradient-functions fn-name)
+                                             'swatch-gradient
+                                             'swatch)
+                                         color-fn)
+                                   acc2))
+                  (loop tail acc2))]
+             [else
+              (define t (car rest))
+              (define cls (car t))
+              (define txt (cdr t))
+              (define add-swatch?
+                (and (eq? cls 'value)
+                     (css-color-literal? txt)
+                     (safe-css-color-literal? txt)))
+              (if add-swatch?
+                  (loop (cdr rest) (cons (cons 'swatch txt) (cons t acc)))
+                  (loop (cdr rest) (cons t acc)))])]))))
+
+(define (consume-css-property-decl tokens property?)
+  (define first (and (pair? tokens) (car tokens)))
+  (cond
+    [(and first
+          (eq? (car first) 'name)
+          (property? (string-downcase (cdr first))))
+     (let loop ([rest (cdr tokens)]
+                [seen-colon? #f]
+                [taken-rev (list first)]
+                [value-rev null])
+       (cond
+         [(null? rest)
+          (if seen-colon?
+              (values (reverse taken-rev) null
+                      (normalize-css-font-family
+                       (apply string-append (map cdr (reverse value-rev)))))
+              (values #f tokens #f))]
+         [else
+          (define t (car rest))
+          (define cls (car t))
+          (define txt (cdr t))
+          (cond
+            [(not seen-colon?)
+             (cond
+               [(and (eq? cls 'punct) (string=? txt ":"))
+                (loop (cdr rest) #t (cons t taken-rev) value-rev)]
+               [(and (eq? cls 'punct) (or (string=? txt ";") (string=? txt "}")))
+                (values #f tokens #f)]
+               [else
+                (loop (cdr rest) #f (cons t taken-rev) value-rev)])]
+            [else
+             (cond
+               [(and (eq? cls 'punct) (or (string=? txt ";") (string=? txt "}")))
+                (values (reverse (cons t taken-rev))
+                        (cdr rest)
+                        (normalize-css-decl-value
+                         (apply string-append (map cdr (reverse value-rev)))))]
+               [else
+                (loop (cdr rest) #t (cons t taken-rev) (cons t value-rev))])])]))]
+    [else (values #f tokens #f)]))
+
+(define (consume-css-font-family-decl tokens)
+  (consume-css-property-decl
+   tokens
+   (lambda (prop) (string=? prop "font-family"))))
+
+(define (consume-css-dimension-decl tokens)
+  (consume-css-property-decl
+   tokens
+   (lambda (prop)
+     (or (set-member? css-spacing-properties prop)
+         (string=? prop "border-radius")
+         (set-member? css-blur-properties prop)))))
+
+(define (insert-css-font-preview-tokens tokens enabled?)
+  (if (not enabled?)
+      tokens
+      (let loop ([rest tokens] [acc null])
+        (cond
+          [(null? rest) (reverse acc)]
+          [else
+           (define-values (taken tail family-text) (consume-css-font-family-decl rest))
+           (if taken
+               (let ([acc2 (append (reverse taken) acc)])
+                 (if (safe-css-font-family-literal? family-text)
+                     (loop tail (cons (cons 'font-preview family-text) acc2))
+                     (loop tail acc2)))
+               (loop (cdr rest) (cons (car rest) acc)))]))))
+
+(define (insert-css-dimension-preview-tokens tokens enabled?)
+  (if (not enabled?)
+      tokens
+      (let loop ([rest tokens] [acc null])
+        (cond
+          [(null? rest) (reverse acc)]
+          [else
+           (define-values (taken tail value-text) (consume-css-dimension-decl rest))
+           (if taken
+               (let* ([acc2 (append (reverse taken) acc)]
+                      [prop (string-downcase (cdr (car taken)))])
+                 (cond
+                   [(set-member? css-spacing-properties prop)
+                    (define width (spacing-width-px value-text))
+                    (if width
+                        (loop tail (cons (cons 'spacing-preview (cons width value-text)) acc2))
+                        (loop tail acc2))]
+                   [(set-member? css-blur-properties prop)
+                    (define blur-arg (extract-blur-arg value-text))
+                    (define width (and blur-arg (spacing-width-px blur-arg)))
+                    (if width
+                        (loop tail (cons (cons 'spacing-preview (cons width (format "blur(~a)" blur-arg))) acc2))
+                        (loop tail acc2))]
+                   [(string=? prop "border-radius")
+                    (define radius (radius-size-px value-text))
+                    (if radius
+                        (loop tail (cons (cons 'radius-preview (cons radius value-text)) acc2))
+                        (loop tail acc2))]
+                   [else
+                   (loop tail acc2)]))
+               (loop (cdr rest) (cons (car rest) acc)))]))))
+
+(define (consume-css-custom-token-decl tokens)
+  (define-values (taken tail value-text)
+    (consume-css-property-decl
+     tokens
+     (lambda (prop)
+       (and (>= (string-length prop) 2)
+            (string-prefix? prop "--")))))
+  (if taken
+      (values taken tail (string-downcase (cdr (car taken))) value-text)
+      (values #f tokens #f #f)))
+
+(define (insert-css-design-token-tokens tokens enabled?)
+  (if (not enabled?)
+      tokens
+      (let loop ([rest tokens] [acc null])
+        (cond
+          [(null? rest) (reverse acc)]
+          [else
+           (define-values (taken tail token-name value-text) (consume-css-custom-token-decl rest))
+           (cond
+             [taken
+              (define acc2 (append (reverse taken) acc))
+              (define maybe-color
+                (cond
+                  [(css-color-literal? (string-trim value-text)) (string-trim value-text)]
+                  [else #f]))
+              (if maybe-color
+                  (loop tail (cons (cons 'token-def (cons token-name maybe-color)) acc2))
+                  (loop tail acc2))]
+             [else
+              (define t1 (car rest))
+              (define t2 (if (>= (length rest) 2) (cadr rest) #f))
+              (define t3 (if (>= (length rest) 3) (caddr rest) #f))
+              (if (and t1 t2 t3
+                       (member (car t1) '(value name keyword))
+                       (string-ci=? (cdr t1) "var")
+                       (eq? (car t2) 'punct)
+                       (string=? (cdr t2) "(")
+                       (member (car t3) '(name value))
+                       (string-prefix? (string-downcase (cdr t3)) "--"))
+                  (loop (cdr rest)
+                        (cons (cons 'token-ref (string-downcase (cdr t3)))
+                              (cons t1 acc)))
+                  (loop (cdr rest) (cons (car rest) acc)))])]))))
+
+(define (insert-js-preview-tokens tokens enabled?)
+  (if (not enabled?)
+      tokens
+      (let loop ([rest tokens] [acc null])
+        (cond
+          [(null? rest) (reverse acc)]
+          [else
+           (define t (car rest))
+           (define cls (car t))
+           (define txt (cdr t))
+           (define is-regex?
+             (and (eq? cls 'value)
+                  (regexp-match? #px"^/.+/[a-zA-Z]*$" txt)))
+           (define is-template?
+             (and (eq? cls 'value)
+                  (regexp-match? #px"`" txt)))
+           (cond
+             [is-regex?
+              (loop (cdr rest) (cons (cons 'js-regex-preview "") (cons t acc)))]
+             [is-template?
+              (loop (cdr rest) (cons (cons 'js-template-preview "") (cons t acc)))]
+             [else
+              (loop (cdr rest) (cons t acc))])]))))
+
+(define css-decoration-classes
+  ;; Only color/gradient swatches need relocation to declaration ends.
+  (set 'swatch 'swatch-gradient))
+
+(define (move-css-decorations-to-decl-end tokens)
+  (let loop ([rest tokens] [pending null] [acc null])
+    (cond
+      [(null? rest)
+       (reverse (append (reverse pending) acc))]
+      [else
+       (define t (car rest))
+       (define cls (car t))
+       (cond
+         [(set-member? css-decoration-classes cls)
+          (loop (cdr rest) (cons t pending) acc)]
+         [(and (eq? cls 'punct) (string=? (cdr t) ";"))
+          (loop (cdr rest) null (append (reverse pending) (cons t acc)))]
+         [(and (eq? cls 'punct) (string=? (cdr t) "}"))
+          ;; If final declaration omits ';', show decorations right before '}'.
+          (loop (cdr rest) null (cons t (append (reverse pending) acc)))]
+         [else
+          (loop (cdr rest) pending (cons t acc))])])))
+
+(define (tokens->pieces lang tokens
+                        #:color-swatch? [color-swatch? #f]
+                        #:font-preview? [font-preview? #f]
+                        #:dimension-preview? [dimension-preview? #f]
+                        #:preview-tooltips? [preview-tooltips? #t]
+                        #:preview-mode [preview-mode 'always])
+  (define mode (normalize-preview-mode 'tokens->pieces preview-mode))
+  (define css-preview-enabled? (not (eq? mode 'none)))
+  (define tokens*
+    (if (eq? lang 'css)
+        (insert-css-color-swatch-tokens tokens (and color-swatch? css-preview-enabled?))
+        tokens))
+  (define tokens**
+    (if (eq? lang 'css)
+        (insert-css-font-preview-tokens tokens* (and font-preview? css-preview-enabled?))
+        tokens*))
+  (define tokens***
+    (if (eq? lang 'css)
+        (insert-css-dimension-preview-tokens tokens** (and dimension-preview? css-preview-enabled?))
+        tokens**))
+  (define tokens****
+    (if (eq? lang 'css)
+        (insert-css-design-token-tokens tokens*** css-preview-enabled?)
+        tokens***))
+  (define tokens*****
+    (if (eq? lang 'css)
+        (move-css-decorations-to-decl-end tokens****)
+        tokens****))
+  (let loop ([rest tokens*****] [acc null] [runtime-inserted? #f])
+    (cond
+      [(null? rest) (reverse acc)]
+      [else
+        (define t (car rest))
+        (define cls (car t))
+       (cond
+         [(eq? cls 'escape)
+         (loop (cdr rest) (append (reverse (list (escape->element (cdr t)))) acc) runtime-inserted?)]
+         [(eq? cls 'swatch)
+          (if runtime-inserted?
+              (loop (cdr rest) (append (reverse (list (css-swatch-element (cdr t) mode))) acc) #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (css-swatch-element (cdr t) mode))))
+                            acc)
+                    #t))]
+         [(eq? cls 'swatch-gradient)
+          (if runtime-inserted?
+              (loop (cdr rest) (append (reverse (list (css-gradient-swatch-element (cdr t) mode))) acc) #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (css-gradient-swatch-element (cdr t) mode))))
+                            acc)
+                    #t))]
+         [(eq? cls 'spacing-preview)
+          (define p (cdr t))
+          (if runtime-inserted?
+              (loop (cdr rest)
+                    (append (reverse (list (css-spacing-preview-element (car p) (cdr p) mode))) acc)
+                    #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (css-spacing-preview-element (car p) (cdr p) mode))))
+                            acc)
+                    #t))]
+         [(eq? cls 'radius-preview)
+          (define p (cdr t))
+          (if runtime-inserted?
+              (loop (cdr rest)
+                    (append (reverse (list (css-radius-preview-element (car p) (cdr p) mode))) acc)
+                    #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (css-radius-preview-element (car p) (cdr p) mode))))
+                            acc)
+                    #t))]
+         [(eq? cls 'token-def)
+          (define p (cdr t))
+          (if runtime-inserted?
+              (loop (cdr rest)
+                    (append (reverse (list (css-token-def-element (car p) (cdr p)))) acc)
+                    #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (css-token-def-element (car p) (cdr p)))))
+                            acc)
+                    #t))]
+         [(eq? cls 'token-ref)
+          (if runtime-inserted?
+              (loop (cdr rest)
+                    (append (reverse (list (css-token-ref-element (cdr t)))) acc)
+                    #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (css-token-ref-element (cdr t)))))
+                            acc)
+                    #t))]
+         [(eq? cls 'js-regex-preview)
+          (if runtime-inserted?
+              (loop (cdr rest)
+                    (append (reverse (list (js-regex-preview-element))) acc)
+                    #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (js-regex-preview-element))))
+                            acc)
+                    #t))]
+         [(eq? cls 'js-template-preview)
+          (if runtime-inserted?
+              (loop (cdr rest)
+                    (append (reverse (list (js-template-preview-element))) acc)
+                    #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (js-template-preview-element))))
+                            acc)
+                    #t))]
+         [(eq? cls 'font-preview)
+          (if runtime-inserted?
+              (loop (cdr rest)
+                    (append (reverse (list (css-font-preview-element (cdr t) mode))) acc)
+                    #t)
+              (loop (cdr rest)
+                    (append (reverse (append (runtime-prefix-elements)
+                                             (list (css-font-preview-element (cdr t) mode))))
+                            acc)
+                    #t))]
+         [else
+          (loop (cdr rest)
+                (append (reverse (split-lines (style-for lang cls) (cdr t))) acc)
+                runtime-inserted?)])])))
 
 (define (break-list lst delim)
   (let loop ([l lst] [n null] [c null])
@@ -495,27 +1756,65 @@
   (regexp-replace* #px"(?:\\s*(?:\r|\n|\r\n)\\s*)+" s " "))
 
 (define (tokens-from-chunks lang chunks #:inline? [inline? #f])
-  (apply append
-         (for/list ([chunk (in-list chunks)])
-           (cond
-             [(eq? (car chunk) 'escape)
-              (list (cons 'escape (cdr chunk)))]
-             [else
-              (define txt (cdr chunk))
-              (unless (string? txt)
-                (raise-argument-error 'typeset-lang-code "string?" txt))
-              (tokenize lang (if inline? (normalize-inline-text txt) txt))]))))
+  (define (normalize-text txt)
+    (if inline? (normalize-inline-text txt) txt))
+  (let loop ([rest chunks] [pending ""] [acc null])
+    (cond
+      [(null? rest)
+       (define acc2
+         (if (string=? pending "")
+             acc
+             (append (reverse (tokenize lang (normalize-text pending))) acc)))
+       (reverse acc2)]
+      [else
+       (define chunk (car rest))
+       (cond
+         [(eq? (car chunk) 'escape)
+          (define acc2
+            (if (string=? pending "")
+                acc
+                (append (reverse (tokenize lang (normalize-text pending))) acc)))
+          (loop (cdr rest) "" (cons (cons 'escape (cdr chunk)) acc2))]
+         [else
+          (define txt (cdr chunk))
+          (unless (string? txt)
+            (raise-argument-error 'typeset-lang-code "string?" txt))
+          (loop (cdr rest) (string-append pending txt) acc)])])))
 
 (define (typeset-lang-block/chunks lang
                                    #:file [filename #f]
                                    #:indent [indent 0]
                                    #:line-numbers [line-numbers #f]
                                    #:line-number-sep [line-number-sep 1]
+                                   #:color-swatch? [color-swatch? #f]
+                                   #:font-preview? [font-preview? #f]
+                                   #:dimension-preview? [dimension-preview? #f]
+                                   #:preview-tooltips? [preview-tooltips? #t]
+                                   #:preview-mode [preview-mode 'always]
+                                   #:preview-css-url [preview-css-url #f]
                                    #:inset? [inset? #t]
                                    chunks)
-  (define tokens (tokens-from-chunks lang chunks))
+  (define html-style-color? (if (eq? lang 'html) #t color-swatch?))
+  (define html-style-font? (if (eq? lang 'html) #t font-preview?))
+  (define html-style-dim? (if (eq? lang 'html) #t dimension-preview?))
+  (define html-style-mode (if (eq? lang 'html) 'always preview-mode))
+  (define tokens
+    (parameterize ([current-preview-css-url preview-css-url]
+                   [current-preview-tooltips? preview-tooltips?]
+                   [current-html-style-color-swatch? html-style-color?]
+                   [current-html-style-font-preview? html-style-font?]
+                   [current-html-style-dimension-preview? html-style-dim?]
+                   [current-html-style-preview-mode html-style-mode])
+      (tokens-from-chunks lang chunks)))
   (define lines (list->lines indent
-                             (tokens->pieces lang tokens)
+    (parameterize ([current-preview-css-url preview-css-url]
+                   [current-preview-tooltips? preview-tooltips?])
+      (tokens->pieces lang tokens
+                                              #:color-swatch? color-swatch?
+                                              #:font-preview? font-preview?
+                                              #:dimension-preview? dimension-preview?
+                                              #:preview-tooltips? preview-tooltips?
+                                               #:preview-mode preview-mode))
                              #:line-numbers line-numbers
                              #:line-number-sep line-number-sep
                              #:block? #t))
@@ -527,8 +1826,35 @@
       (filebox filename block)
       block))
 
-(define (typeset-lang-inline/chunks lang chunks)
-  (make-element #f (tokens->pieces lang (tokens-from-chunks lang chunks #:inline? #t))))
+(define (typeset-lang-inline/chunks lang chunks
+                                    #:color-swatch? [color-swatch? #f]
+                                    #:font-preview? [font-preview? #f]
+                                    #:dimension-preview? [dimension-preview? #f]
+                                    #:preview-tooltips? [preview-tooltips? #t]
+                                    #:preview-mode [preview-mode 'always]
+                                    #:preview-css-url [preview-css-url #f])
+  (define html-style-color? (if (eq? lang 'html) #t color-swatch?))
+  (define html-style-font? (if (eq? lang 'html) #t font-preview?))
+  (define html-style-dim? (if (eq? lang 'html) #t dimension-preview?))
+  (define html-style-mode (if (eq? lang 'html) 'always preview-mode))
+  (define tokens
+    (parameterize ([current-preview-css-url preview-css-url]
+                   [current-preview-tooltips? preview-tooltips?]
+                   [current-html-style-color-swatch? html-style-color?]
+                   [current-html-style-font-preview? html-style-font?]
+                   [current-html-style-dimension-preview? html-style-dim?]
+                   [current-html-style-preview-mode html-style-mode])
+      (tokens-from-chunks lang chunks #:inline? #t)))
+  (make-element #f
+                (parameterize ([current-preview-css-url preview-css-url]
+                               [current-preview-tooltips? preview-tooltips?])
+                  (tokens->pieces lang
+                                  tokens
+                                  #:color-swatch? color-swatch?
+                                  #:font-preview? font-preview?
+                                  #:dimension-preview? dimension-preview?
+                                  #:preview-tooltips? preview-tooltips?
+                                  #:preview-mode preview-mode))))
 
 (define-for-syntax (chunks-template args-stx escape-id-stx)
   (for/list ([arg (in-list (syntax->list args-stx))])
@@ -568,9 +1894,80 @@
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-for-syntax (do-css-block stx inset?)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:indent indent-expr:expr)
+                              #:defaults ([indent-expr #'0])
+                              #:name "#:indent keyword")
+                   (~optional (~seq #:line-numbers line-numbers-expr:expr)
+                              #:defaults ([line-numbers-expr #'#f])
+                              #:name "#:line-numbers keyword")
+                   (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
+                              #:defaults ([line-number-sep-expr #'1])
+                              #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:color-swatch? color-swatch-expr:expr)
+                              #:defaults ([color-swatch-expr #'#t])
+                              #:name "#:color-swatch? keyword")
+                   (~optional (~seq #:font-preview? font-preview-expr:expr)
+                              #:defaults ([font-preview-expr #'#t])
+                              #:name "#:font-preview? keyword")
+                   (~optional (~seq #:dimension-preview? dimension-preview-expr:expr)
+                              #:defaults ([dimension-preview-expr #'#f])
+                              #:name "#:dimension-preview? keyword")
+                   (~optional (~seq #:preview-mode preview-mode-expr:expr)
+                              #:defaults ([preview-mode-expr #''always])
+                              #:name "#:preview-mode keyword")
+                   (~optional (~seq #:preview-tooltips? preview-tooltips-expr:expr)
+                              #:defaults ([preview-tooltips-expr #'#t])
+                              #:name "#:preview-tooltips? keyword")
+                   (~optional (~seq #:preview-css-url preview-css-url-expr:expr)
+                              #:defaults ([preview-css-url-expr #'#f])
+                              #:name "#:preview-css-url keyword")
+                   (~optional (~seq #:file filename-expr:expr)
+                              #:defaults ([filename-expr #'#f])
+                              #:name "#:file keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-block/chunks 'css
+                                  #:file filename-expr
+                                  #:indent indent-expr
+                                  #:line-numbers line-numbers-expr
+                                  #:line-number-sep line-number-sep-expr
+                                  #:color-swatch? color-swatch-expr
+                                  #:font-preview? font-preview-expr
+                                  #:dimension-preview? dimension-preview-expr
+                                  #:preview-tooltips? preview-tooltips-expr
+                                  #:preview-mode preview-mode-expr
+                                  #:preview-css-url preview-css-url-expr
+                                  #:inset? #,inset?
+                                  (list #,@(chunks-template #'(str ...) esc-id)))]))
+
 (define-syntax (css-code stx)
   (syntax-parse stx
-    [(_ (~seq (~or (~optional (~seq #:escape escape-id:identifier)
+    [(_ (~seq (~or (~optional (~seq #:color-swatch? color-swatch-expr:expr)
+                              #:defaults ([color-swatch-expr #'#t])
+                              #:name "#:color-swatch? keyword")
+                   (~optional (~seq #:font-preview? font-preview-expr:expr)
+                              #:defaults ([font-preview-expr #'#t])
+                              #:name "#:font-preview? keyword")
+                   (~optional (~seq #:dimension-preview? dimension-preview-expr:expr)
+                              #:defaults ([dimension-preview-expr #'#f])
+                              #:name "#:dimension-preview? keyword")
+                   (~optional (~seq #:preview-mode preview-mode-expr:expr)
+                              #:defaults ([preview-mode-expr #''always])
+                              #:name "#:preview-mode keyword")
+                   (~optional (~seq #:preview-tooltips? preview-tooltips-expr:expr)
+                              #:defaults ([preview-tooltips-expr #'#t])
+                              #:name "#:preview-tooltips? keyword")
+                   (~optional (~seq #:preview-css-url preview-css-url-expr:expr)
+                              #:defaults ([preview-css-url-expr #'#f])
+                              #:name "#:preview-css-url keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
                               #:name "#:escape keyword"))
               ...)
         str ...)
@@ -578,6 +1975,12 @@
                         #'escape-id
                         (datum->syntax stx 'unsyntax)))
      #`(typeset-lang-inline/chunks 'css
+                                   #:color-swatch? color-swatch-expr
+                                   #:font-preview? font-preview-expr
+                                   #:dimension-preview? dimension-preview-expr
+                                   #:preview-tooltips? preview-tooltips-expr
+                                   #:preview-mode preview-mode-expr
+                                   #:preview-css-url preview-css-url-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
 (define-syntax (html-code stx)
@@ -604,8 +2007,8 @@
      #`(typeset-lang-inline/chunks 'js
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
-(define-syntax (cssblock0 stx) (do-block stx 'css #f))
-(define-syntax (cssblock stx) (do-block stx 'css #t))
+(define-syntax (cssblock0 stx) (do-css-block stx #f))
+(define-syntax (cssblock stx) (do-css-block stx #t))
 (define-syntax (htmlblock0 stx) (do-block stx 'html #f))
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
 (define-syntax (jsblock0 stx) (do-block stx 'js #f))
@@ -655,6 +2058,101 @@
    (block? (htmlblock "<p>" (unsyntax (bold "hi")) "</p>")))
   (check-not-false
    (member 'name (classes 'css (read-fixture "css-basic.css"))))
+  (let ([sw (insert-css-color-swatch-tokens (tokenize 'css ".x { color: #c33; }") #t)])
+    (check-not-false (member 'swatch (map car sw))))
+  (let ([sw (insert-css-color-swatch-tokens (tokenize 'css ".x { color: #c33; }") #f)])
+    (check-false (member 'swatch (map car sw))))
+  (let* ([sw (insert-css-color-swatch-tokens
+              (tokenize 'css
+                        ".x { color: oklch(62% 0.21 25); background: conic-gradient(red, blue); outline-color: color-mix(in srgb, #c33 60%, white); }")
+              #t)]
+         [classes (map car sw)])
+    (check-not-false (member 'swatch classes))
+    (check-not-false (member 'swatch-gradient classes)))
+  (let* ([dp (insert-css-dimension-preview-tokens
+              (tokenize 'css
+                        ".x { margin: clamp(1rem, 2vw, 2rem); padding: min(1.2rem, 14px); gap: max(0.6rem, 1.5em); }")
+              #t)]
+         [classes (map car dp)])
+    (check-not-false (member 'spacing-preview classes)))
+  (let* ([on-attrs (preview-tooltip-attrs "Color preview: #c33")]
+         [off-attrs (parameterize ([current-preview-tooltips? #f])
+                      (preview-tooltip-attrs "Color preview: #c33"))])
+    (check-equal? (assoc 'data-preview-tooltips on-attrs) '(data-preview-tooltips . "on"))
+    (check-equal? (assoc 'title on-attrs) '(title . "Color preview: #c33"))
+    (check-equal? (assoc 'data-preview-tooltips off-attrs) '(data-preview-tooltips . "off"))
+    (check-false (assoc 'title off-attrs)))
+  (let ([sw (insert-css-color-swatch-tokens
+             (tokenize 'css ".x { background: linear-gradient(red, blue); }")
+             #t)])
+    (check-not-false (member 'swatch-gradient (map car sw))))
+  (let ([fp (insert-css-font-preview-tokens
+             (tokenize 'css ".x { font-family: \"Fira Code\"; }")
+             #t)])
+    (check-not-false (member 'font-preview (map car fp))))
+  (let ([fp (insert-css-font-preview-tokens
+             (tokenize 'css ".x { font-family: \"Fira Code\"; }")
+             #f)])
+    (check-false (member 'font-preview (map car fp))))
+  (let ([dp (insert-css-dimension-preview-tokens
+             (tokenize 'css ".x { margin: 16px; gap: 1.5em; }")
+             #t)])
+    (check-not-false (member 'spacing-preview (map car dp))))
+  (let ([dp (insert-css-dimension-preview-tokens
+             (tokenize 'css ".x { border-radius: 12px; }")
+             #t)])
+    (check-not-false (member 'radius-preview (map car dp))))
+  (let ([dp (insert-css-dimension-preview-tokens
+             (tokenize 'css ".x { margin: calc(1rem + 8px) 2rem; }")
+             #t)])
+    (check-not-false (member 'spacing-preview (map car dp))))
+  (let ([dp (insert-css-dimension-preview-tokens
+             (tokenize 'css ".x { filter: blur(3px) saturate(130%); }")
+             #t)])
+    (check-not-false (member 'spacing-preview (map car dp))))
+  (let ([dp (insert-css-dimension-preview-tokens
+             (tokenize 'css ".x { letter-spacing: 0.08em; text-indent: 2em; }")
+             #t)])
+    (check-not-false (member 'spacing-preview (map car dp))))
+  (let ([tp (insert-css-design-token-tokens
+             (tokenize 'css ":root { --brand: #c33; } .x { color: var(--brand); }")
+             #t)])
+    (check-not-false (member 'token-def (map car tp)))
+    (check-not-false (member 'token-ref (map car tp))))
+  (let ([jp (insert-js-preview-tokens
+             (tokenize 'js "const re = /ab+c/i; const msg = `hi ${name}`;")
+             #t)])
+    (check-not-false (member 'js-regex-preview (map car jp)))
+    (check-not-false (member 'js-template-preview (map car jp))))
+  (check-equal? (normalize-preview-mode 't 'always) 'always)
+  (check-equal? (normalize-preview-mode 't 'hover) 'hover)
+  (check-equal? (normalize-preview-mode 't 'none) 'none)
+  (check-exn exn:fail?
+             (lambda () (normalize-preview-mode 't 'auto)))
+  (let* ([tok (insert-css-color-swatch-tokens
+               (tokenize 'css ".x { color: #c33; }")
+               #t)]
+         [moved (move-css-decorations-to-decl-end tok)]
+         [semi-i (let loop ([xs moved] [i 0])
+                   (cond
+                     [(null? xs) #f]
+                     [(and (eq? (caar xs) 'punct) (string=? (cdar xs) ";")) i]
+                     [else (loop (cdr xs) (add1 i))]))]
+         [sw-i (index-of (map car moved) 'swatch)])
+    (check-not-false semi-i)
+    (check-not-false sw-i)
+    (check-true (< semi-i sw-i)))
+  (let* ([tok (insert-css-color-swatch-tokens
+               (tokenize 'css ".x { color: #c33 }")
+               #t)]
+         [moved (move-css-decorations-to-decl-end tok)]
+         [kinds (map car moved)])
+    (check-true (< (index-of kinds 'swatch)
+                   (let loop ([xs moved] [i 0])
+                     (cond
+                       [(null? xs) 999]
+                       [(and (eq? (caar xs) 'punct) (string=? (cdar xs) "}")) i]
+                       [else (loop (cdr xs) (add1 i))])))))
   (check-not-false
    (member 'keyword (classes 'html (read-fixture "html-basic.html"))))
   (check-not-false
@@ -689,5 +2187,32 @@
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'name cls))
     (check-not-false (member 'value cls)))
+  (let ([cls (classes 'js (read-fixture "js-regex-vs-division.js"))])
+    (check-not-false (member 'value cls))   ; regex literal
+    (check-not-false (member 'punct cls))   ; division/operator punctuation
+    (check-true ((class-count 'value cls) . >= . 2))
+    (check-true ((class-count 'punct cls) . >= . 6)))
+  (let ([cls (classes 'js (read-fixture "js-template-interpolation.js"))])
+    (check-not-false (member 'value cls))   ; template chunks
+    (check-not-false (member 'punct cls))   ; ${ and }
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'keyword cls)))
+  (let ([cls (classes 'js (read-fixture "js-template-nested.js"))])
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'punct cls))
+    (check-not-false (member 'name cls))
+    (check-true ((class-count 'punct cls) . >= . 4)))
+  (let ([cls (classes 'html (read-fixture "html-inline-style-script-full.html"))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'comment cls))
+    (check-not-false (member 'swatch cls))
+    (check-true ((class-count 'keyword cls) . >= . 6)))
+  (let ([cls (classes 'html (read-fixture "html-malformed-recovery-2.html"))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'punct cls)))
   (check-true
    (block? (cssblock #:file "demo.css" ".x { color: red; }"))))

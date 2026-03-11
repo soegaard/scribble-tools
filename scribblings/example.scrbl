@@ -12,16 +12,42 @@ inline JS with @js-code{const n = 42;}.
 
 Inline CSS: @css-code{h1 { color: #c33; }}
 
+Inline CSS (swatches off): @css-code[#:color-swatch? #f]{h1 { color: #c33; }}
+
+Inline CSS (font preview): @css-code{.code { font-family: "Fira Code"; }}
+
+Inline CSS (dimension preview):
+@css-code[#:dimension-preview? #t]{.box { margin: 16px; border-radius: 12px; }}
+
+Inline CSS (hover previews):
+@css-code[#:dimension-preview? #t #:preview-mode 'hover]{.hint { letter-spacing: 0.08em; }}
+
+Inline CSS (tooltips off):
+@css-code[#:dimension-preview? #t #:preview-tooltips? #f]{.plain { margin: clamp(0.5rem, 2vw, 2rem); }}
+
+Inline CSS (external preview stylesheet):
+@css-code[#:dimension-preview? #t #:preview-css-url "../scribblings/css-preview-ui.css"]{.x { text-indent: 2em; }}
+
 Inline HTML: @html-code{<em class="highlight">Hi</em>}
 
 Inline JS: @js-code{const n = 42;}
 
 @section{CSS Block}
 
-@cssblock{
+@cssblock[#:dimension-preview? #t]{
 /* Page title */
 h1.title {
-  color: #c33;
+  color: oklch(62% 0.21 25);
+  background: conic-gradient(from 90deg, red, yellow, blue);
+  outline-color: color-mix(in srgb, #c33 60%, white);
+  border-image: radial-gradient(circle, #ffcc66, #cc3300) 1;
+  margin: clamp(1rem, 2vw, 2rem);
+  padding: min(1.2rem, 14px);
+  gap: max(0.6rem, 1.5em);
+  border-radius: 12px;
+  filter: blur(3px) saturate(130%);
+  letter-spacing: 0.04em;
+  font-family: "Fira Code";
   font-size: 2rem;
 }
 }
@@ -55,7 +81,7 @@ h1.title {
 
 @subsection{CSS Block0}
 
-@cssblock0[#:indent 2]{
+@cssblock0[#:indent 2 #:color-swatch? #f]{
 .compact {
   color: #444;
 }
@@ -147,4 +173,29 @@ let total = 0;
 for (const n of [1, 2, 3]) {
   total += n;
 }
+}
+
+@section{HTML Document With Inline Style and Script}
+
+@htmlblock{
+<!doctype html>
+<html>
+  <head>
+    <style>
+      .card {
+        color: #c33;
+        gap: calc(100% - 2rem);
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      const ratio = total / 2;
+      const re = /ab+c/i;
+      const msg = `hello ${name}`;
+      console.log(msg, re.test("abbbc"), ratio);
+    </script>
+    <p>Hello &amp; welcome</p>
+  </body>
+</html>
 }
