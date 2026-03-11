@@ -1,0 +1,6 @@
+.card {
+  --gap: 1rem;
+  color: #c33;
+  margin: calc(100% - 2rem);
+}
+
