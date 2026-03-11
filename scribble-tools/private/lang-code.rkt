@@ -5,6 +5,7 @@
          racket/string
          racket/file
          racket/runtime-path
+         "mdn-map.rkt"
          scribble/base
          scribble/core
          scribble/html-properties
@@ -51,6 +52,9 @@
   (make-style #f (list (attributes '((style . "color: #07A;"))))))
 (define css-name-color
   (make-style #f (list (attributes '((style . "color: #262680;"))))))
+(define mdn-link-style
+  (make-style #f (list (attributes '((class . "mdn-code-link")
+                                     (style . "color: inherit; text-decoration: none;"))))))
 
 (define css-color-keywords
   (list->set
@@ -2002,6 +2006,7 @@ JS
                         #:color-swatch? [color-swatch? #f]
                         #:font-preview? [font-preview? #f]
                         #:dimension-preview? [dimension-preview? #f]
+                        #:mdn-links? [mdn-links? #t]
                         #:preview-tooltips? [preview-tooltips? #t]
                         #:preview-mode [preview-mode 'always])
   (define mode (normalize-preview-mode 'tokens->pieces preview-mode))
@@ -2125,8 +2130,19 @@ JS
                             acc)
                     #t))]
          [else
+          (define txt (cdr t))
+          (define token-style (style-for lang cls))
+          (define maybe-url
+            (and mdn-links?
+                 (not (regexp-match? #px"[[:space:]]" txt))
+                 (mdn-url-for-token lang cls txt)))
+          (define pieces
+            (if maybe-url
+                (list (hyperlink maybe-url #:style mdn-link-style #:underline? #f
+                                 (element token-style txt)))
+                (split-lines token-style txt)))
           (loop (cdr rest)
-                (append (reverse (split-lines (style-for lang cls) (cdr t))) acc)
+                (append (reverse pieces) acc)
                 runtime-inserted?)])])))
 
 (define (break-list lst delim)
@@ -2206,6 +2222,7 @@ JS
                                    #:color-swatch? [color-swatch? #f]
                                    #:font-preview? [font-preview? #f]
                                    #:dimension-preview? [dimension-preview? #f]
+                                   #:mdn-links? [mdn-links? #t]
                                    #:preview-tooltips? [preview-tooltips? #t]
                                    #:preview-mode [preview-mode 'always]
                                    #:preview-css-url [preview-css-url #f]
@@ -2232,6 +2249,7 @@ JS
                                               #:color-swatch? color-swatch?
                                               #:font-preview? font-preview?
                                               #:dimension-preview? dimension-preview?
+                                              #:mdn-links? mdn-links?
                                               #:preview-tooltips? preview-tooltips?
                                                #:preview-mode preview-mode))
                              #:line-numbers line-numbers
@@ -2249,6 +2267,7 @@ JS
                                     #:color-swatch? [color-swatch? #f]
                                     #:font-preview? [font-preview? #f]
                                     #:dimension-preview? [dimension-preview? #f]
+                                    #:mdn-links? [mdn-links? #t]
                                     #:preview-tooltips? [preview-tooltips? #t]
                                     #:preview-mode [preview-mode 'always]
                                     #:preview-css-url [preview-css-url #f]
@@ -2274,6 +2293,7 @@ JS
                                   #:color-swatch? color-swatch?
                                   #:font-preview? font-preview?
                                   #:dimension-preview? dimension-preview?
+                                  #:mdn-links? mdn-links?
                                   #:preview-tooltips? preview-tooltips?
                                   #:preview-mode preview-mode))))
 
@@ -2297,6 +2317,9 @@ JS
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:mdn-links? mdn-links-expr:expr)
+                              #:defaults ([mdn-links-expr #'#t])
+                              #:name "#:mdn-links? keyword")
                    (~optional (~seq #:file filename-expr:expr)
                               #:defaults ([filename-expr #'#f])
                               #:name "#:file keyword")
@@ -2312,6 +2335,7 @@ JS
                                   #:indent indent-expr
                                   #:line-numbers line-numbers-expr
                                   #:line-number-sep line-number-sep-expr
+                                  #:mdn-links? mdn-links-expr
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
 
@@ -2335,6 +2359,9 @@ JS
                    (~optional (~seq #:dimension-preview? dimension-preview-expr:expr)
                               #:defaults ([dimension-preview-expr #'#f])
                               #:name "#:dimension-preview? keyword")
+                   (~optional (~seq #:mdn-links? mdn-links-expr:expr)
+                              #:defaults ([mdn-links-expr #'#t])
+                              #:name "#:mdn-links? keyword")
                    (~optional (~seq #:preview-mode preview-mode-expr:expr)
                               #:defaults ([preview-mode-expr #''always])
                               #:name "#:preview-mode keyword")
@@ -2362,6 +2389,7 @@ JS
                                   #:color-swatch? color-swatch-expr
                                   #:font-preview? font-preview-expr
                                   #:dimension-preview? dimension-preview-expr
+                                  #:mdn-links? mdn-links-expr
                                   #:preview-tooltips? preview-tooltips-expr
                                   #:preview-mode preview-mode-expr
                                   #:preview-css-url preview-css-url-expr
@@ -2379,6 +2407,9 @@ JS
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:mdn-links? mdn-links-expr:expr)
+                              #:defaults ([mdn-links-expr #'#t])
+                              #:name "#:mdn-links? keyword")
                    (~optional (~seq #:jsx? jsx-expr:expr)
                               #:defaults ([jsx-expr #'#f])
                               #:name "#:jsx? keyword")
@@ -2397,6 +2428,7 @@ JS
                                   #:indent indent-expr
                                   #:line-numbers line-numbers-expr
                                   #:line-number-sep line-number-sep-expr
+                                  #:mdn-links? mdn-links-expr
                                   #:jsx? jsx-expr
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
@@ -2412,6 +2444,9 @@ JS
                    (~optional (~seq #:dimension-preview? dimension-preview-expr:expr)
                               #:defaults ([dimension-preview-expr #'#f])
                               #:name "#:dimension-preview? keyword")
+                   (~optional (~seq #:mdn-links? mdn-links-expr:expr)
+                              #:defaults ([mdn-links-expr #'#t])
+                              #:name "#:mdn-links? keyword")
                    (~optional (~seq #:preview-mode preview-mode-expr:expr)
                               #:defaults ([preview-mode-expr #''always])
                               #:name "#:preview-mode keyword")
@@ -2432,6 +2467,7 @@ JS
                                    #:color-swatch? color-swatch-expr
                                    #:font-preview? font-preview-expr
                                    #:dimension-preview? dimension-preview-expr
+                                   #:mdn-links? mdn-links-expr
                                    #:preview-tooltips? preview-tooltips-expr
                                    #:preview-mode preview-mode-expr
                                    #:preview-css-url preview-css-url-expr
@@ -2439,7 +2475,10 @@ JS
 
 (define-syntax (html-code stx)
   (syntax-parse stx
-    [(_ (~seq (~or (~optional (~seq #:escape escape-id:identifier)
+    [(_ (~seq (~or (~optional (~seq #:mdn-links? mdn-links-expr:expr)
+                              #:defaults ([mdn-links-expr #'#t])
+                              #:name "#:mdn-links? keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
                               #:name "#:escape keyword"))
               ...)
         str ...)
@@ -2447,6 +2486,7 @@ JS
                         #'escape-id
                         (datum->syntax stx 'unsyntax)))
      #`(typeset-lang-inline/chunks 'html
+                                   #:mdn-links? mdn-links-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
 (define-syntax (js-code stx)
@@ -2454,6 +2494,9 @@ JS
     [(_ (~seq (~or (~optional (~seq #:jsx? jsx-expr:expr)
                               #:defaults ([jsx-expr #'#f])
                               #:name "#:jsx? keyword")
+                   (~optional (~seq #:mdn-links? mdn-links-expr:expr)
+                              #:defaults ([mdn-links-expr #'#t])
+                              #:name "#:mdn-links? keyword")
                    (~optional (~seq #:escape escape-id:identifier)
                               #:name "#:escape keyword"))
               ...)
@@ -2463,6 +2506,7 @@ JS
                         (datum->syntax stx 'unsyntax)))
      #`(typeset-lang-inline/chunks 'js
                                    #:jsx? jsx-expr
+                                   #:mdn-links? mdn-links-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
 (define-syntax (cssblock0 stx) (do-css-block stx #f))
@@ -2484,6 +2528,20 @@ JS
   (define (class-count cls l)
     (for/sum ([x (in-list l)])
       (if (eq? x cls) 1 0)))
+  (define (has-target-url-prop? st)
+    (and (style? st)
+         (for/or ([p (in-list (style-properties st))])
+           (target-url? p))))
+  (define (contains-link? v)
+    (cond
+      [(element? v)
+       (or (has-target-url-prop? (element-style v))
+           (let ([c (element-content v)])
+             (if (list? c)
+                 (for/or ([x (in-list c)]) (contains-link? x))
+                 (contains-link? c))))]
+      [(list? v) (for/or ([c (in-list v)]) (contains-link? c))]
+      [else #f]))
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
@@ -2519,6 +2577,13 @@ JS
    (element? (css-code #:escape UNQ "a { color: " (UNQ (italic "red")) "; }")))
   (check-true
    (block? (htmlblock "<p>" (unsyntax (bold "hi")) "</p>")))
+  (check-not-false (mdn-url-for-token 'css 'name "color"))
+  (check-not-false (mdn-url-for-token 'html 'keyword "div"))
+  (check-not-false (mdn-url-for-token 'js 'keyword "const"))
+  (check-true (contains-link? (css-code "a{color:red;}")))
+  (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))
+  (check-true (contains-link? (html-code "<div class='x'>x</div>")))
+  (check-false (contains-link? (js-code #:mdn-links? #f "const x = 1;")))
   (check-not-false
    (member 'name (classes 'css (read-fixture "css-basic.css"))))
   (let ([sw (insert-css-color-swatch-tokens (tokenize 'css ".x { color: #c33; }") #t)])
