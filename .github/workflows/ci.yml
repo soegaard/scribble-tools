@@ -26,11 +26,11 @@ jobs:
 
       - name: Run Tests
         run: |
-          raco test scribble-tools/private/lang-code.rkt
-          raco test scribble-tools/private/mdn-map.rkt
-          raco test scribble-tools/code.rkt
-          raco test scribble-tools/mdn-map-tool.rkt
-          raco test scribble-tools/mdn-map-build.rkt
+          raco test private/lang-code.rkt
+          raco test private/mdn-map.rkt
+          raco test code.rkt
+          raco test mdn-map-tool.rkt
+          raco test mdn-map-build.rkt
 
       - name: Build Docs (Installed Package Mode)
         run: raco setup --pkgs scribble-tools

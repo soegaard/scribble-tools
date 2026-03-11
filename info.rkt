@@ -6,4 +6,4 @@
 (define license 'MIT)
 (define deps '("base" "scribble-lib" "syntax-color-lib"))
 (define build-deps '("scribble-doc" "racket-doc" "rackunit-lib"))
-(define scribblings '(("scribble-tools/scribblings/scribble-tools.scrbl" () (library))))
+(define scribblings '(("scribblings/scribble-tools.scrbl" () (library))))

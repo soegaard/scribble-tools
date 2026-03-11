@@ -10,4 +10,4 @@ Key features:
 - Optional links from common CSS/HTML/JavaScript identifiers to the MDN documentation site.
 - Optional copy button for code blocks.
 
-For full usage and reference, see `scribble-tools/scribblings/scribble-tools.scrbl`.
+For full usage and reference, see `scribblings/scribble-tools.scrbl`.
