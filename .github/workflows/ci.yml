@@ -7,10 +7,12 @@ on:
 jobs:
   test-and-docs:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Racket
         uses: Bogdanp/setup-racket@v1.11
