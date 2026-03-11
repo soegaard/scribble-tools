@@ -35,6 +35,9 @@ Escapes are supported in all forms:
 ## MDN Link Maps
 
 The code forms support MDN links via `#:mdn-links?` (default `#t`).
+Resolution includes bundled explicit entries plus implicit coverage for:
+- all CSS property names as `Web/CSS/<property>`
+- all known HTML elements as `Web/HTML/Element/<tag>`
 
 Map utilities:
 

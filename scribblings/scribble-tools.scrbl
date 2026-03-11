@@ -268,6 +268,9 @@ If the file exists, entries in it override bundled defaults.
 @defproc[(mdn-default-map-entries) (listof (list/c symbol? symbol? string? string?))]{
 Returns bundled compact default entries as
 @racket[(list lang class token url-or-path)] records.
+In addition to explicit entries, the resolver also supports implicit
+coverage for all CSS property names (@tt{Web/CSS/<property>}) and all
+known HTML element tags (@tt{Web/HTML/Element/<tag>}).
 }
 
 @defproc[(mdn-entry? [v any/c]) boolean?]{

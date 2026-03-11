@@ -3,6 +3,7 @@
 (require racket/file
          racket/list
          racket/path
+         racket/set
          racket/string)
 
 (provide mdn-map-path
@@ -372,9 +373,52 @@
         (set-box! mdn-map-cache merged)
         merged)))
 
+;; Comprehensive HTML element coverage for html keyword tokens.
+;; Includes modern, deprecated, and obsolete tags documented by MDN.
+(define html-element-set
+  (list->set
+   '("a" "abbr" "acronym" "address" "applet" "area" "article" "aside" "audio"
+     "b" "base" "basefont" "bdi" "bdo" "bgsound" "big" "blink" "blockquote"
+     "body" "br" "button" "canvas" "caption" "center" "cite" "code" "col"
+     "colgroup" "content" "data" "datalist" "dd" "del" "details" "dfn"
+     "dialog" "dir" "div" "dl" "dt" "em" "embed" "fencedframe" "fieldset"
+     "figcaption" "figure" "font" "footer" "form" "frame" "frameset"
+     "h1" "h2" "h3" "h4" "h5" "h6" "head" "header" "hgroup" "hr" "html"
+     "i" "iframe" "image" "img" "input" "ins" "kbd" "keygen" "label"
+     "legend" "li" "link" "listing" "main" "map" "mark" "marquee" "math"
+     "menu" "menuitem" "meta" "meter" "multicol" "nav" "nextid" "nobr"
+     "noembed" "noframes" "noscript" "object" "ol" "optgroup" "option"
+     "output" "p" "param" "picture" "plaintext" "portal" "pre" "progress"
+     "q" "rb" "rp" "rt" "rtc" "ruby" "s" "samp" "script" "search" "section"
+     "select" "shadow" "slot" "small" "source" "spacer" "span" "strike"
+     "strong" "style" "sub" "summary" "sup" "svg" "table" "tbody" "td"
+     "template" "textarea" "tfoot" "th" "thead" "time" "title" "tr" "track"
+     "tt" "u" "ul" "var" "video" "wbr" "xmp")))
+
+(define css-prop-rx #px"^-?[a-z][a-z0-9-]*$")
+
+(define (css-property-token? token)
+  ;; Custom properties (--name) do not have per-property MDN pages.
+  (and (regexp-match? css-prop-rx token)
+       (not (string-prefix? token "--"))))
+
+(define (fallback-url-for-token lang cls token)
+  (cond
+    [(and (eq? lang 'css)
+          (eq? cls 'name)
+          (css-property-token? token))
+     (string-append mdn-base-url "Web/CSS/" token)]
+    [(and (eq? lang 'html)
+          (eq? cls 'keyword)
+          (set-member? html-element-set token))
+     (string-append mdn-base-url "Web/HTML/Element/" token)]
+    [else #f]))
+
 (define (mdn-url-for-token lang cls token)
-  (define key (list lang cls (normalize-token token)))
-  (hash-ref (effective-map) key #f))
+  (define t (normalize-token token))
+  (define key (list lang cls t))
+  (or (hash-ref (effective-map) key #f)
+      (fallback-url-for-token lang cls t)))
 
 (define (mdn-install-map! entries-or-path)
   (define entries
@@ -411,5 +455,10 @@
   (check-true (pair? mdn-default-map-entries))
   (check-true (andmap mdn-entry? mdn-default-map-entries))
   (check-not-false (mdn-url-for-token 'css 'name "display"))
+  (check-not-false (mdn-url-for-token 'css 'name "accent-color"))
+  (check-not-false (mdn-url-for-token 'css 'name "mask-border-repeat"))
   (check-not-false (mdn-url-for-token 'html 'keyword "dialog"))
+  (check-not-false (mdn-url-for-token 'html 'keyword "acronym"))
+  (check-false (mdn-url-for-token 'html 'keyword "not-a-real-tag"))
+  (check-not-false (mdn-url-for-token 'html 'keyword "const")) ; explicit JS mapping wins
   (check-not-false (mdn-url-for-token 'js 'method-name "flatMap")))

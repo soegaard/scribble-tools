@@ -2002,6 +2002,381 @@ JS
          [else
           (loop (cdr rest) pending (cons t acc))])])))
 
+(define js-global-objects
+  (list->set
+   '("Array" "Object" "String" "Number" "Boolean" "Promise"
+     "Map" "Set" "WeakMap" "WeakSet"
+     "Date" "RegExp" "Math" "JSON"
+     "URL" "URLSearchParams" "Error" "TypeError" "SyntaxError"
+     "Symbol" "BigInt" "Intl")))
+
+(define js-webapi-objects
+  (list->set
+   '("CanvasRenderingContext2D"
+     "WebGLRenderingContext"
+     "WebGL2RenderingContext"
+     "ImageBitmapRenderingContext"
+     "console"
+     "Document" "Window" "Element" "HTMLElement" "Node" "EventTarget"
+     "Navigator" "Location" "History")))
+
+(define js-known-objects
+  (set-union js-global-objects js-webapi-objects))
+
+(define js-method-owner-index
+  ;; Maps lowercase method name -> possible owning global/API objects.
+  (let ([pairs
+         '(("map" . "Array") ("filter" . "Array") ("reduce" . "Array")
+           ("forEach" . "Array") ("includes" . "Array") ("find" . "Array")
+           ("findIndex" . "Array") ("some" . "Array") ("every" . "Array")
+           ("flatMap" . "Array") ("join" . "Array") ("slice" . "Array")
+           ("push" . "Array") ("pop" . "Array") ("shift" . "Array")
+           ("unshift" . "Array") ("sort" . "Array") ("toSorted" . "Array")
+           ("toReversed" . "Array") ("toSpliced" . "Array") ("at" . "Array")
+           ("entries" . "Array") ("keys" . "Array") ("values" . "Array")
+           ("startsWith" . "String") ("endsWith" . "String")
+           ("split" . "String") ("match" . "String") ("replace" . "String")
+           ("test" . "RegExp") ("exec" . "RegExp")
+           ("parse" . "JSON") ("stringify" . "JSON")
+           ("max" . "Math") ("min" . "Math") ("round" . "Math")
+           ("floor" . "Math") ("ceil" . "Math") ("abs" . "Math")
+           ("random" . "Math")
+           ("then" . "Promise") ("catch" . "Promise") ("finally" . "Promise")
+           ("all" . "Promise") ("allSettled" . "Promise")
+           ("race" . "Promise") ("any" . "Promise")
+           ("resolve" . "Promise") ("reject" . "Promise")
+           ("get" . "Map") ("set" . "Map") ("has" . "Map")
+           ("delete" . "Map") ("clear" . "Map")
+           ("assign" . "Object") ("fromEntries" . "Object")
+           ("querySelector" . "Document")
+           ("querySelectorAll" . "Document")
+           ("getElementById" . "Document")
+           ("getElementsByClassName" . "Document")
+           ("getElementsByTagName" . "Document")
+           ("createElement" . "Document")
+           ("createTextNode" . "Document")
+           ("matches" . "Element") ("closest" . "Element")
+           ("setAttribute" . "Element") ("getAttribute" . "Element")
+           ("hasAttribute" . "Element") ("removeAttribute" . "Element")
+           ("appendChild" . "Node") ("removeChild" . "Node")
+           ("insertBefore" . "Node") ("replaceChild" . "Node")
+           ("cloneNode" . "Node")
+           ("addEventListener" . "EventTarget")
+           ("removeEventListener" . "EventTarget")
+           ("dispatchEvent" . "EventTarget")
+           ("requestAnimationFrame" . "Window")
+           ("cancelAnimationFrame" . "Window")
+           ("setTimeout" . "Window") ("clearTimeout" . "Window")
+           ("setInterval" . "Window") ("clearInterval" . "Window")
+           ("log" . "console") ("info" . "console") ("warn" . "console")
+           ("error" . "console") ("debug" . "console")
+           ("dir" . "console") ("table" . "console")
+           ("trace" . "console") ("assert" . "console")
+           ("group" . "console") ("groupCollapsed" . "console")
+           ("groupEnd" . "console")
+           ("time" . "console") ("timeLog" . "console") ("timeEnd" . "console")
+           ("count" . "console") ("countReset" . "console")
+           ("clear" . "console"))])
+    (for/fold ([h (hash)])
+              ([p (in-list pairs)])
+      (hash-update h
+                   (string-downcase (car p))
+                   (lambda (owners) (cons (cdr p) owners))
+                   null))))
+
+(define (js-known-object? s)
+  (set-member? js-known-objects s))
+
+(define (js-global-object? s)
+  (set-member? js-global-objects s))
+
+(define (js-object-url owner)
+  (if (js-global-object? owner)
+      (format "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/~a"
+              owner)
+      (format "https://developer.mozilla.org/en-US/docs/Web/API/~a"
+              owner)))
+
+(define (js-object-method-url owner method)
+  (if (js-global-object? owner)
+      (format "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/~a/~a"
+              owner method)
+      (let ([canonical-owner
+             (cond
+               [(string=? owner "console") "console"]
+               [(member method '("addEventListener" "removeEventListener" "dispatchEvent"))
+                "EventTarget"]
+               [(member method '("appendChild" "removeChild" "insertBefore" "replaceChild" "cloneNode"))
+                "Node"]
+               [else owner])])
+        (if (string=? canonical-owner "console")
+            (format "https://developer.mozilla.org/en-US/docs/Web/API/console/~a_static"
+                    method)
+            (format "https://developer.mozilla.org/en-US/docs/Web/API/~a/~a"
+                    canonical-owner method)))))
+
+(define (token-nonplain? t)
+  (not (eq? (car t) 'plain)))
+
+(define (token-class-in? t classes)
+  (and t (memq (car t) classes)))
+
+(define (next-nonplain-token rest)
+  (let loop ([xs rest])
+    (cond
+      [(null? xs) #f]
+      [(token-nonplain? (car xs)) (car xs)]
+      [else (loop (cdr xs))])))
+
+(define (resolve-js-owner name object-aliases)
+  (or (and (js-known-object? name) name)
+      (hash-ref object-aliases name #f)))
+
+(define (strip-js-string-quotes s)
+  (if (and (>= (string-length s) 2)
+           (let ([f (string-ref s 0)]
+                 [l (string-ref s (sub1 (string-length s)))])
+             (and (or (char=? f #\") (char=? f #\'))
+                  (char=? f l))))
+      (substring s 1 (sub1 (string-length s)))
+      s))
+
+(define (canvas-context-owner-from-token t)
+  (and t
+       (eq? (car t) 'value)
+       (let ([k (string-downcase (strip-js-string-quotes (cdr t)))])
+         (cond
+           [(member k '("2d")) "CanvasRenderingContext2D"]
+           [(member k '("webgl")) "WebGLRenderingContext"]
+           [(member k '("webgl2")) "WebGL2RenderingContext"]
+           [(member k '("bitmaprenderer")) "ImageBitmapRenderingContext"]
+           [else #f]))))
+
+(define (rhs-context-owner np start)
+  ;; Heuristic: detect ...getContext("<kind>") on RHS.
+  (define max-j (min (length np) (+ start 28)))
+  (let loop ([j start])
+    (cond
+      [(>= j max-j) #f]
+      [else
+       (define tj (list-ref np j))
+       (define t1 (and (< (add1 j) (length np)) (list-ref np (add1 j))))
+       (define t2 (and (< (+ j 2) (length np)) (list-ref np (+ j 2))))
+       (define t3 (and (< (+ j 3) (length np)) (list-ref np (+ j 3))))
+       (cond
+         [(and (token-class-in? tj '(method-name prop-name name))
+               (string=? (cdr tj) "getContext")
+               t1 t2
+               (eq? (car t1) 'punct) (string=? (cdr t1) "("))
+          (or (canvas-context-owner-from-token t2)
+              (and t3 (canvas-context-owner-from-token t3))
+              #f)]
+         [(and (eq? (car tj) 'punct) (or (string=? (cdr tj) ";") (string=? (cdr tj) ",")))
+          #f]
+         [else (loop (add1 j))])])))
+
+(define (rhs-dom-owner np start)
+  ;; Heuristic: detect common DOM-returning expressions on RHS.
+  (define max-j (min (length np) (+ start 28)))
+  (let loop ([j start])
+    (cond
+      [(>= j max-j) #f]
+      [else
+       (define tj (list-ref np j))
+       (define t1 (and (< (add1 j) (length np)) (list-ref np (add1 j))))
+       (define t2 (and (< (+ j 2) (length np)) (list-ref np (+ j 2))))
+       (define t3 (and (< (+ j 3) (length np)) (list-ref np (+ j 3))))
+       (define t4 (and (< (+ j 4) (length np)) (list-ref np (+ j 4))))
+       (define t5 (and (< (+ j 5) (length np)) (list-ref np (+ j 5))))
+       (cond
+         ;; document.querySelector(...), el.querySelector(...)
+         [(and (token-class-in? tj '(name decl-name prop-name object-key keyword))
+               (token-class-in? t1 '(punct)) (string=? (cdr t1) ".")
+               (token-class-in? t2 '(method-name prop-name name))
+               (member (cdr t2) '("querySelector" "querySelectorAll"
+                                  "getElementById" "createElement")))
+          "Element"]
+         ;; document.body, document.documentElement
+         [(and (token-class-in? tj '(name decl-name prop-name object-key keyword))
+               (token-class-in? t1 '(punct)) (string=? (cdr t1) ".")
+               (token-class-in? t2 '(name prop-name method-name))
+               (member (cdr t2) '("body" "documentElement")))
+          "HTMLElement"]
+         ;; document, window, navigator, history, location aliases
+         [(and (token-class-in? tj '(name decl-name prop-name keyword))
+               (member (cdr tj) '("document" "window" "navigator" "history" "location")))
+          (case (string->symbol (cdr tj))
+            [(document) "Document"]
+            [(window) "Window"]
+            [(navigator) "Navigator"]
+            [(history) "History"]
+            [else "Location"])]
+         ;; window.document
+         [(and (token-class-in? tj '(name decl-name keyword))
+               (string=? (cdr tj) "window")
+               (token-class-in? t1 '(punct)) (string=? (cdr t1) ".")
+               (token-class-in? t2 '(name prop-name))
+               (string=? (cdr t2) "document"))
+          "Document"]
+         ;; event.target / event.currentTarget
+         [(and (token-class-in? tj '(name decl-name))
+               (member (cdr tj) '("event" "ev" "e"))
+               (token-class-in? t1 '(punct)) (string=? (cdr t1) ".")
+               (token-class-in? t2 '(name prop-name))
+               (member (cdr t2) '("target" "currentTarget")))
+          "EventTarget"]
+         [(and (eq? (car tj) 'punct) (or (string=? (cdr tj) ";") (string=? (cdr tj) ",")))
+          #f]
+         [else
+          (loop (add1 j))])])))
+
+(define (js-token-literal-owner t)
+  (and t
+       (eq? (car t) 'value)
+       (let ([txt (cdr t)])
+         (cond
+           [(regexp-match? #px"^['\"]" txt) "String"]
+           [(regexp-match? #px"^`" txt) "String"]
+           [(regexp-match? #px"^/" txt) "RegExp"]
+           [(regexp-match? #px"^[+-]?(?:[0-9]|\\.[0-9])" txt) "Number"]
+           [else #f]))))
+
+(define (build-js-alias-env tokens)
+  ;; Returns two values:
+  ;;   object-aliases : alias -> built-in object name (e.g. m -> Math)
+  ;;   method-aliases : alias -> fully resolved method URL (e.g. parse -> .../JSON/parse)
+  (define np (filter token-nonplain? tokens))
+  (define len (length np))
+  (define (tok i) (and (<= 0 i) (< i len) (list-ref np i)))
+  (define object-aliases0
+    (hash "document" "Document"
+          "window" "Window"
+          "console" "console"
+          "navigator" "Navigator"
+          "location" "Location"
+          "history" "History"))
+  (let loop ([i 0] [object-aliases object-aliases0] [method-aliases (hash)])
+    (if (>= i len)
+        (values object-aliases method-aliases)
+        (let* ([t0 (tok i)]
+               [t1 (tok (+ i 1))]
+               [t2 (tok (+ i 2))]
+               [t3 (tok (+ i 3))]
+               [t4 (tok (+ i 4))]
+               [t5 (tok (+ i 5))]
+               [kw? (and t0 (eq? (car t0) 'keyword)
+                         (member (cdr t0) '("const" "let" "var")))])
+          (cond
+            ;; const p = JSON.parse;
+            [(and kw?
+                  (token-class-in? t1 '(decl-name name))
+                  (and t2 (eq? (car t2) 'operator) (string=? (cdr t2) "="))
+                  (token-class-in? t3 '(name decl-name))
+                  (resolve-js-owner (cdr t3) object-aliases)
+                  (and t4 (eq? (car t4) 'punct) (string=? (cdr t4) "."))
+                  (token-class-in? t5 '(method-name prop-name name)))
+             (define owner (resolve-js-owner (cdr t3) object-aliases))
+             (if owner
+                 (loop (add1 i)
+                       object-aliases
+                       (hash-set method-aliases (cdr t1)
+                                 (js-object-method-url owner (cdr t5))))
+                 (loop (add1 i) object-aliases method-aliases))]
+            ;; const m = Math;
+            [(and kw?
+                  (token-class-in? t1 '(decl-name name))
+                  (and t2 (eq? (car t2) 'operator) (string=? (cdr t2) "="))
+                  (token-class-in? t3 '(name decl-name prop-name object-key))
+                  (resolve-js-owner (cdr t3) object-aliases)
+                  (not (and t4 (eq? (car t4) 'punct) (string=? (cdr t4) "."))))
+             (loop (add1 i)
+                   (hash-set object-aliases (cdr t1) (resolve-js-owner (cdr t3) object-aliases))
+                   method-aliases)]
+            ;; const ctx = canvas.getContext("2d");
+            [(and kw?
+                  (token-class-in? t1 '(decl-name name))
+                  (and t2 (eq? (car t2) 'operator) (string=? (cdr t2) "=")))
+             (define owner (or (rhs-context-owner np (+ i 3))
+                               (rhs-dom-owner np (+ i 3))))
+             (if owner
+                 (loop (add1 i)
+                       (hash-set object-aliases (cdr t1) owner)
+                       method-aliases)
+                 (loop (add1 i) object-aliases method-aliases))]
+            ;; const {parse} = JSON;
+            [(and kw? t1 (eq? (car t1) 'punct) (string=? (cdr t1) "{"))
+             (let parse-destruct ([j (+ i 2)] [names null])
+               (define tj (tok j))
+               (cond
+                 [(or (not tj)
+                      (and (eq? (car tj) 'punct) (string=? (cdr tj) "}")))
+                  (define close-j j)
+                  (define t-op (tok (+ close-j 1)))
+                  (define t-rhs (tok (+ close-j 2)))
+                  (define owner
+                    (and t-op t-rhs
+                         (eq? (car t-op) 'operator)
+                         (string=? (cdr t-op) "=")
+                         (token-class-in? t-rhs '(name decl-name))
+                         (resolve-js-owner (cdr t-rhs) object-aliases)))
+                  (if owner
+                      (let ([method-aliases*
+                             (for/fold ([h method-aliases])
+                                       ([n (in-list (reverse names))])
+                               (hash-set h n (js-object-method-url owner n)))])
+                        (loop (add1 i) object-aliases method-aliases*))
+                      (loop (add1 i) object-aliases method-aliases))]
+                 [(token-class-in? tj '(name decl-name))
+                  (define tcolon (tok (+ j 1)))
+                  (define talias (tok (+ j 2)))
+                  (cond
+                    ;; {parse: p}
+                    [(and tcolon talias
+                          (eq? (car tcolon) 'punct) (string=? (cdr tcolon) ":")
+                          (token-class-in? talias '(name decl-name)))
+                     (parse-destruct (+ j 3) (cons (cdr talias) names))]
+                    [else
+                     (parse-destruct (add1 j) (cons (cdr tj) names))])]
+                 [else (parse-destruct (add1 j) names)]))]
+            [else (loop (add1 i) object-aliases method-aliases)])))))
+
+(define (js-infer-method-owner prev1 prev2 object-aliases)
+  (and prev1 prev2
+       (eq? (car prev1) 'punct)
+       (string=? (cdr prev1) ".")
+       (or (and (token-class-in? prev2 '(name decl-name prop-name object-key keyword))
+                (resolve-js-owner (cdr prev2) object-aliases))
+           (js-token-literal-owner prev2)
+           (and (eq? (car prev2) 'punct) (string=? (cdr prev2) "]") "Array")
+           (and (eq? (car prev2) 'punct) (string=? (cdr prev2) "}") "Object"))))
+
+(define (js-contextual-mdn-url lang cls txt prev1 prev2 next1 object-aliases method-aliases)
+  (define direct (mdn-url-for-token lang cls txt))
+  (cond
+    [direct direct]
+    [(not (memq lang '(js html))) #f]
+    [(and (token-class-in? (cons cls txt) '(name decl-name prop-name method-name object-key))
+          (hash-ref method-aliases txt #f))
+     (hash-ref method-aliases txt #f)]
+    [(and (memq cls '(name decl-name prop-name method-name object-key))
+          (resolve-js-owner txt object-aliases))
+     (js-object-url (resolve-js-owner txt object-aliases))]
+    [(eq? cls 'method-name)
+     (define owner (js-infer-method-owner prev1 prev2 object-aliases))
+     (cond
+       [owner (js-object-method-url owner txt)]
+       [else
+        (define owners (hash-ref js-method-owner-index (string-downcase txt) null))
+        (and (= (length owners) 1)
+             (js-object-method-url (car owners) txt))])]
+    ;; Alias call case: const parse = JSON.parse; parse(...)
+    [(and (memq cls '(name decl-name))
+          next1
+          (eq? (car next1) 'punct)
+          (string=? (cdr next1) "("))
+     (hash-ref method-aliases txt #f)]
+    [else #f]))
+
 (define (tokens->pieces lang tokens
                         #:color-swatch? [color-swatch? #f]
                         #:font-preview? [font-preview? #f]
@@ -2031,111 +2406,156 @@ JS
     (if (eq? lang 'css)
         (move-css-decorations-to-decl-end tokens****)
         tokens****))
-  (let loop ([rest tokens*****] [acc null] [runtime-inserted? #f])
+  (define-values (js-object-aliases js-method-aliases)
+    (if (memq lang '(js html))
+        (build-js-alias-env tokens*****)
+        (values (hash) (hash))))
+  (let loop ([rest tokens*****] [acc null] [runtime-inserted? #f] [i 0])
     (cond
       [(null? rest) (reverse acc)]
       [else
         (define t (car rest))
         (define cls (car t))
+        (define prev1
+          (let loop-prev ([k (sub1 i)])
+            (cond
+              [(negative? k) #f]
+              [else
+               (define tk (list-ref tokens***** k))
+               (if (token-nonplain? tk) tk (loop-prev (sub1 k)))])))
+        (define prev2
+          (and prev1
+               (let ([k1
+                      (let loop-prev ([k (sub1 i)])
+                        (cond
+                          [(negative? k) #f]
+                          [else
+                           (define tk (list-ref tokens***** k))
+                           (if (token-nonplain? tk) k (loop-prev (sub1 k)))]))])
+                 (and k1
+                      (let loop-prev2 ([k (sub1 k1)])
+                        (cond
+                          [(negative? k) #f]
+                          [else
+                           (define tk (list-ref tokens***** k))
+                           (if (token-nonplain? tk) tk (loop-prev2 (sub1 k)))]))))))
+        (define next1 (next-nonplain-token (cdr rest)))
        (cond
          [(eq? cls 'escape)
-         (loop (cdr rest) (append (reverse (list (escape->element (cdr t)))) acc) runtime-inserted?)]
+         (loop (cdr rest) (append (reverse (list (escape->element (cdr t)))) acc) runtime-inserted? (add1 i))]
          [(eq? cls 'swatch)
           (if runtime-inserted?
-              (loop (cdr rest) (append (reverse (list (css-swatch-element (cdr t) mode))) acc) #t)
+              (loop (cdr rest) (append (reverse (list (css-swatch-element (cdr t) mode))) acc) #t (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (css-swatch-element (cdr t) mode))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [(eq? cls 'swatch-gradient)
           (if runtime-inserted?
-              (loop (cdr rest) (append (reverse (list (css-gradient-swatch-element (cdr t) mode))) acc) #t)
+              (loop (cdr rest) (append (reverse (list (css-gradient-swatch-element (cdr t) mode))) acc) #t (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (css-gradient-swatch-element (cdr t) mode))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [(eq? cls 'spacing-preview)
           (define p (cdr t))
           (if runtime-inserted?
               (loop (cdr rest)
                     (append (reverse (list (css-spacing-preview-element (car p) (cdr p) mode))) acc)
-                    #t)
+                    #t
+                    (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (css-spacing-preview-element (car p) (cdr p) mode))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [(eq? cls 'radius-preview)
           (define p (cdr t))
           (if runtime-inserted?
               (loop (cdr rest)
                     (append (reverse (list (css-radius-preview-element (car p) (cdr p) mode))) acc)
-                    #t)
+                    #t
+                    (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (css-radius-preview-element (car p) (cdr p) mode))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [(eq? cls 'token-def)
           (define p (cdr t))
           (if runtime-inserted?
               (loop (cdr rest)
                     (append (reverse (list (css-token-def-element (car p) (cdr p)))) acc)
-                    #t)
+                    #t
+                    (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (css-token-def-element (car p) (cdr p)))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [(eq? cls 'token-ref)
           (if runtime-inserted?
               (loop (cdr rest)
                     (append (reverse (list (css-token-ref-element (cdr t)))) acc)
-                    #t)
+                    #t
+                    (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (css-token-ref-element (cdr t)))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [(eq? cls 'js-regex-preview)
           (if runtime-inserted?
               (loop (cdr rest)
                     (append (reverse (list (js-regex-preview-element))) acc)
-                    #t)
+                    #t
+                    (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (js-regex-preview-element))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [(eq? cls 'js-template-preview)
           (if runtime-inserted?
               (loop (cdr rest)
                     (append (reverse (list (js-template-preview-element))) acc)
-                    #t)
+                    #t
+                    (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (js-template-preview-element))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [(eq? cls 'font-preview)
           (if runtime-inserted?
               (loop (cdr rest)
                     (append (reverse (list (css-font-preview-element (cdr t) mode))) acc)
-                    #t)
+                    #t
+                    (add1 i))
               (loop (cdr rest)
                     (append (reverse (append (runtime-prefix-elements)
                                              (list (css-font-preview-element (cdr t) mode))))
                             acc)
-                    #t))]
+                    #t
+                    (add1 i)))]
          [else
           (define txt (cdr t))
           (define token-style (style-for lang cls))
           (define maybe-url
             (and mdn-links?
                  (not (regexp-match? #px"[[:space:]]" txt))
-                 (mdn-url-for-token lang cls txt)))
+                 (js-contextual-mdn-url lang cls txt prev1 prev2 next1
+                                        js-object-aliases js-method-aliases)))
           (define pieces
             (if maybe-url
                 (list (hyperlink maybe-url #:style mdn-link-style #:underline? #f
@@ -2143,7 +2563,8 @@ JS
                 (split-lines token-style txt)))
           (loop (cdr rest)
                 (append (reverse pieces) acc)
-                runtime-inserted?)])])))
+                runtime-inserted?
+                (add1 i))])])))
 
 (define (break-list lst delim)
   (let loop ([l lst] [n null] [c null])
@@ -2542,6 +2963,23 @@ JS
                  (contains-link? c))))]
       [(list? v) (for/or ([c (in-list v)]) (contains-link? c))]
       [else #f]))
+  (define (collect-target-urls v)
+    (define (style-target st)
+      (and (style? st)
+           (for/or ([p (in-list (style-properties st))])
+             (and (target-url? p)
+                  (vector-ref (struct->vector p) 1)))))
+    (cond
+      [(element? v)
+       (append
+        (let ([u (style-target (element-style v))])
+          (if u (list u) null))
+        (let ([c (element-content v)])
+          (if (list? c)
+              (append-map collect-target-urls c)
+              (collect-target-urls c))))]
+      [(list? v) (append-map collect-target-urls v)]
+      [else null]))
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
@@ -2584,6 +3022,61 @@ JS
   (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))
   (check-true (contains-link? (html-code "<div class='x'>x</div>")))
   (check-false (contains-link? (js-code #:mdn-links? #f "const x = 1;")))
+  (let ([urls (collect-target-urls (js-code "Math.max(1, 2);"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/max"
+             urls)))
+  (let ([urls (collect-target-urls (js-code "const p = JSON.parse; p(\"{}\");"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"
+             urls)))
+  (let ([urls (collect-target-urls (js-code "const {parse} = JSON; parse(\"{}\");"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse"
+             urls)))
+  (let ([urls (collect-target-urls (js-code "\"x\".startsWith(\"x\"); [1,2].map((n)=>n);"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith"
+             urls))
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map"
+             urls)))
+  (let ([urls (collect-target-urls
+               (js-code "const ctx = canvas.getContext(\"2d\"); ctx.fillRect(0, 0, 10, 10);"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillRect"
+             urls)))
+  (let ([urls (collect-target-urls
+               (js-code "const gl = canvas.getContext(\"webgl\"); gl.clear();"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/clear"
+             urls)))
+  (let ([urls (collect-target-urls
+               (js-code "document.querySelector(\"#app\").appendChild(node);"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector"
+             urls))
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/API/Node/appendChild"
+             urls)))
+  (let ([urls (collect-target-urls
+               (js-code "const el = document.getElementById(\"app\"); el.setAttribute(\"role\", \"main\");"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/API/Element/setAttribute"
+             urls)))
+  (let ([urls (collect-target-urls
+               (js-code "window.addEventListener(\"resize\", onResize);"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener"
+             urls)))
+  (let ([urls (collect-target-urls
+               (js-code "console.log(msg); console.error(err);"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/API/console/log_static"
+             urls))
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/Web/API/console/error_static"
+             urls)))
   (check-not-false
    (member 'name (classes 'css (read-fixture "css-basic.css"))))
   (let ([sw (insert-css-color-swatch-tokens (tokenize 'css ".x { color: #c33; }") #t)])
