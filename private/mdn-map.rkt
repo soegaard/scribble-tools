@@ -178,6 +178,51 @@
    (list 'js 'method-name "test" "Web/JavaScript/Reference/Global_Objects/RegExp/test")
    (list 'js 'method-name "match" "Web/JavaScript/Reference/Global_Objects/String/match")
    (list 'js 'method-name "replace" "Web/JavaScript/Reference/Global_Objects/String/replace")
+   ;; WebAssembly (WAT) keywords/instructions
+   (list 'wasm 'keyword "module" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "func" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "param" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "result" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "type" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "import" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "export" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "memory" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "table" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "data" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "elem" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "start" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "offset" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "align" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "mut" "WebAssembly/Guides/Understanding_the_text_format")
+   (list 'wasm 'keyword "block" "WebAssembly/Reference/Control_flow/block")
+   (list 'wasm 'keyword "loop" "WebAssembly/Reference/Control_flow/loop")
+   (list 'wasm 'keyword "if" "WebAssembly/Reference/Control_flow/if...else")
+   (list 'wasm 'keyword "else" "WebAssembly/Reference/Control_flow/if...else")
+   (list 'wasm 'keyword "end" "WebAssembly/Reference/Control_flow/end")
+   (list 'wasm 'keyword "br" "WebAssembly/Reference/Control_flow/br")
+   (list 'wasm 'keyword "br_if" "WebAssembly/Reference/Control_flow/br_if")
+   (list 'wasm 'keyword "br_table" "WebAssembly/Reference/Control_flow/br_table")
+   (list 'wasm 'keyword "call" "WebAssembly/Reference/Control_flow/call")
+   (list 'wasm 'keyword "call_indirect" "WebAssembly/Reference/Control_flow")
+   (list 'wasm 'keyword "return" "WebAssembly/Reference/Control_flow/return")
+   (list 'wasm 'keyword "drop" "WebAssembly/Reference/Control_flow/drop")
+   (list 'wasm 'keyword "select" "WebAssembly/Reference/Control_flow/select")
+   (list 'wasm 'keyword "unreachable" "WebAssembly/Reference/Control_flow/unreachable")
+   (list 'wasm 'keyword "nop" "WebAssembly/Reference/Control_flow/nop")
+   (list 'wasm 'keyword "local" "WebAssembly/Reference/Variables")
+   (list 'wasm 'keyword "global" "WebAssembly/Reference/Variables")
+   (list 'wasm 'keyword "local.get" "WebAssembly/Reference/Variables/local.get")
+   (list 'wasm 'keyword "local.set" "WebAssembly/Reference/Variables/local.set")
+   (list 'wasm 'keyword "local.tee" "WebAssembly/Reference/Variables/local.tee")
+   (list 'wasm 'keyword "global.get" "WebAssembly/Reference/Variables/global.get")
+   (list 'wasm 'keyword "global.set" "WebAssembly/Reference/Variables/global.set")
+   (list 'wasm 'keyword "i32" "WebAssembly/Reference/Numeric")
+   (list 'wasm 'keyword "i64" "WebAssembly/Reference/Numeric")
+   (list 'wasm 'keyword "f32" "WebAssembly/Reference/Numeric")
+   (list 'wasm 'keyword "f64" "WebAssembly/Reference/Numeric")
+   (list 'wasm 'keyword "v128" "WebAssembly/Reference")
+   (list 'wasm 'keyword "funcref" "WebAssembly/Reference")
+   (list 'wasm 'keyword "externref" "WebAssembly/Reference")
    ;; Also make key JS keywords available when tokenized through html <script> mode.
    (list 'html 'keyword "const" "Web/JavaScript/Reference/Statements/const")
    (list 'html 'keyword "let" "Web/JavaScript/Reference/Statements/let")
@@ -339,7 +384,7 @@
       "void" "import" "export" "extends" "super" "this"
       "in" "of" "typeof")
     (lambda (t)
-      (case (string->symbol t)
+       (case (string->symbol t)
         [(do) "Web/JavaScript/Reference/Statements/do...while"]
         [(default) "Web/JavaScript/Reference/Statements/switch"]
         [(break) "Web/JavaScript/Reference/Statements/break"]
@@ -355,6 +400,22 @@
         [(in) "Web/JavaScript/Reference/Operators/in"]
         [(of) "Web/JavaScript/Reference/Statements/for...of"]
         [else "Web/JavaScript/Reference/Operators/typeof"])))
+   (mk-entries
+    'wasm 'keyword
+    '("i32.const" "i64.const" "f32.const" "f64.const")
+    (lambda (_) "WebAssembly/Reference/Numeric/const"))
+   (mk-entries
+    'wasm 'keyword
+    '("i32.add" "i64.add" "f32.add" "f64.add")
+    (lambda (_) "WebAssembly/Reference/Numeric/add"))
+   (mk-entries
+    'wasm 'keyword
+    '("i32.sub" "i64.sub" "f32.sub" "f64.sub")
+    (lambda (_) "WebAssembly/Reference/Numeric/sub"))
+   (mk-entries
+    'wasm 'keyword
+    '("i32.mul" "i64.mul" "f32.mul" "f64.mul")
+    (lambda (_) "WebAssembly/Reference/Numeric/mul"))
    (mk-entries
     'js 'name
     '("Error" "TypeError" "SyntaxError" "URL" "URLSearchParams"
@@ -397,7 +458,7 @@
 (define (mdn-entry? v)
   (and (list? v)
        (= (length v) 4)
-       (memq (first v) '(css html js))
+       (memq (first v) '(css html js wasm))
        (symbol? (second v))
        (string? (third v))
        (string? (fourth v))))
@@ -499,6 +560,19 @@
           (eq? cls 'keyword)
           (set-member? html-element-set token))
      (string-append mdn-base-url "Web/HTML/Element/" token)]
+    [(and (eq? lang 'wasm)
+          (or (eq? cls 'keyword) (eq? cls 'name))
+          (regexp-match? #px"^(i32|i64|f32|f64)\\.([a-z][a-z0-9_]*)$" token))
+     (define m (regexp-match #px"^(i32|i64|f32|f64)\\.([a-z][a-z0-9_]*)$" token))
+     (string-append mdn-base-url "WebAssembly/Reference/Numeric/" (third m))]
+    [(and (eq? lang 'wasm)
+          (or (eq? cls 'keyword) (eq? cls 'name))
+          (regexp-match? #px"^(local|global)\\.(get|set|tee)$" token))
+     (string-append mdn-base-url "WebAssembly/Reference/Variables/" token)]
+    [(and (eq? lang 'wasm)
+          (or (eq? cls 'keyword) (eq? cls 'name))
+          (regexp-match? #px"^[a-z][a-z0-9_]*$" token))
+     (string-append mdn-base-url "WebAssembly/Reference")]
     [else #f]))
 
 (define (mdn-url-for-token lang cls token)
@@ -571,4 +645,8 @@
   (check-not-false (mdn-url-for-token 'html 'keyword "acronym"))
   (check-false (mdn-url-for-token 'html 'keyword "not-a-real-tag"))
   (check-not-false (mdn-url-for-token 'html 'keyword "const")) ; explicit JS mapping wins
-  (check-not-false (mdn-url-for-token 'js 'method-name "flatMap")))
+  (check-not-false (mdn-url-for-token 'js 'method-name "flatMap"))
+  (check-not-false (mdn-url-for-token 'wasm 'keyword "module"))
+  (check-not-false (mdn-url-for-token 'wasm 'keyword "local.get"))
+  (check-not-false (mdn-url-for-token 'wasm 'keyword "i32.add"))
+  (check-not-false (mdn-url-for-token 'wasm 'name "f64.mul")))

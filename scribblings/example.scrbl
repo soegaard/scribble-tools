@@ -2,11 +2,12 @@
 
 @(require scribble-tools)
 
-@title{Example: CSS, HTML, JavaScript, and Scribble Code Forms}
+@title{Example: CSS, HTML, JavaScript, WebAssembly, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
 inline JS with @js-code{const n = 42;} and
+inline WebAssembly with @wasm-code{(module (func (result i32) (i32.const 42)))} and
 inline Scribble with @scribble-code["@bold{Hi} there."].
 
 @section{Inline Forms}
@@ -32,6 +33,8 @@ Inline CSS (external preview stylesheet):
 Inline HTML: @html-code{<em class="highlight">Hi</em>}
 
 Inline JS: @js-code{const n = 42;}
+
+Inline WebAssembly: @wasm-code{(module (func (result i32) (i32.const 42)))}
 
 Inline Scribble: @scribble-code["@bold{Hi} there."]
 
@@ -259,6 +262,39 @@ for (const n of [1, 2, 3]) {
                 "  @item{Alpha}\n"
                 "  @item{Beta}\n"
                 "]\n"]
+
+@section{WebAssembly Block (Folded)}
+
+@wasmblock{
+(module
+  (func $add (param $x i32) (param $y i32) (result i32)
+    local.get $x
+    local.get $y
+    i32.add))
+}
+
+@section{WebAssembly Block (Non-Folded)}
+
+@wasmblock{
+(module (func (param i32 i32) (result i32) (i32.add (local.get 0) (local.get 1))))
+}
+
+@section{WebAssembly Block With Line Numbers}
+
+@wasmblock[#:line-numbers 1 #:line-number-sep 2]{
+(module
+  (func (result i32)
+    i32.const 7))
+}
+
+@section{WebAssembly Block With File Name}
+
+@wasmblock[#:file "snippet.wat"]{
+(module
+  (memory 1)
+  (func (export "answer") (result i32)
+    i32.const 42))
+}
 
 @section{HTML Document With Inline Style and Script}
 

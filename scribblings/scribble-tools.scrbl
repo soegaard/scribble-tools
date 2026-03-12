@@ -10,10 +10,11 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, HTML,
-JavaScript, and Scribble snippets with syntax coloring. The inline
-forms (@racket[css-code], @racket[html-code], @racket[js-code], and
-@racket[scribble-code]) produce content, while the block forms
-(@racket[cssblock], @racket[htmlblock], @racket[jsblock], and
+JavaScript, WebAssembly (WAT), and Scribble snippets with syntax
+coloring. The inline forms (@racket[css-code], @racket[html-code],
+@racket[js-code], @racket[wasm-code], and @racket[scribble-code])
+produce content, while the block forms (@racket[cssblock],
+@racket[htmlblock], @racket[jsblock], @racket[wasmblock], and
 @racket[scribbleblock]) produce code blocks with optional line numbers,
 file labels, and escapes.
 
@@ -36,6 +37,8 @@ Use inline forms when you want code inside running text:
         @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"
         @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
+  (list "WebAssembly"
+        @scribble-code["@wasm-code{(module (func (result i32) (i32.const 42)))}"])
   (list "Scribble"
         @scribble-code["@scribble-code{\"@bold{Hello} world.\"}"]))]
 
@@ -46,6 +49,7 @@ Use inline forms when you want code inside running text:
   (list "CSS"           @css-code{.card { color: #c33; }})
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
+  (list "WebAssembly"   @wasm-code{(module (func (result i32) (i32.const 42)))})
   (list "Scribble"      @scribble-code["@bold{Hello} world."]))]
 
 @subsection[#:tag "reference-block-forms"]{Block Forms}
@@ -108,6 +112,22 @@ Use block forms for larger snippets:
              const r = await fetch("/api/data");
              return r.json();
            }
+           }})
+  (list
+   @nested{@bold{WebAssembly form}
+
+           @italic{Scribble source}
+           @scribbleblock[
+             "@wasmblock{\n"
+             "(module\n"
+             "  (func (result i32)\n"
+             "    i32.const 42))\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @wasmblock{
+           (module
+             (func (result i32)
+               i32.const 42))
            }})
   (list
    @nested{@bold{Scribble form}
@@ -218,6 +238,7 @@ By default, code output includes links to MDN documentation for common:
  @item{CSS properties (for example @css-code{display}, @css-code{grid}, @css-code{border-radius}).}
  @item{HTML elements (for example @html-code{<section>}, @html-code{<button>}, @html-code{<script>}).}
  @item{Common JavaScript classes, methods, and language keywords (for example @js-code{Array}, @js-code{querySelector}, @js-code{map}, @js-code{const}).}
+ @item{Common WebAssembly instructions and declarations (for example @wasm-code{module}, @wasm-code{func}, @wasm-code{local.get}, @wasm-code{i32.add}).}
 ]
 
 @section{Reference}
@@ -313,6 +334,23 @@ form @racket[(escape-id expr)] to splice @racket[expr]-produced
 elements into the typeset output.
 
 Example: @js-code{const n = 42;}
+}
+
+@defform/subs[(wasm-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:mdn-links? mdn-links?-expr)
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline WebAssembly text (WAT) code.
+Newlines and surrounding whitespace are collapsed to single spaces.
+
+@racket[#:mdn-links?] controls whether common WebAssembly tokens are
+wrapped as hyperlinks to MDN documentation (default: @racket[#t]).
+
+An optional @racket[#:escape] identifier configures escapes of the
+form @racket[(escape-id expr)] to splice @racket[expr]-produced
+elements into the typeset output.
+
+Example: @wasm-code{(module (func (result i32) (i32.const 42)))}
 }
 
 @defform/subs[(scribble-code maybe-escape str-expr ...+)
@@ -479,6 +517,51 @@ for (const n of [1, 2, 3]) {
 }
 }
 
+@defform/subs[(wasmblock option ... str-expr ...+)
+              ([option (code:line #:indent indent-expr)
+                       (code:line #:line-numbers line-number-expr)
+                       (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:copy-button? copy-button?-expr)
+                       (code:line #:mdn-links? mdn-links?-expr)
+                       (code:line #:file filename-expr)
+                       (code:line #:escape escape-id)])
+              #:contracts ([indent-expr exact-nonnegative-integer?]
+                           [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [line-number-sep-expr exact-nonnegative-integer?])]{
+Typesets WebAssembly text (WAT) as a block inset using @racket['code-inset].
+Options:
+
+@itemlist[
+ @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
+ @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
+ @item{@racket[#:mdn-links?] controls whether common WebAssembly tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
+ @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
+ @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
+]
+
+Example:
+
+@wasmblock[#:line-numbers 1]{
+(module
+  (func (result i32)
+    i32.const 42))
+}
+}
+
+@defform[(wasmblock0 option ... str-expr ...+)]{
+Like @racket[wasmblock], but without the inset wrapper.
+
+Example:
+
+@wasmblock0[#:indent 2]{
+(module
+  (func (result i32)
+    i32.const 7))
+}
+}
+
 @defform/subs[(scribbleblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
@@ -558,7 +641,7 @@ Rendered legend example:
 
 @subsection{MDN Maps}
 
-MDN maps control which CSS/HTML/JavaScript identifiers
+MDN maps control which CSS/HTML/JavaScript/WebAssembly identifiers
 become links to the MDN documentation site.
 The procedures below let you inspect the active map, install overrides,
 reset to defaults, and export the bundled entries.
@@ -574,8 +657,9 @@ If the file exists, entries in it override bundled defaults.
 Returns bundled compact default entries as
 @racket[(list lang class token url-or-path)] records.
 In addition to explicit entries, the resolver also supports implicit
-coverage for all CSS property names (@tt{Web/CSS/<property>}) and all
-known HTML element tags (@tt{Web/HTML/Element/<tag>}).
+coverage for all CSS property names (@tt{Web/CSS/<property>}), all
+known HTML element tags (@tt{Web/HTML/Element/<tag>}), and common
+WebAssembly instruction families (@tt{WebAssembly/Reference/...}).
 }
 
 @defproc[(mdn-entry? [v any/c]) boolean?]{

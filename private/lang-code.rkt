@@ -18,14 +18,17 @@
 (provide css-code
          html-code
          js-code
+         wasm-code
          scribble-code
          cssblock
          htmlblock
          jsblock
+         wasmblock
          scribbleblock
          cssblock0
          htmlblock0
          jsblock0
+         wasmblock0
          scribbleblock0)
 
 (define omitable (make-style #f '(omitable)))
@@ -99,6 +102,19 @@
 
 (define css-blur-properties
   (list->set '("filter" "backdrop-filter")))
+
+(define wasm-keywords
+  (list->set
+   '("module" "func" "param" "result" "local" "global"
+     "memory" "table" "type" "import" "export"
+     "data" "elem" "start" "offset" "align" "mut"
+     "block" "loop" "if" "then" "else" "end"
+     "call" "call_indirect" "return" "drop" "select"
+     "unreachable" "nop" "br" "br_if" "br_table"
+     "local.get" "local.set" "local.tee"
+     "global.get" "global.set"
+     "i32" "i64" "f32" "f64" "v128"
+     "funcref" "externref")))
 
 (define current-preview-css-url (make-parameter #f))
 (define current-preview-tooltips? (make-parameter #t))
@@ -832,6 +848,14 @@ JS
        [(private-name) js-private-name-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(wasm)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(value) value-color]
+       [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
     [(scribble)
@@ -1842,6 +1866,102 @@ JS
                 [else (find (add1 k))])))
           (emit 'plain i next-special)])])))
 
+(define (wasm-word-char? ch)
+  (or (char-alphabetic? ch)
+      (char-numeric? ch)
+      (memv ch '(#\$ #\_ #\- #\. #\/ #\! #\? #\= #\+ #\< #\> #\: #\@))))
+
+(define (wasm-number? txt)
+  (or (regexp-match? #px"^[+-]?[0-9][0-9_]*$" txt)
+      (regexp-match? #px"^[+-]?0x[0-9a-fA-F][0-9a-fA-F_]*$" txt)
+      (regexp-match? #px"^[+-]?[0-9][0-9_]*\\.[0-9_]+([eE][+-]?[0-9_]+)?$" txt)
+      (regexp-match? #px"^[+-]?[0-9][0-9_]*[eE][+-]?[0-9_]+$" txt)
+      (regexp-match? #px"^[+-]?(inf|nan)(:0x[0-9a-fA-F][0-9a-fA-F_]*)?$" (string-downcase txt))))
+
+(define (wasm-word-class txt)
+  (cond
+    [(or (set-member? wasm-keywords txt)
+         (regexp-match? #px"^[if][0-9]{2}\\." txt)
+         (regexp-match? #px"^v[0-9]+\\." txt))
+     'keyword]
+    [(string-prefix? txt "$") 'name]
+    [(wasm-number? txt) 'value]
+    [else 'name]))
+
+(define (read-wasm-string s start)
+  (let loop ([i (+ start 1)] [esc? #f])
+    (cond
+      [(>= i (string-length s)) i]
+      [esc? (loop (add1 i) #f)]
+      [else
+       (define ch (string-ref s i))
+       (cond
+         [(char=? ch #\\) (loop (add1 i) #t)]
+         [(char=? ch #\") (add1 i)]
+         [else (loop (add1 i) #f)])])))
+
+(define (read-wasm-block-comment s start)
+  (let loop ([i (+ start 2)] [depth 1])
+    (cond
+      [(>= i (string-length s)) i]
+      [else
+       (define c1 (string-ref s i))
+       (define c2 (and (< (add1 i) (string-length s))
+                       (string-ref s (add1 i))))
+       (cond
+         [(and c2 (char=? c1 #\() (char=? c2 #\;))
+          (loop (+ i 2) (add1 depth))]
+         [(and c2 (char=? c1 #\;) (char=? c2 #\)))
+          (define d (sub1 depth))
+          (if (zero? d) (+ i 2) (loop (+ i 2) d))]
+         [else (loop (add1 i) depth)])])))
+
+(define (tokenize-wasm s)
+  (define len (string-length s))
+  (let loop ([i 0] [acc null])
+    (cond
+      [(>= i len) (reverse acc)]
+      [else
+       (define ch (string-ref s i))
+       (cond
+         [(char-whitespace? ch)
+          (define j (read-while s i char-whitespace?))
+          (loop j (cons (cons 'plain (substring s i j)) acc))]
+         [(and (< (add1 i) len)
+               (char=? ch #\;)
+               (char=? (string-ref s (add1 i)) #\;))
+          (define j
+            (let find-line-end ([k (+ i 2)])
+              (cond
+                [(>= k len) len]
+                [(char=? (string-ref s k) #\newline) k]
+                [else (find-line-end (add1 k))])))
+          (loop j (cons (cons 'comment (substring s i j)) acc))]
+         [(and (< (add1 i) len)
+               (char=? ch #\()
+               (char=? (string-ref s (add1 i)) #\;))
+          (define j (read-wasm-block-comment s i))
+          (loop j (cons (cons 'comment (substring s i j)) acc))]
+         [(or (char=? ch #\() (char=? ch #\)))
+          (loop (add1 i) (cons (cons 'punct (substring s i (add1 i))) acc))]
+         [(char=? ch #\")
+          (define j (read-wasm-string s i))
+          (loop j (cons (cons 'value (substring s i j)) acc))]
+         [else
+          (define j (read-while s i (lambda (c)
+                                      (and (not (char-whitespace? c))
+                                           (not (char=? c #\())
+                                           (not (char=? c #\)))
+                                           (not (char=? c #\;))
+                                           (not (char=? c #\"))))))
+          (define txt (substring s i j))
+          (define cls
+            (cond
+              [(string=? txt "") 'plain]
+              [(wasm-word-char? (string-ref txt 0)) (wasm-word-class txt)]
+              [else 'plain]))
+          (loop j (cons (cons cls txt) acc))])])))
+
 (define (scribble-token-type->symbol t)
   (cond
     [(symbol? t) t]
@@ -1885,6 +2005,7 @@ JS
     [(css) (tokenize-css s)]
     [(html) (tokenize-html s)]
     [(js) (tokenize-js s)]
+    [(wasm) (tokenize-wasm s)]
     [(scribble) (tokenize-scribble s)]
     [else (list (cons 'plain s))]))
 
@@ -3116,6 +3237,22 @@ JS
                                    #:mdn-links? mdn-links-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-syntax (wasm-code stx)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:mdn-links? mdn-links-expr:expr)
+                              #:defaults ([mdn-links-expr #'#t])
+                              #:name "#:mdn-links? keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-inline/chunks 'wasm
+                                   #:mdn-links? mdn-links-expr
+                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
+
 (define-syntax (scribble-code stx)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:escape escape-id:identifier)
@@ -3135,6 +3272,8 @@ JS
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
 (define-syntax (jsblock0 stx) (do-js-block stx #f))
 (define-syntax (jsblock stx) (do-js-block stx #t))
+(define-syntax (wasmblock0 stx) (do-block stx 'wasm #f))
+(define-syntax (wasmblock stx) (do-block stx 'wasm #t))
 (define-syntax (scribbleblock0 stx) (do-block stx 'scribble #f))
 (define-syntax (scribbleblock stx) (do-block stx 'scribble #t))
 
@@ -3184,15 +3323,18 @@ JS
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
+  (check-true (block? (wasmblock "(module (func))")))
   (check-true (block? (scribbleblock "@title{Hi}\nText.")))
   (check-true (block? (cssblock #:copy-button? #f "h1 { color: red; }")))
   (check-true (block? (htmlblock #:copy-button? #f "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock #:copy-button? #f "const x = 1;")))
+  (check-true (block? (wasmblock #:copy-button? #f "(module (func))")))
   (check-true (block? (scribbleblock #:copy-button? #f "@title{Hi}\nText.")))
   (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
+  (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (scribble-code "@bold{Hi}")))
   (check-true (element? (js-code #:jsx? #t "const el = <A/>;")))
   (check-not-false
@@ -3216,6 +3358,18 @@ JS
     (check-not-false (member 'operator cls)))
   (check-not-false
    (member 'comment (classes 'js "// hi\nconst x = 1;")))
+  (let ([cls (classes 'wasm (read-fixture "wasm-folded.wat"))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'punct cls))
+    (check-not-false (member 'name cls)))
+  (let ([cls (classes 'wasm (read-fixture "wasm-non-folded.wat"))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'name cls)))
+  (let ([cls (classes 'wasm (read-fixture "wasm-mixed.wat"))])
+    (check-not-false (member 'comment cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'keyword cls)))
   (check-true
    (element? (css-code "a { color: " (unsyntax (bold "red")) "; }")))
   (check-true
@@ -3232,10 +3386,13 @@ JS
   (check-not-false (mdn-url-for-token 'css 'name "color"))
   (check-not-false (mdn-url-for-token 'html 'keyword "div"))
   (check-not-false (mdn-url-for-token 'js 'keyword "const"))
+  (check-not-false (mdn-url-for-token 'wasm 'keyword "module"))
   (check-true (contains-link? (css-code "a{color:red;}")))
   (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))
   (check-true (contains-link? (html-code "<div class='x'>x</div>")))
   (check-false (contains-link? (js-code #:mdn-links? #f "const x = 1;")))
+  (check-true (contains-link? (wasm-code "(module (func (result i32) (i32.const 1)))")))
+  (check-false (contains-link? (wasm-code #:mdn-links? #f "(module (func (result i32) (i32.const 1)))")))
   (let ([urls (collect-target-urls (js-code "Math.max(1, 2);"))])
     (check-not-false
      (member "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/max"

@@ -62,7 +62,7 @@
               ([e (in-list entries)])
       (hash-update h (first e) add1 0)))
   (printf "total: ~a\n" total)
-  (for ([k (in-list '(css html js))])
+  (for ([k (in-list '(css html js wasm))])
     (printf "  ~a: ~a\n" k (hash-ref by-lang k 0))))
 
 (define (main)
