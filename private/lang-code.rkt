@@ -7,6 +7,7 @@
          racket/runtime-path
          syntax-color/scribble-lexer
          "mdn-map.rkt"
+         "wasm-spec-map.rkt"
          scribble/base
          scribble/core
          scribble/html-properties
@@ -29,7 +30,8 @@
          htmlblock0
          jsblock0
          wasmblock0
-         scribbleblock0)
+         scribbleblock0
+         current-wasm-docs-source)
 
 (define omitable (make-style #f '(omitable)))
 ;; Dedicated style for HTML tag names; do not rely on .RktSym/.RktKw theme mappings.
@@ -59,6 +61,14 @@
   (make-style #f (list (attributes '((style . "color: #07A;"))))))
 (define css-name-color
   (make-style #f (list (attributes '((style . "color: #262680;"))))))
+(define wasm-form-color
+  (make-style #f (list (attributes '((style . "color: #0B62A3;"))))))
+(define wasm-type-color
+  (make-style #f (list (attributes '((style . "color: #795E26;"))))))
+(define wasm-instr-color
+  (make-style #f (list (attributes '((style . "color: #6B2F8A;"))))))
+(define wasm-id-color
+  (make-style #f (list (attributes '((style . "color: #2F6F3E;"))))))
 (define mdn-link-style
   (make-style #f (list (attributes '((class . "mdn-code-link")
                                      (style . "color: inherit; text-decoration: none;"))))))
@@ -103,28 +113,43 @@
 (define css-blur-properties
   (list->set '("filter" "backdrop-filter")))
 
-(define wasm-keywords
+(define wasm-form-keywords
   (list->set
-   '("module" "func" "param" "result" "local" "global"
-     "memory" "table" "type" "import" "export"
-     "data" "elem" "start" "offset" "align" "mut"
-     "block" "loop" "if" "then" "else" "end"
+   '("module" "func" "param" "result"
+     "local" "global" "memory" "table" "type"
+     "import" "export" "data" "elem" "start"
+     "offset" "align" "mut")))
+
+(define wasm-type-keywords
+  (list->set
+   '("i32" "i64" "f32" "f64" "v128" "funcref" "externref")))
+
+(define wasm-instruction-keywords
+  (list->set
+   '("block" "loop" "if" "then" "else" "end"
      "call" "call_indirect" "return" "drop" "select"
      "unreachable" "nop" "br" "br_if" "br_table"
      "local.get" "local.set" "local.tee"
-     "global.get" "global.set"
-     "i32" "i64" "f32" "f64" "v128"
-     "funcref" "externref")))
+     "global.get" "global.set")))
 
 (define current-preview-css-url (make-parameter #f))
 (define current-preview-tooltips? (make-parameter #t))
 (define current-jsx? (make-parameter #f))
 (define current-js-template-depth (make-parameter 0))
+(define current-wasm-docs-source (make-parameter 'wasm-spec-3.0))
 (define current-html-style-color-swatch? (make-parameter #t))
 (define current-html-style-font-preview? (make-parameter #t))
 (define current-html-style-dimension-preview? (make-parameter #t))
 (define current-html-style-preview-mode (make-parameter 'always))
 (define current-html-script-preview? (make-parameter #t))
+
+(define (normalize-wasm-docs-source who v)
+  (cond
+    [(memq v '(wasm-spec-3.0 mdn none)) v]
+    [else
+     (raise-argument-error who
+                           "(or/c 'wasm-spec-3.0 'mdn 'none)"
+                           v)]))
 
 (define (preview-url-attrs)
   (define u (current-preview-css-url))
@@ -853,6 +878,10 @@ JS
     [(wasm)
      (case cls
        [(comment) comment-color]
+       [(wasm-form) wasm-form-color]
+       [(wasm-type) wasm-type-color]
+       [(wasm-instr) wasm-instr-color]
+       [(wasm-id) wasm-id-color]
        [(keyword) js-keyword-color]
        [(value) value-color]
        [(name) js-name-color]
@@ -1880,11 +1909,13 @@ JS
 
 (define (wasm-word-class txt)
   (cond
-    [(or (set-member? wasm-keywords txt)
-         (regexp-match? #px"^[if][0-9]{2}\\." txt)
-         (regexp-match? #px"^v[0-9]+\\." txt))
-     'keyword]
-    [(string-prefix? txt "$") 'name]
+    [(set-member? wasm-form-keywords txt) 'wasm-form]
+    [(set-member? wasm-type-keywords txt) 'wasm-type]
+    [(set-member? wasm-instruction-keywords txt) 'wasm-instr]
+    [(or (regexp-match? #px"^[if][0-9]{2}\\.[a-z][a-z0-9_]*$" txt)
+         (regexp-match? #px"^v[0-9]+\\.[a-z][a-z0-9_]*$" txt))
+     'wasm-instr]
+    [(string-prefix? txt "$") 'wasm-id]
     [(wasm-number? txt) 'value]
     [else 'name]))
 
@@ -2664,11 +2695,20 @@ JS
      (hash-ref method-aliases txt #f)]
     [else #f]))
 
+(define (mdn-class-for-token lang cls)
+  (if (eq? lang 'wasm)
+      (case cls
+        [(wasm-form wasm-type wasm-instr) 'keyword]
+        [(wasm-id) 'name]
+        [else cls])
+      cls))
+
 (define (tokens->pieces lang tokens
                         #:color-swatch? [color-swatch? #f]
                         #:font-preview? [font-preview? #f]
                         #:dimension-preview? [dimension-preview? #t]
                         #:mdn-links? [mdn-links? #t]
+                        #:docs-source [docs-source #f]
                         #:preview-tooltips? [preview-tooltips? #t]
                         #:preview-mode [preview-mode 'always])
   (define mode (normalize-preview-mode 'tokens->pieces preview-mode))
@@ -2836,13 +2876,25 @@ JS
                     #t
                     (add1 i)))]
          [else
-          (define txt (cdr t))
-          (define token-style (style-for lang cls))
+         (define txt (cdr t))
+         (define token-style (style-for lang cls))
+          (define mdn-cls (mdn-class-for-token lang cls))
           (define maybe-url
-            (and mdn-links?
-                 (not (regexp-match? #px"[[:space:]]" txt))
-                 (js-contextual-mdn-url lang cls txt prev1 prev2 next1
-                                        js-object-aliases js-method-aliases)))
+            (cond
+              [(regexp-match? #px"[[:space:]]" txt) #f]
+              [(eq? lang 'wasm)
+               (case (normalize-wasm-docs-source 'tokens->pieces
+                                                 (or docs-source (current-wasm-docs-source)))
+                 [(none) #f]
+                 [(mdn)
+                  (js-contextual-mdn-url lang mdn-cls txt prev1 prev2 next1
+                                         js-object-aliases js-method-aliases)]
+                 [(wasm-spec-3.0)
+                  (wasm-spec-3.0-url-for-token cls txt)])]
+              [else
+               (and mdn-links?
+                    (js-contextual-mdn-url lang mdn-cls txt prev1 prev2 next1
+                                           js-object-aliases js-method-aliases))]))
           (define pieces
             (if maybe-url
                 (list (hyperlink maybe-url #:style mdn-link-style #:underline? #f
@@ -2932,6 +2984,7 @@ JS
                                    #:font-preview? [font-preview? #f]
                                    #:dimension-preview? [dimension-preview? #t]
                                    #:mdn-links? [mdn-links? #t]
+                                   #:docs-source [docs-source #f]
                                    #:preview-tooltips? [preview-tooltips? #t]
                                    #:preview-mode [preview-mode 'always]
                                    #:preview-css-url [preview-css-url #f]
@@ -2959,6 +3012,7 @@ JS
                                               #:font-preview? font-preview?
                                               #:dimension-preview? dimension-preview?
                                               #:mdn-links? mdn-links?
+                                              #:docs-source docs-source
                                               #:preview-tooltips? preview-tooltips?
                                                #:preview-mode preview-mode))
                              #:line-numbers line-numbers
@@ -2984,6 +3038,7 @@ JS
                                     #:font-preview? [font-preview? #f]
                                     #:dimension-preview? [dimension-preview? #t]
                                     #:mdn-links? [mdn-links? #t]
+                                    #:docs-source [docs-source #f]
                                     #:preview-tooltips? [preview-tooltips? #t]
                                     #:preview-mode [preview-mode 'always]
                                     #:preview-css-url [preview-css-url #f]
@@ -3010,6 +3065,7 @@ JS
                                   #:font-preview? font-preview?
                                   #:dimension-preview? dimension-preview?
                                   #:mdn-links? mdn-links?
+                                  #:docs-source docs-source
                                   #:preview-tooltips? preview-tooltips?
                                   #:preview-mode preview-mode))))
 
@@ -3161,6 +3217,43 @@ JS
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-for-syntax (do-wasm-block stx inset?)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:indent indent-expr:expr)
+                              #:defaults ([indent-expr #'0])
+                              #:name "#:indent keyword")
+                   (~optional (~seq #:line-numbers line-numbers-expr:expr)
+                              #:defaults ([line-numbers-expr #'#f])
+                              #:name "#:line-numbers keyword")
+                   (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
+                              #:defaults ([line-number-sep-expr #'1])
+                              #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:copy-button? copy-button-expr:expr)
+                              #:defaults ([copy-button-expr #'#t])
+                              #:name "#:copy-button? keyword")
+                   (~optional (~seq #:docs-source docs-source-expr:expr)
+                              #:defaults ([docs-source-expr #'(current-wasm-docs-source)])
+                              #:name "#:docs-source keyword")
+                   (~optional (~seq #:file filename-expr:expr)
+                              #:defaults ([filename-expr #'#f])
+                              #:name "#:file keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-block/chunks 'wasm
+                                  #:file filename-expr
+                                  #:indent indent-expr
+                                  #:line-numbers line-numbers-expr
+                                  #:line-number-sep line-number-sep-expr
+                                  #:copy-button? copy-button-expr
+                                  #:docs-source docs-source-expr
+                                  #:inset? #,inset?
+                                  (list #,@(chunks-template #'(str ...) esc-id)))]))
+
 (define-syntax (css-code stx)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:color-swatch? color-swatch-expr:expr)
@@ -3239,9 +3332,9 @@ JS
 
 (define-syntax (wasm-code stx)
   (syntax-parse stx
-    [(_ (~seq (~or (~optional (~seq #:mdn-links? mdn-links-expr:expr)
-                              #:defaults ([mdn-links-expr #'#t])
-                              #:name "#:mdn-links? keyword")
+    [(_ (~seq (~or (~optional (~seq #:docs-source docs-source-expr:expr)
+                              #:defaults ([docs-source-expr #'(current-wasm-docs-source)])
+                              #:name "#:docs-source keyword")
                    (~optional (~seq #:escape escape-id:identifier)
                               #:name "#:escape keyword"))
               ...)
@@ -3250,7 +3343,7 @@ JS
                         #'escape-id
                         (datum->syntax stx 'unsyntax)))
      #`(typeset-lang-inline/chunks 'wasm
-                                   #:mdn-links? mdn-links-expr
+                                   #:docs-source docs-source-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
 (define-syntax (scribble-code stx)
@@ -3272,8 +3365,8 @@ JS
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
 (define-syntax (jsblock0 stx) (do-js-block stx #f))
 (define-syntax (jsblock stx) (do-js-block stx #t))
-(define-syntax (wasmblock0 stx) (do-block stx 'wasm #f))
-(define-syntax (wasmblock stx) (do-block stx 'wasm #t))
+(define-syntax (wasmblock0 stx) (do-wasm-block stx #f))
+(define-syntax (wasmblock stx) (do-wasm-block stx #t))
 (define-syntax (scribbleblock0 stx) (do-block stx 'scribble #f))
 (define-syntax (scribbleblock stx) (do-block stx 'scribble #t))
 
@@ -3359,17 +3452,20 @@ JS
   (check-not-false
    (member 'comment (classes 'js "// hi\nconst x = 1;")))
   (let ([cls (classes 'wasm (read-fixture "wasm-folded.wat"))])
-    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'wasm-form cls))
+    (check-not-false (member 'wasm-type cls))
+    (check-not-false (member 'wasm-instr cls))
     (check-not-false (member 'punct cls))
-    (check-not-false (member 'name cls)))
+    (check-not-false (member 'wasm-id cls)))
   (let ([cls (classes 'wasm (read-fixture "wasm-non-folded.wat"))])
-    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'wasm-form cls))
+    (check-not-false (member 'wasm-instr cls))
     (check-not-false (member 'value cls))
-    (check-not-false (member 'name cls)))
+    (check-not-false (member 'wasm-id cls)))
   (let ([cls (classes 'wasm (read-fixture "wasm-mixed.wat"))])
     (check-not-false (member 'comment cls))
     (check-not-false (member 'value cls))
-    (check-not-false (member 'keyword cls)))
+    (check-not-false (member 'wasm-instr cls)))
   (check-true
    (element? (css-code "a { color: " (unsyntax (bold "red")) "; }")))
   (check-true
@@ -3392,7 +3488,37 @@ JS
   (check-true (contains-link? (html-code "<div class='x'>x</div>")))
   (check-false (contains-link? (js-code #:mdn-links? #f "const x = 1;")))
   (check-true (contains-link? (wasm-code "(module (func (result i32) (i32.const 1)))")))
-  (check-false (contains-link? (wasm-code #:mdn-links? #f "(module (func (result i32) (i32.const 1)))")))
+  (check-false (contains-link? (wasm-code #:docs-source 'none "(module (func (result i32) (i32.const 1)))")))
+  (let ([urls (collect-target-urls (wasm-code "(module (func (result i32) (i32.const 1)))"))])
+    (check-not-false
+     (member "https://webassembly.github.io/spec/core/syntax/modules.html#syntax-func"
+             urls)))
+  (let ([urls (collect-target-urls (wasm-code "(func (param i32) (result i32))"))])
+    (check-not-false
+     (member "https://webassembly.github.io/spec/core/text/types.html#text-param"
+             urls))
+    (check-not-false
+     (member "https://webassembly.github.io/spec/core/text/types.html#text-result"
+             urls))
+    (check-not-false
+     (member "https://webassembly.github.io/spec/core/syntax/types.html#syntax-numtype"
+             urls)))
+  (let ([urls (collect-target-urls (wasm-code "local.get $x"))])
+    (check-not-false
+     (member "https://webassembly.github.io/spec/core/syntax/instructions.html#syntax-instr-variable"
+             urls)))
+  (let ([urls (collect-target-urls (wasm-code "i32.add"))])
+    (check-not-false
+     (member "https://webassembly.github.io/spec/core/syntax/instructions.html#syntax-binop"
+             urls)))
+  (let ([urls (collect-target-urls (wasm-code "v128.and"))])
+    (check-not-false
+     (member "https://webassembly.github.io/spec/core/syntax/instructions.html#syntax-vbinop"
+             urls)))
+  (let ([urls (collect-target-urls (wasm-code #:docs-source 'mdn "(module (func (result i32) (i32.const 1)))"))])
+    (check-not-false
+     (member "https://developer.mozilla.org/en-US/docs/WebAssembly/Guides/Understanding_the_text_format"
+             urls)))
   (let ([urls (collect-target-urls (js-code "Math.max(1, 2);"))])
     (check-not-false
      (member "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/max"

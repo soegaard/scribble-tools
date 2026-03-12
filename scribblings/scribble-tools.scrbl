@@ -65,6 +65,7 @@ Use block forms for larger snippets:
            @italic{Scribble source}
            @scribbleblock[
              "@cssblock{\n"
+             "/* Accent color */\n"
              ".card {\n"
              "  color: #c33;\n"
              "  border-radius: 12px;\n"
@@ -72,6 +73,7 @@ Use block forms for larger snippets:
              "}\n"]}
    @nested{@italic{Rendered result}
            @cssblock{
+           /* Accent color */
            .card {
              color: #c33;
              border-radius: 12px;
@@ -83,6 +85,7 @@ Use block forms for larger snippets:
            @italic{Scribble source}
            @scribbleblock[
              "@htmlblock{\n"
+             "<!-- Hero title -->\n"
              "<main>\n"
              "  <h1>Hello</h1>\n"
              "  <p>Welcome</p>\n"
@@ -90,6 +93,7 @@ Use block forms for larger snippets:
              "}\n"]}
    @nested{@italic{Rendered result}
            @htmlblock{
+           <!-- Hero title -->
            <main>
              <h1>Hello</h1>
              <p>Welcome</p>
@@ -101,6 +105,7 @@ Use block forms for larger snippets:
            @italic{Scribble source}
            @scribbleblock[
              "@jsblock{\n"
+             "/* loadData :: () => Promise<any> */\n"
              "async function loadData() {\n"
              "  const r = await fetch(\"/api/data\");\n"
              "  return r.json();\n"
@@ -108,6 +113,7 @@ Use block forms for larger snippets:
              "}\n"]}
    @nested{@italic{Rendered result}
            @jsblock{
+           /* loadData :: () => Promise<any> */
            async function loadData() {
              const r = await fetch("/api/data");
              return r.json();
@@ -119,14 +125,16 @@ Use block forms for larger snippets:
            @italic{Scribble source}
            @scribbleblock[
              "@wasmblock{\n"
+             ";; A simple module\n"
              "(module\n"
-             "  (func (result i32)\n"
+             "  (func $fortytwo (result i32)\n"
              "    i32.const 42))\n"
              "}\n"]}
    @nested{@italic{Rendered result}
            @wasmblock{
+           ;; A simple module
            (module
-             (func (result i32)
+             (func $fortytwo (result i32)
                i32.const 42))
            }})
   (list
@@ -134,10 +142,12 @@ Use block forms for larger snippets:
 
            @italic{Scribble source}
            @scribbleblock[
-             "@scribbleblock[\"@section{Greeting}\\n\"\n"
+             "@scribbleblock[\"@; Greeting section\\n\"\n"
+             "               \"@section{Greeting}\\n\"\n"
              "               \"@bold{Hello}, Scribble!\\n\"]\n"]}
    @nested{@italic{Rendered result}
-           @scribbleblock["@section{Greeting}\n"
+           @scribbleblock["@; Greeting section\n"
+                          "@section{Greeting}\n"
                           "@bold{Hello}, Scribble!\n"]}))]
 
 @subsection{Block Form Decorations}
@@ -230,15 +240,15 @@ All forms support escapes to splice Scribble content:
           (unq (bold "tomato"))
           "; }"]
 
-@subsection{MDN Documentation Links}
+@subsection{Documentation Links}
 
-By default, code output includes links to MDN documentation for common:
+By default, code output includes documentation links for common identifiers:
 
 @itemlist[
  @item{CSS properties (for example @css-code{display}, @css-code{grid}, @css-code{border-radius}).}
  @item{HTML elements (for example @html-code{<section>}, @html-code{<button>}, @html-code{<script>}).}
  @item{Common JavaScript classes, methods, and language keywords (for example @js-code{Array}, @js-code{querySelector}, @js-code{map}, @js-code{const}).}
- @item{Common WebAssembly instructions and declarations (for example @wasm-code{module}, @wasm-code{func}, @wasm-code{local.get}, @wasm-code{i32.add}).}
+ @item{Common WebAssembly instructions and declarations (for example @wasm-code{module}, @wasm-code{func}, @wasm-code{local.get}, @wasm-code{i32.add}), linked to the WebAssembly Core Spec site by default.}
 ]
 
 @section{Reference}
@@ -338,13 +348,15 @@ Example: @js-code{const n = 42;}
 
 @defform/subs[(wasm-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
-                             (code:line #:mdn-links? mdn-links?-expr)
+                             (code:line #:docs-source docs-source-expr)
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline WebAssembly text (WAT) code.
 Newlines and surrounding whitespace are collapsed to single spaces.
 
-@racket[#:mdn-links?] controls whether common WebAssembly tokens are
-wrapped as hyperlinks to MDN documentation (default: @racket[#t]).
+@racket[#:docs-source] selects where WebAssembly documentation links point:
+@racket['wasm-spec-3.0], @racket['mdn], or @racket['none].
+The default comes from @racket[current-wasm-docs-source], which defaults
+to @racket['wasm-spec-3.0].
 
 An optional @racket[#:escape] identifier configures escapes of the
 form @racket[(escape-id expr)] to splice @racket[expr]-produced
@@ -522,7 +534,7 @@ for (const n of [1, 2, 3]) {
                        (code:line #:line-numbers line-number-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
                        (code:line #:copy-button? copy-button?-expr)
-                       (code:line #:mdn-links? mdn-links?-expr)
+                       (code:line #:docs-source docs-source-expr)
                        (code:line #:file filename-expr)
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
@@ -536,7 +548,7 @@ Options:
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
- @item{@racket[#:mdn-links?] controls whether common WebAssembly tokens are wrapped as hyperlinks to MDN documentation (default: @racket[#t]).}
+ @item{@racket[#:docs-source] selects WebAssembly link targets: @racket['wasm-spec-3.0], @racket['mdn], or @racket['none]. Default: @racket[(current-wasm-docs-source)].}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
  @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
 ]
@@ -559,6 +571,13 @@ Example:
 (module
   (func (result i32)
     i32.const 7))
+}
+
+@defparam[current-wasm-docs-source src (or/c 'wasm-spec-3.0 'mdn 'none)]{
+Controls the default documentation source used by @racket[wasm-code],
+@racket[wasmblock], and @racket[wasmblock0] when @racket[#:docs-source]
+is not provided.
+The default value is @racket['wasm-spec-3.0].
 }
 }
 
@@ -649,7 +668,8 @@ Most users will not need these tools, but they are useful when you want
 to add links that are not covered by the default maps.
 
 @defproc[(mdn-map-path) path?]{
-Returns the user override map path used by @racket[#:mdn-links?].
+Returns the user override map path used by @racket[#:mdn-links?]
+in CSS/HTML/JavaScript forms.
 If the file exists, entries in it override bundled defaults.
 }
 

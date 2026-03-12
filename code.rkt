@@ -18,6 +18,7 @@
          jsblock0
          wasmblock0
          scribbleblock0
+         current-wasm-docs-source
          mdn-map-path
          mdn-default-map-entries
          mdn-entry?
@@ -41,6 +42,7 @@
 (define-syntax-rule (wasmblock0 . rest) (lang:wasmblock0 . rest))
 (define-syntax-rule (scribbleblock0 . rest) (lang:scribbleblock0 . rest))
 
+(define current-wasm-docs-source lang:current-wasm-docs-source)
 (define (mdn-map-path) (mdn:mdn-map-path))
 (define mdn-default-map-entries mdn:mdn-default-map-entries)
 (define (mdn-entry? v) (mdn:mdn-entry? v))
