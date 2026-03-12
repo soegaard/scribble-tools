@@ -11,7 +11,7 @@
          scribble/base
          scribble/core
          scribble/html-properties
-         (only-in scribble/manual filebox)
+         (only-in scribble/manual filebox typeset-code)
          scribble/racket
          (for-syntax racket/base
                      syntax/parse))
@@ -31,7 +31,8 @@
          jsblock0
          wasmblock0
          scribbleblock0
-         current-wasm-docs-source)
+         current-wasm-docs-source
+         current-scribble-context)
 
 (define omitable (make-style #f '(omitable)))
 ;; Dedicated style for HTML tag names; do not rely on .RktSym/.RktKw theme mappings.
@@ -137,6 +138,7 @@
 (define current-jsx? (make-parameter #f))
 (define current-js-template-depth (make-parameter 0))
 (define current-wasm-docs-source (make-parameter 'wasm-spec-3.0))
+(define current-scribble-context (make-parameter #f))
 (define current-html-style-color-swatch? (make-parameter #t))
 (define current-html-style-font-preview? (make-parameter #t))
 (define current-html-style-dimension-preview? (make-parameter #t))
@@ -3069,6 +3071,140 @@ JS
                                   #:preview-tooltips? preview-tooltips?
                                   #:preview-mode preview-mode))))
 
+(define (typeset-scribble-inline/chunks
+         #:lang [lang-line "scribble/manual"]
+         #:context [context (current-scribble-context)]
+         chunks)
+  (define (leading-inline-hspace? v)
+    (and (element? v)
+         (eq? (element-style v) 'hspace)))
+  (define (trim-leading-hspace-lists v)
+    (cond
+      [(list? v) (map trim-leading-hspace-lists (dropf v leading-inline-hspace?))]
+      [else v]))
+  (define maybe-src (chunks->string-or-false chunks))
+  (define source*
+    (and maybe-src
+         (if (regexp-match? #px"(?m:^\\s*#lang\\s+)" maybe-src)
+             maybe-src
+             (string-append "#lang " lang-line "\n" maybe-src))))
+  (or (and source*
+           (let* ([v (typeset-code #:block? #f
+                                   #:keep-lang-line? #f
+                                   #:context context
+                                   source*)]
+                  [trimmed-content
+                   (if (element? v)
+                       (trim-leading-hspace-lists (element-content v))
+                       v)])
+             (if (element? v)
+                 (make-element (element-style v) trimmed-content)
+                 trimmed-content)))
+      (typeset-lang-inline/chunks 'scribble
+                                  #:mdn-links? #f
+                                  chunks)))
+
+(define (chunks->string-or-false chunks)
+  (let loop ([rest chunks] [acc null])
+    (cond
+      [(null? rest) (apply string-append (reverse acc))]
+      [else
+       (define v (cdr (car rest)))
+       (if (string? v)
+           (loop (cdr rest) (cons v acc))
+           #f)])))
+
+(define (typeset-scribble-block/chunks
+         #:file [filename #f]
+         #:lang [lang-line "scribble/manual"]
+         #:indent [indent 0]
+         #:line-numbers [line-numbers #f]
+         #:line-number-sep [line-number-sep 1]
+         #:copy-button? [copy-button? #t]
+         #:inset? [inset? #t]
+         #:context [context (current-scribble-context)]
+         chunks)
+  (define maybe-src (chunks->string-or-false chunks))
+  (define source*
+    (and maybe-src
+         (if (regexp-match? #px"(?m:^\\s*#lang\\s+)" maybe-src)
+             maybe-src
+             (string-append "#lang " lang-line "\n" maybe-src))))
+  (define rendered
+    (or (and source*
+             (let ([v (typeset-code
+                       #:keep-lang-line? #f
+                       #:context context
+                       #:indent indent
+                       #:line-numbers line-numbers
+                       #:line-number-sep line-number-sep
+                       source*)])
+               (if inset?
+                   (nested #:style 'code-inset v)
+                   v)))
+        (typeset-lang-block/chunks 'scribble
+                                   #:file #f
+                                   #:indent indent
+                                   #:line-numbers line-numbers
+                                   #:line-number-sep line-number-sep
+                                   #:copy-button? #f
+                                   #:mdn-links? #f
+                                   #:inset? inset?
+                                   chunks)))
+  (define payload (if filename
+                      (filebox filename rendered)
+                      rendered))
+  (define copy-text
+    (or maybe-src
+        (tokens->copy-text (tokens-from-chunks 'scribble chunks))))
+  (if copy-button?
+      (apply nested
+             #:style copy-wrap-style
+             (append (runtime-prefix-elements)
+                     (list payload
+                           (copy-source-element copy-text))))
+      payload))
+
+(define (scribbleblock-proc
+         #:file [filename #f]
+         #:lang [lang-line "scribble/manual"]
+         #:indent [indent 0]
+         #:line-numbers [line-numbers #f]
+         #:line-number-sep [line-number-sep 1]
+         #:copy-button? [copy-button? #t]
+         #:context [context (current-scribble-context)]
+         chunks)
+  (typeset-scribble-block/chunks
+   #:file filename
+   #:lang lang-line
+   #:indent indent
+   #:line-numbers line-numbers
+   #:line-number-sep line-number-sep
+   #:copy-button? copy-button?
+   #:inset? #t
+   #:context context
+   chunks))
+
+(define (scribbleblock0-proc
+         #:file [filename #f]
+         #:lang [lang-line "scribble/manual"]
+         #:indent [indent 0]
+         #:line-numbers [line-numbers #f]
+         #:line-number-sep [line-number-sep 1]
+         #:copy-button? [copy-button? #t]
+         #:context [context (current-scribble-context)]
+         chunks)
+  (typeset-scribble-block/chunks
+   #:file filename
+   #:lang lang-line
+   #:indent indent
+   #:line-numbers line-numbers
+   #:line-number-sep line-number-sep
+   #:copy-button? copy-button?
+   #:inset? #f
+   #:context context
+   chunks))
+
 (define-for-syntax (chunks-template args-stx escape-id-stx)
   (for/list ([arg (in-list (syntax->list args-stx))])
     (syntax-parse arg
@@ -3089,6 +3225,9 @@ JS
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:lang lang-expr:expr)
+                              #:defaults ([lang-expr #'"scribble/manual"])
+                              #:name "#:lang keyword")
                    (~optional (~seq #:copy-button? copy-button-expr:expr)
                               #:defaults ([copy-button-expr #'#t])
                               #:name "#:copy-button? keyword")
@@ -3114,6 +3253,47 @@ JS
                                   #:mdn-links? mdn-links-expr
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
+
+(define-for-syntax (do-scribble-block stx inset?)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:indent indent-expr:expr)
+                              #:defaults ([indent-expr #'0])
+                              #:name "#:indent keyword")
+                   (~optional (~seq #:line-numbers line-numbers-expr:expr)
+                              #:defaults ([line-numbers-expr #'#f])
+                              #:name "#:line-numbers keyword")
+                   (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
+                              #:defaults ([line-number-sep-expr #'1])
+                              #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:lang lang-expr:expr)
+                              #:defaults ([lang-expr #'"scribble/manual"])
+                              #:name "#:lang keyword")
+                   (~optional (~seq #:context ctx-expr:expr)
+                              #:name "#:context keyword")
+                   (~optional (~seq #:copy-button? copy-button-expr:expr)
+                              #:defaults ([copy-button-expr #'#t])
+                              #:name "#:copy-button? keyword")
+                   (~optional (~seq #:file filename-expr:expr)
+                              #:defaults ([filename-expr #'#f])
+                              #:name "#:file keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     (define proc-id
+       (if inset? #'scribbleblock-proc #'scribbleblock0-proc))
+     #`(#,proc-id
+        #:file filename-expr
+        #:lang lang-expr
+        #:indent indent-expr
+        #:line-numbers line-numbers-expr
+        #:line-number-sep line-number-sep-expr
+        #:copy-button? copy-button-expr
+        #:context #,(if (attribute ctx-expr) #'ctx-expr #'(current-scribble-context))
+        (list #,@(chunks-template #'(str ...) esc-id)))]))
 
 (define-for-syntax (do-css-block stx inset?)
   (syntax-parse stx
@@ -3348,16 +3528,18 @@ JS
 
 (define-syntax (scribble-code stx)
   (syntax-parse stx
-    [(_ (~seq (~or (~optional (~seq #:escape escape-id:identifier)
+    [(_ (~seq (~or (~optional (~seq #:context ctx-expr:expr)
+                              #:name "#:context keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
                               #:name "#:escape keyword"))
               ...)
         str ...)
      (define esc-id (if (attribute escape-id)
                         #'escape-id
                         (datum->syntax stx 'unsyntax)))
-     #`(typeset-lang-inline/chunks 'scribble
-                                   #:mdn-links? #f
-                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
+     #`(typeset-scribble-inline/chunks
+        #:context #,(if (attribute ctx-expr) #'ctx-expr #'(current-scribble-context))
+        (list #,@(chunks-template #'(str ...) esc-id)))]))
 
 (define-syntax (cssblock0 stx) (do-css-block stx #f))
 (define-syntax (cssblock stx) (do-css-block stx #t))
@@ -3367,8 +3549,8 @@ JS
 (define-syntax (jsblock stx) (do-js-block stx #t))
 (define-syntax (wasmblock0 stx) (do-wasm-block stx #f))
 (define-syntax (wasmblock stx) (do-wasm-block stx #t))
-(define-syntax (scribbleblock0 stx) (do-block stx 'scribble #f))
-(define-syntax (scribbleblock stx) (do-block stx 'scribble #t))
+(define-syntax (scribbleblock0 stx) (do-scribble-block stx #f))
+(define-syntax (scribbleblock stx) (do-scribble-block stx #t))
 
 (module+ test
   (require rackunit)
@@ -3429,6 +3611,17 @@ JS
   (check-true (element? (js-code "const x = 1;")))
   (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (scribble-code "@bold{Hi}")))
+  (check-true (parameter? current-scribble-context))
+  (check-false (contains-link? (scribble-code "@bold{Hi}")))
+  (check-true (element? (scribble-code #:context #'here "@bold{Hi}")))
+  (check-exn exn:fail?
+             (lambda ()
+               (parameterize ([current-scribble-context 42])
+                 (scribble-code "@bold{Hi}"))))
+  (check-exn exn:fail?
+             (lambda ()
+               (parameterize ([current-scribble-context 42])
+                 (scribbleblock "@title{Hi}\nText."))))
   (check-true (element? (js-code #:jsx? #t "const el = <A/>;")))
   (check-not-false
    (member 'name (classes 'css "h1.title { color: #c33; --gap: 1.5rem; }")))

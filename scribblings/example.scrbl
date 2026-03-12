@@ -1,6 +1,8 @@
 #lang scribble/manual
 
-@(require scribble-tools)
+@(require scribble-tools
+          (for-label racket/base
+                     scribble/manual))
 
 @title{Example: CSS, HTML, JavaScript, WebAssembly, and Scribble Code Forms}
 
@@ -226,13 +228,16 @@ for (const n of [1, 2, 3]) {
 @section{Scribble Block}
 
 @scribbleblock[
-  "@title{Mini Document}\n"
-  "\n"
-  "This is @bold{Scribble} source shown as code.\n"]
+  #:lang "at-exp racket"
+  #:context #'here
+  "(define (triple x) (* x 3))\n"
+  "@(+ 1 2)\n"
+  "@(triple 4)\n"]
 
 @section{Scribble Block With Line Numbers}
 
 @scribbleblock[#:line-numbers 1
+               #:context #'here
                #:line-number-sep 2
                "@section{List}\n"
                "@itemlist[\n"
@@ -243,6 +248,7 @@ for (const n of [1, 2, 3]) {
 @section{Scribble Block With File Name}
 
 @scribbleblock[#:file "snippet.scrbl"
+               #:context #'here
                "@title{With File Label}\n"
                "@para{A paragraph in Scribble source.}\n"]
 
@@ -258,6 +264,7 @@ for (const n of [1, 2, 3]) {
 @subsection{Scribble Block0}
 
 @scribbleblock0[#:indent 2
+                #:context #'here
                 "@itemlist[\n"
                 "  @item{Alpha}\n"
                 "  @item{Beta}\n"

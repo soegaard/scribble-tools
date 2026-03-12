@@ -11,12 +11,16 @@
 
 This library provides Scribble forms for typesetting CSS, HTML,
 JavaScript, WebAssembly (WAT), and Scribble snippets with syntax
-coloring. The inline forms (@racket[css-code], @racket[html-code],
+coloring.
+
+The inline forms (@racket[css-code], @racket[html-code],
 @racket[js-code], @racket[wasm-code], and @racket[scribble-code])
-produce content, while the block forms (@racket[cssblock],
-@racket[htmlblock], @racket[jsblock], @racket[wasmblock], and
-@racket[scribbleblock]) produce code blocks with optional line numbers,
-file labels, and escapes.
+produce content.
+
+The block forms
+(@racket[cssblock], @racket[htmlblock], @racket[jsblock],
+        @racket[wasmblock], and @racket[scribbleblock]) produce code
+blocks with optional line numbers, file labels, and escapes.
 
 @section{Guide}
 
@@ -31,16 +35,11 @@ Use inline forms when you want code inside running text:
  #:sep @hspace[2]
   (list
   (list @bold{Language} @bold{Scribble Form})
-  (list "CSS"
-        @scribble-code["@css-code{.card { color: #c33; }}"])
-  (list "HTML"
-        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
-  (list "JavaScript"
-        @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
-  (list "WebAssembly"
-        @scribble-code["@wasm-code{(module (func (result i32) (i32.const 42)))}"])
-  (list "Scribble"
-        @scribble-code["@scribble-code{\"@bold{Hello} world.\"}"]))]
+  (list "CSS"         @scribble-code["@css-code{.card { color: #c33; }}"])
+  (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
+  (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
+  (list "WebAssembly" @scribble-code["@wasm-code{(module (func (result i32) (i32.const 42)))}"])
+  (list "Scribble"    @scribble-code["@scribble-code{\"@bold{Hello} world.\"}"]))]
 
 @tabular[
  #:sep @hspace[2]
@@ -51,6 +50,17 @@ Use inline forms when you want code inside running text:
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
   (list "WebAssembly"   @wasm-code{(module (func (result i32) (i32.const 42)))})
   (list "Scribble"      @scribble-code["@bold{Hello} world."]))]
+
+If you want @racket[scribble-code] to link identifiers to their documentation,
+you need to provide a context. Either add @racket{#:context #'here} when
+calling @racket[scribble-code], or set the context using a parameter:
+
+@scribbleblock[
+"@current-scribble-context[#'here]\n"
+"@scribble-code[\"@bold{Hello} world.\"]"]
+@current-scribble-context[#'here]
+@scribble-code["@bold{Hello} world."]
+
 
 @subsection[#:tag "reference-block-forms"]{Block Forms}
 
@@ -142,11 +152,12 @@ Use block forms for larger snippets:
 
            @italic{Scribble source}
            @scribbleblock[
-             "@scribbleblock[\"@; Greeting section\\n\"\n"
-             "               \"@section{Greeting}\\n\"\n"
-             "               \"@bold{Hello}, Scribble!\\n\"]\n"]}
+             "@scribbleblock[#:context #'here]{\n"
+             "  @@section{Greeting}\n"
+             "  @@bold{Hello}, Scribble!\n"
+             "}\n"]}
    @nested{@italic{Rendered result}
-           @scribbleblock["@; Greeting section\n"
+           @scribbleblock[#:context #'here
                           "@section{Greeting}\n"
                           "@bold{Hello}, Scribble!\n"]}))]
 
@@ -365,11 +376,17 @@ elements into the typeset output.
 Example: @wasm-code{(module (func (result i32) (i32.const 42)))}
 }
 
-@defform/subs[(scribble-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
+@defform/subs[(scribble-code maybe-options str-expr ...+)
+              ([maybe-options code:blank
+                             (code:line #:context context-expr)
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline Scribble source code.
 Newlines and surrounding whitespace are collapsed to single spaces.
+
+@racket[#:context] supplies syntax context for identifier link resolution
+(default: @racket[(current-scribble-context)]). Recommended: use @racket[#'here] when you want
+identifiers in a snippet to resolve against the current manual's
+@racket[for-label] imports.
 
 An optional @racket[#:escape] identifier configures escapes of the
 form @racket[(escape-id expr)] to splice @racket[expr]-produced
@@ -579,33 +596,57 @@ Controls the default documentation source used by @racket[wasm-code],
 is not provided.
 The default value is @racket['wasm-spec-3.0].
 }
+
+@defparam[current-scribble-context ctx (or/c #f syntax?)]{
+Controls the default syntax context used by @racket[scribble-code],
+@racket[scribbleblock], and @racket[scribbleblock0] when @racket[#:context]
+is not provided.
+The default value is @racket[#f].
+}
 }
 
 @defform/subs[(scribbleblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:lang lang-expr)
+                       (code:line #:context context-expr)
                        (code:line #:copy-button? copy-button?-expr)
                        (code:line #:file filename-expr)
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
                            [line-number-expr (or/c #f exact-nonnegative-integer?)]
-                           [line-number-sep-expr exact-nonnegative-integer?])]{
+                           [line-number-sep-expr exact-nonnegative-integer?]
+                           [lang-expr string?]
+                           [context-expr (or/c #f syntax?)])]{
 Typesets Scribble source as a block inset using @racket['code-inset].
+
+The most important option is @racket[#:context]. If provided identifiers
+will be linked to their documentation entries. If you are using the same
+context several times, it can be convenient to set the parameter
+@racket[current-scribble-context] instead of using @racket[#:context]
+repeatedly.
+                                                              
 Options:
 
 @itemlist[
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:lang] chooses the language line used for parsing/linking when the snippet itself does not start with @tt{#lang}
+       (default: @racket["scribble/manual"]).}
+ @item{@racket[#:context] supplies syntax context for identifier link resolution (default: @racket[(current-scribble-context)]).
+       Recommended: use @racket[#'here] when you want identifiers in a snippet to resolve against the current manual's @racket[for-label] imports.}
  @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
- @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
+ @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content
+       (default escape id: @racket[unsyntax]).}
 ]
 
 Example:
 
 @scribbleblock[#:line-numbers 1
+               #:context #'here
                "@title{Small Example}\n"
                "This is @bold{Scribble} source.\n"]
 }
@@ -616,6 +657,7 @@ Like @racket[scribbleblock], but without the inset wrapper.
 Example:
 
 @scribbleblock0[#:indent 2
+                #:context #'here
                 "@itemlist[\n"
                 " @item{Alpha}\n"
                 " @item{Beta}\n"
