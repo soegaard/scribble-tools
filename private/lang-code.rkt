@@ -3959,6 +3959,14 @@ JS
   (check-false (contains-link? (wasm-code #:docs-source 'none "(module (func (result i32) (i32.const 1)))")))
   (check-true (contains-link? (shell-code "if [ -f ./x ]; then echo ok; fi")))
   (check-false (contains-link? (shell-code #:docs-source 'none "if [ -f ./x ]; then echo ok; fi")))
+  (for ([cmd (in-list '("cd" "echo" "printf" "read"
+                        "export" "unset" "readonly"
+                        "alias" "unalias" "set" "shift" "test"
+                        "source" "." "eval" "exec" "exit" "return"))])
+    (define u (shell-doc-url-for-token 'bash 'name cmd))
+    (check-not-false u)
+    (check-true (string-contains? u "html_node/"))
+    (check-true (string-contains? u "#index-")))
   (check-true (contains-link? (shell-code #:shell 'zsh "setopt prompt_subst")))
   (check-false (contains-link? (shell-code #:shell 'zsh "prompt_subst compinit")))
   (let ([urls (collect-target-urls (shell-code #:shell 'zsh "setopt prompt_subst"))])

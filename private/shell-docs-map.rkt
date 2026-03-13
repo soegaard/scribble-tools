@@ -31,6 +31,46 @@
   (list->set
    '("autoload" "setopt" "unsetopt" "emulate" "typeset" "local" "zmodload")))
 
+(define bash-command-fragments
+  (hash "." ". [-p path] filename [arguments]"
+        "alias" "alias [-p] [name[=value] ...]"
+        "unalias" "unalias [-a] [name ...]"
+        "cd" "cd [-L|[-P [-e]] [-@]] [dir]"
+        "echo" "echo [-neE] [arg ...]"
+        "printf" "printf [-v var] format [arguments]"
+        "read" "read [-ers] [-a aname] [-d delim]"
+        "export" "export [-fn] [name[=value] ...]"
+        "unset" "unset [-f] [-v] [-n] [name ...]"
+        "readonly" "readonly [-aAf] [-p] [name[=value] ...]"
+        "set" "set [--abefhkmnptuvxBCEHPT]"
+        "shift" "shift [n]"
+        "test" "test expr"
+        "source" "source [-p path] filename [arguments]"
+        "eval" "eval [arguments]"
+        "exec" "exec [-cl] [-a name] [command [arguments]]"
+        "exit" "exit [n]"
+        "return" "return [n]"))
+
+(define bash-command-entry-url
+  (hash "." "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-_002e"
+        "alias" "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html#index-alias"
+        "unalias" "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html#index-unalias"
+        "cd" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-cd"
+        "echo" "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html#index-echo"
+        "printf" "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html#index-printf"
+        "read" "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html#index-read"
+        "export" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-export"
+        "unset" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-unset"
+        "readonly" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-readonly"
+        "set" "https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html#index-set"
+        "shift" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-shift"
+        "test" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-test"
+        "source" "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html#index-source"
+        "eval" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-eval"
+        "exec" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-exec"
+        "exit" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-exit"
+        "return" "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-return"))
+
 (define zsh-entry-no-bracket
   (list->set
    '("." ":" "bye" "chdir")))
@@ -70,6 +110,13 @@
    "https://zsh.sourceforge.io/Doc/Release/Shell-Builtin-Commands.html#:~:text="
    (pct-encode fragment)))
 
+(define bash-builtins-url
+  "https://www.gnu.org/software/bash/manual/bash.html#Bash-Builtins")
+
+(define (bash-fragment-for-command token)
+  (hash-ref bash-command-fragments token
+            (string-append token " [")))
+
 (define (resolve-shell-docs-source shell docs-source)
   (case (normalize-shell-docs-source 'shell-doc-url-for-token docs-source)
     [(none) 'none]
@@ -90,10 +137,12 @@
         "https://www.gnu.org/software/bash/manual/bash.html#Looping-Constructs"]
        [else
         "https://www.gnu.org/software/bash/manual/bash.html#Shell-Functions"])]
-    [(or (set-member? shell-builtins t)
-         (and (eq? cls 'name)
-              (regexp-match? #px"^[a-z_][a-z0-9_]*$" t)))
-     "https://www.gnu.org/software/bash/manual/bash.html#Bourne-Shell-Builtins"]
+    [(set-member? shell-builtins t)
+     (hash-ref bash-command-entry-url t bash-builtins-url)]
+    [(and (eq? cls 'name)
+          (regexp-match? #px"^[a-z_][a-z0-9_]*$" t)
+          (set-member? shell-builtins t))
+     (hash-ref bash-command-entry-url t bash-builtins-url)]
     [else #f]))
 
 (define (zsh-url cls token)
