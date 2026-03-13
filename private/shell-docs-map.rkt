@@ -31,6 +31,26 @@
   (list->set
    '("autoload" "setopt" "unsetopt" "emulate" "typeset" "local" "zmodload")))
 
+(define posix-command-url
+  (hash "." "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/dot.html"
+        "alias" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/alias.html"
+        "unalias" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/unalias.html"
+        "cd" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/cd.html"
+        "echo" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/echo.html"
+        "printf" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/printf.html"
+        "read" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/read.html"
+        "export" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15"
+        "unset" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15"
+        "readonly" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15"
+        "set" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_19"
+        "shift" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15"
+        "test" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/test.html"
+        "source" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/dot.html"
+        "eval" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15"
+        "exec" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15"
+        "exit" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15"
+        "return" "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15"))
+
 (define bash-command-fragments
   (hash "." ". [-p path] filename [arguments]"
         "alias" "alias [-p] [name[=value] ...]"
@@ -175,10 +195,22 @@
     [(or (string=? t "$")
          (regexp-match? #px"^\\$\\{?" t))
      "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_06_02"]
-    [(eq? cls 'keyword)
-     "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09"]
-    [(eq? cls 'name)
-     "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_14"]
+    [(set-member? bash-keywords t)
+     (cond
+       [(member t '("if" "then" "elif" "else" "fi"
+                    "for" "while" "until" "do" "done"
+                    "case" "in" "esac"))
+        "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09_04"]
+       [(member t '("function"))
+        "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09_05"]
+       [else
+        ;; Non-POSIX shell words like `coproc` should not point at random sections.
+        #f])]
+    [(or (set-member? shell-builtins t)
+         (and (eq? cls 'name) (regexp-match? #px"^[a-z_][a-z0-9_]*$" t)))
+     (hash-ref posix-command-url
+               t
+               "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15")]
     [else #f]))
 
 (define (shell-doc-url-for-token shell cls token #:docs-source [docs-source 'auto])

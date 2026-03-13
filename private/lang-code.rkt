@@ -3967,6 +3967,16 @@ JS
     (check-not-false u)
     (check-true (string-contains? u "html_node/"))
     (check-true (string-contains? u "#index-")))
+  (check-equal?
+   (shell-doc-url-for-token 'bash 'name "echo" #:docs-source 'posix)
+   "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/echo.html")
+  (check-equal?
+   (shell-doc-url-for-token 'bash 'keyword "if" #:docs-source 'posix)
+   "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09_04")
+  (check-not-false
+   (shell-doc-url-for-token 'bash 'name "set" #:docs-source 'posix))
+  (check-false
+   (shell-doc-url-for-token 'bash 'keyword "coproc" #:docs-source 'posix))
   (check-true (contains-link? (shell-code #:shell 'zsh "setopt prompt_subst")))
   (check-false (contains-link? (shell-code #:shell 'zsh "prompt_subst compinit")))
   (let ([urls (collect-target-urls (shell-code #:shell 'zsh "setopt prompt_subst"))])
