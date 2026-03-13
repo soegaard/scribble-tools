@@ -10,16 +10,16 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, HTML,
-JavaScript, WebAssembly (WAT), and Scribble snippets with syntax
+JavaScript, shell scripts (Bash/Zsh), WebAssembly (WAT), and Scribble snippets with syntax
 coloring.
 
 The inline forms (@racket[css-code], @racket[html-code],
-@racket[js-code], @racket[wasm-code], and @racket[scribble-code])
+@racket[js-code], @racket[shell-code], @racket[wasm-code], and @racket[scribble-code])
 produce content.
 
 The block forms
 (@racket[cssblock], @racket[htmlblock], @racket[jsblock],
-        @racket[wasmblock], and @racket[scribbleblock]) produce code
+        @racket[shellblock], @racket[wasmblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
 
 @section{Guide}
@@ -38,6 +38,7 @@ Use inline forms when you want code inside running text:
   (list "CSS"         @scribble-code["@css-code{.card { color: #c33; }}"])
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
+  (list "Shell"       @scribble-code["@shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}"])
   (list "WebAssembly" @scribble-code["@wasm-code{(module (func (result i32) (i32.const 42)))}"])
   (list "Scribble"    @scribble-code["@scribble-code{\"@bold{Hello} world.\"}"]))]
 
@@ -48,6 +49,7 @@ Use inline forms when you want code inside running text:
   (list "CSS"           @css-code{.card { color: #c33; }})
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
+  (list "Shell"         @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi})
   (list "WebAssembly"   @wasm-code{(module (func (result i32) (i32.const 42)))})
   (list "Scribble"      @scribble-code["@bold{Hello} world."]))]
 
@@ -146,6 +148,24 @@ Use block forms for larger snippets:
            (module
              (func $fortytwo (result i32)
                i32.const 42))
+           }})
+  (list
+   @nested{@bold{Shell form}
+
+           @italic{Scribble source}
+           @scribbleblock[
+             "@shellblock[#:shell 'zsh]{\n"
+             "# zsh bootstrap\n"
+             "setopt prompt_subst\n"
+             "autoload -Uz compinit\n"
+             "compinit\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @shellblock[#:shell 'zsh]{
+           # zsh bootstrap
+           setopt prompt_subst
+           autoload -Uz compinit
+           compinit
            }})
   (list
    @nested{@bold{Scribble form}
@@ -259,6 +279,7 @@ By default, code output includes documentation links for common identifiers:
  @item{CSS properties (for example @css-code{display}, @css-code{grid}, @css-code{border-radius}).}
  @item{HTML elements (for example @html-code{<section>}, @html-code{<button>}, @html-code{<script>}).}
  @item{Common JavaScript classes, methods, and language keywords (for example @js-code{Array}, @js-code{querySelector}, @js-code{map}, @js-code{const}).}
+ @item{Common shell keywords and builtins (for example @shell-code[#:shell 'bash]{if}, @shell-code[#:shell 'bash]{for}, @shell-code[#:shell 'zsh]{setopt}), linked to GNU Bash or Zsh documentation.}
  @item{Common WebAssembly instructions and declarations (for example @wasm-code{module}, @wasm-code{func}, @wasm-code{local.get}, @wasm-code{i32.add}), linked to the WebAssembly Core Spec site by default.}
 ]
 
@@ -355,6 +376,28 @@ form @racket[(escape-id expr)] to splice @racket[expr]-produced
 elements into the typeset output.
 
 Example: @js-code{const n = 42;}
+}
+
+@defform/subs[(shell-code maybe-options str-expr ...+)
+              ([maybe-options code:blank
+                              (code:line #:shell shell-expr)
+                              (code:line #:docs-source docs-source-expr)
+                              (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline shell code.
+Newlines and surrounding whitespace are collapsed to single spaces.
+
+@racket[#:shell] selects shell flavor: @racket['bash] or @racket['zsh].
+Default: @racket[(current-scribble-shell)].
+
+@racket[#:docs-source] selects where shell documentation links point:
+@racket['auto], @racket['bash], @racket['zsh], @racket['posix], or @racket['none].
+Default: @racket[(current-shell-docs-source)].
+
+An optional @racket[#:escape] identifier configures escapes of the
+form @racket[(escape-id expr)] to splice @racket[expr]-produced
+elements into the typeset output.
+
+Example: @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
 }
 
 @defform/subs[(wasm-code maybe-escape str-expr ...+)
@@ -546,6 +589,54 @@ for (const n of [1, 2, 3]) {
 }
 }
 
+@defform/subs[(shellblock option ... str-expr ...+)
+              ([option (code:line #:shell shell-expr)
+                       (code:line #:docs-source docs-source-expr)
+                       (code:line #:indent indent-expr)
+                       (code:line #:line-numbers line-number-expr)
+                       (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:copy-button? copy-button?-expr)
+                       (code:line #:file filename-expr)
+                       (code:line #:escape escape-id)])
+              #:contracts ([indent-expr exact-nonnegative-integer?]
+                           [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [line-number-sep-expr exact-nonnegative-integer?])]{
+Typesets shell source as a block inset using @racket['code-inset].
+Options:
+
+@itemlist[
+ @item{@racket[#:shell] selects shell flavor: @racket['bash] or @racket['zsh]. Default: @racket[(current-scribble-shell)].}
+ @item{@racket[#:docs-source] selects link targets: @racket['auto], @racket['bash], @racket['zsh], @racket['posix], or @racket['none]. Default: @racket[(current-shell-docs-source)].}
+ @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
+ @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
+ @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
+ @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
+]
+
+Example:
+
+@shellblock[#:shell 'bash #:line-numbers 1]{
+# build step
+if [ -f ./configure ]; then
+  ./configure && make
+fi
+}
+}
+
+@defform[(shellblock0 option ... str-expr ...+)]{
+Like @racket[shellblock], but without the inset wrapper.
+
+Example:
+
+@shellblock0[#:shell 'zsh #:indent 2]{
+setopt prompt_subst
+autoload -Uz compinit
+compinit
+}
+}
+
 @defform/subs[(wasmblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
@@ -595,6 +686,20 @@ Controls the default documentation source used by @racket[wasm-code],
 @racket[wasmblock], and @racket[wasmblock0] when @racket[#:docs-source]
 is not provided.
 The default value is @racket['wasm-spec-3.0].
+}
+
+@defparam[current-scribble-shell sh (or/c 'bash 'zsh)]{
+Controls the default shell flavor used by @racket[shell-code],
+@racket[shellblock], and @racket[shellblock0] when @racket[#:shell]
+is not provided.
+The default value is @racket['bash].
+}
+
+@defparam[current-shell-docs-source src (or/c 'auto 'bash 'zsh 'posix 'none)]{
+Controls the default shell documentation source used by @racket[shell-code],
+@racket[shellblock], and @racket[shellblock0] when @racket[#:docs-source]
+is not provided.
+The default value is @racket['auto].
 }
 
 @defparam[current-scribble-context ctx (or/c #f syntax?)]{

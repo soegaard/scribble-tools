@@ -4,11 +4,12 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, HTML, JavaScript, WebAssembly, and Scribble Code Forms}
+@title{Example: CSS, HTML, JavaScript, Shell, WebAssembly, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
 inline JS with @js-code{const n = 42;} and
+inline shell with @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi} and
 inline WebAssembly with @wasm-code{(module (func (result i32) (i32.const 42)))} and
 inline Scribble with @scribble-code["@bold{Hi} there."].
 
@@ -35,6 +36,10 @@ Inline CSS (external preview stylesheet):
 Inline HTML: @html-code{<em class="highlight">Hi</em>}
 
 Inline JS: @js-code{const n = 42;}
+
+Inline shell (Bash): @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
+
+Inline shell (Zsh): @shell-code[#:shell 'zsh]{setopt prompt_subst}
 
 Inline WebAssembly: @wasm-code{(module (func (result i32) (i32.const 42)))}
 
@@ -223,6 +228,48 @@ let total = 0;
 for (const n of [1, 2, 3]) {
   total += n;
 }
+}
+
+@section{Shell Block}
+
+@shellblock[#:shell 'bash]{
+# setup
+if [ -f ./configure ]; then
+  ./configure && make
+fi
+}
+
+@section{Shell Block With Line Numbers}
+
+@shellblock[#:shell 'zsh #:line-numbers 1 #:line-number-sep 2]{
+# zsh options
+setopt prompt_subst
+autoload -Uz compinit
+compinit
+}
+
+@section{Shell Block With File Name}
+
+@shellblock[#:shell 'bash #:file "build.sh"]{
+#!/usr/bin/env bash
+echo "Building..."
+make all
+}
+
+@section{Shell Block With Escape}
+
+@shellblock[
+  #:shell 'bash
+  #:escape unq
+  "echo "
+  (unq (bold "\"escaped\""))
+]
+
+@subsection{Shell Block0}
+
+@shellblock0[#:shell 'zsh #:indent 2]{
+typeset -g PROJECT_ROOT=$HOME/src/demo
+print -r -- $PROJECT_ROOT
 }
 
 @section{Scribble Block}

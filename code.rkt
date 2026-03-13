@@ -7,18 +7,23 @@
          html-code
          js-code
          wasm-code
+         shell-code
          scribble-code
          cssblock
          htmlblock
          jsblock
          wasmblock
+         shellblock
          scribbleblock
          cssblock0
          htmlblock0
          jsblock0
          wasmblock0
+         shellblock0
          scribbleblock0
          current-wasm-docs-source
+         current-scribble-shell
+         current-shell-docs-source
          current-scribble-context
          mdn-map-path
          mdn-default-map-entries
@@ -31,19 +36,24 @@
 (define-syntax-rule (html-code . rest) (lang:html-code . rest))
 (define-syntax-rule (js-code . rest) (lang:js-code . rest))
 (define-syntax-rule (wasm-code . rest) (lang:wasm-code . rest))
+(define-syntax-rule (shell-code . rest) (lang:shell-code . rest))
 (define-syntax-rule (scribble-code . rest) (lang:scribble-code . rest))
 (define-syntax-rule (cssblock . rest) (lang:cssblock . rest))
 (define-syntax-rule (htmlblock . rest) (lang:htmlblock . rest))
 (define-syntax-rule (jsblock . rest) (lang:jsblock . rest))
 (define-syntax-rule (wasmblock . rest) (lang:wasmblock . rest))
+(define-syntax-rule (shellblock . rest) (lang:shellblock . rest))
 (define-syntax-rule (scribbleblock . rest) (lang:scribbleblock . rest))
 (define-syntax-rule (cssblock0 . rest) (lang:cssblock0 . rest))
 (define-syntax-rule (htmlblock0 . rest) (lang:htmlblock0 . rest))
 (define-syntax-rule (jsblock0 . rest) (lang:jsblock0 . rest))
 (define-syntax-rule (wasmblock0 . rest) (lang:wasmblock0 . rest))
+(define-syntax-rule (shellblock0 . rest) (lang:shellblock0 . rest))
 (define-syntax-rule (scribbleblock0 . rest) (lang:scribbleblock0 . rest))
 
 (define current-wasm-docs-source lang:current-wasm-docs-source)
+(define current-scribble-shell lang:current-scribble-shell)
+(define current-shell-docs-source lang:current-shell-docs-source)
 (define current-scribble-context lang:current-scribble-context)
 (define (mdn-map-path) (mdn:mdn-map-path))
 (define mdn-default-map-entries mdn:mdn-default-map-entries)

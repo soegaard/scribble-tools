@@ -6,18 +6,23 @@
          html-code
          js-code
          wasm-code
+         shell-code
          scribble-code
          cssblock
          htmlblock
          jsblock
          wasmblock
+         shellblock
          scribbleblock
          cssblock0
          htmlblock0
          jsblock0
          wasmblock0
+         shellblock0
          scribbleblock0
          current-wasm-docs-source
+         current-scribble-shell
+         current-shell-docs-source
          current-scribble-context
          mdn-map-path
          mdn-default-map-entries
@@ -30,19 +35,24 @@
 (define-syntax-rule (html-code . rest) (api:html-code . rest))
 (define-syntax-rule (js-code . rest) (api:js-code . rest))
 (define-syntax-rule (wasm-code . rest) (api:wasm-code . rest))
+(define-syntax-rule (shell-code . rest) (api:shell-code . rest))
 (define-syntax-rule (scribble-code . rest) (api:scribble-code . rest))
 (define-syntax-rule (cssblock . rest) (api:cssblock . rest))
 (define-syntax-rule (htmlblock . rest) (api:htmlblock . rest))
 (define-syntax-rule (jsblock . rest) (api:jsblock . rest))
 (define-syntax-rule (wasmblock . rest) (api:wasmblock . rest))
+(define-syntax-rule (shellblock . rest) (api:shellblock . rest))
 (define-syntax-rule (scribbleblock . rest) (api:scribbleblock . rest))
 (define-syntax-rule (cssblock0 . rest) (api:cssblock0 . rest))
 (define-syntax-rule (htmlblock0 . rest) (api:htmlblock0 . rest))
 (define-syntax-rule (jsblock0 . rest) (api:jsblock0 . rest))
 (define-syntax-rule (wasmblock0 . rest) (api:wasmblock0 . rest))
+(define-syntax-rule (shellblock0 . rest) (api:shellblock0 . rest))
 (define-syntax-rule (scribbleblock0 . rest) (api:scribbleblock0 . rest))
 
 (define current-wasm-docs-source api:current-wasm-docs-source)
+(define current-scribble-shell api:current-scribble-shell)
+(define current-shell-docs-source api:current-shell-docs-source)
 (define current-scribble-context api:current-scribble-context)
 (define (mdn-map-path) (api:mdn-map-path))
 (define mdn-default-map-entries api:mdn-default-map-entries)

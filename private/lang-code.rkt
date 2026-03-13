@@ -8,6 +8,7 @@
          syntax-color/scribble-lexer
          "mdn-map.rkt"
          "wasm-spec-map.rkt"
+         "shell-docs-map.rkt"
          scribble/base
          scribble/core
          scribble/html-properties
@@ -20,19 +21,24 @@
          html-code
          js-code
          wasm-code
+         shell-code
          scribble-code
          cssblock
          htmlblock
          jsblock
          wasmblock
+         shellblock
          scribbleblock
          cssblock0
          htmlblock0
          jsblock0
          wasmblock0
+         shellblock0
          scribbleblock0
          current-wasm-docs-source
-         current-scribble-context)
+         current-scribble-context
+         current-scribble-shell
+         current-shell-docs-source)
 
 (define omitable (make-style #f '(omitable)))
 ;; Dedicated style for HTML tag names; do not rely on .RktSym/.RktKw theme mappings.
@@ -133,12 +139,33 @@
      "local.get" "local.set" "local.tee"
      "global.get" "global.set")))
 
+(define shell-keywords/common
+  (list->set
+   '("if" "then" "elif" "else" "fi"
+     "for" "while" "until" "do" "done"
+     "case" "in" "esac" "select"
+     "function" "time" "coproc")))
+
+(define shell-builtins/common
+  (list->set
+   '("cd" "echo" "printf" "read"
+     "export" "unset" "readonly"
+     "alias" "unalias"
+     "set" "shift" "test" "source"
+     "." "eval" "exec" "exit" "return")))
+
+(define shell-builtins/zsh
+  (list->set
+   '("autoload" "setopt" "unsetopt" "emulate" "typeset" "local" "zmodload")))
+
 (define current-preview-css-url (make-parameter #f))
 (define current-preview-tooltips? (make-parameter #t))
 (define current-jsx? (make-parameter #f))
 (define current-js-template-depth (make-parameter 0))
 (define current-wasm-docs-source (make-parameter 'wasm-spec-3.0))
 (define current-scribble-context (make-parameter #f))
+(define current-scribble-shell (make-parameter 'bash))
+(define current-shell-docs-source (make-parameter 'auto))
 (define current-html-style-color-swatch? (make-parameter #t))
 (define current-html-style-font-preview? (make-parameter #t))
 (define current-html-style-dimension-preview? (make-parameter #t))
@@ -151,6 +178,14 @@
     [else
      (raise-argument-error who
                            "(or/c 'wasm-spec-3.0 'mdn 'none)"
+                           v)]))
+
+(define (normalize-scribble-shell who v)
+  (cond
+    [(memq v '(bash zsh)) v]
+    [else
+     (raise-argument-error who
+                           "(or/c 'bash 'zsh)"
                            v)]))
 
 (define (preview-url-attrs)
@@ -884,6 +919,14 @@ JS
        [(wasm-type) wasm-type-color]
        [(wasm-instr) wasm-instr-color]
        [(wasm-id) wasm-id-color]
+       [(keyword) js-keyword-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(bash zsh)
+     (case cls
+       [(comment) comment-color]
        [(keyword) js-keyword-color]
        [(value) value-color]
        [(name) js-name-color]
@@ -1887,7 +1930,7 @@ JS
               (emit 'value i end)
               (emit 'plain i (add1 i)))]
          [else
-          (define next-special
+         (define next-special
             (let find ([k i])
               (cond
                 [(>= k len) len]
@@ -1896,6 +1939,157 @@ JS
                  k]
                 [else (find (add1 k))])))
           (emit 'plain i next-special)])])))
+
+(define (shell-ident-start? c)
+  (or (char-alphabetic? c) (char=? c #\_)))
+
+(define (shell-ident-char? c)
+  (or (shell-ident-start? c) (char-numeric? c)))
+
+(define (shell-punct-char? c)
+  (or (char=? c #\()
+      (char=? c #\))
+      (char=? c #\{)
+      (char=? c #\})
+      (char=? c #\[)
+      (char=? c #\])
+      (char=? c #\;)
+      (char=? c #\|)
+      (char=? c #\&)
+      (char=? c #\<)
+      (char=? c #\>)
+      (char=? c #\`)))
+
+(define (read-shell-braced-var s start)
+  (define len (string-length s))
+  (let loop ([i (+ start 2)] [depth 1])
+    (cond
+      [(>= i len) len]
+      [else
+       (define ch (string-ref s i))
+       (cond
+         [(char=? ch #\\) (loop (min len (+ i 2)) depth)]
+         [(char=? ch #\{) (loop (add1 i) (add1 depth))]
+         [(char=? ch #\}) (define d (sub1 depth))
+          (if (zero? d) (add1 i) (loop (add1 i) d))]
+         [else (loop (add1 i) depth)])])))
+
+(define (read-shell-command-subst s start)
+  (define len (string-length s))
+  (let loop ([i (+ start 2)] [depth 1])
+    (cond
+      [(>= i len) len]
+      [else
+       (define ch (string-ref s i))
+       (cond
+         [(char=? ch #\\) (loop (min len (+ i 2)) depth)]
+         [(or (char=? ch #\") (char=? ch #\'))
+          (loop (read-string-literal s i) depth)]
+         [(and (char=? ch #\$)
+               (< (add1 i) len)
+               (char=? (string-ref s (add1 i)) #\())
+          (loop (+ i 2) (add1 depth))]
+         [(char=? ch #\() (loop (add1 i) (add1 depth))]
+         [(char=? ch #\)) (define d (sub1 depth))
+          (if (zero? d) (add1 i) (loop (add1 i) d))]
+         [else (loop (add1 i) depth)])])))
+
+(define (read-shell-backticks s start)
+  (define len (string-length s))
+  (let loop ([i (add1 start)] [esc? #f])
+    (cond
+      [(>= i len) len]
+      [esc? (loop (add1 i) #f)]
+      [else
+       (define ch (string-ref s i))
+       (cond
+         [(char=? ch #\\) (loop (add1 i) #t)]
+         [(char=? ch #\`) (add1 i)]
+         [else (loop (add1 i) #f)])])))
+
+(define (shell-comment-start? s i)
+  (define ch (string-ref s i))
+  (and (char=? ch #\#)
+       (or (zero? i)
+           (let ([p (string-ref s (sub1 i))])
+             (or (char-whitespace? p)
+                 (shell-punct-char? p)
+                 (char=? p #\=))))))
+
+(define (read-shell-word s i)
+  (read-while s i
+              (lambda (c)
+                (and (not (char-whitespace? c))
+                     (not (shell-punct-char? c))))))
+
+(define (shell-word-class shell txt)
+  (define t (string-downcase txt))
+  (cond
+    [(string=? t "") 'plain]
+    [(or (set-member? shell-keywords/common t)
+         (and (eq? shell 'zsh) (set-member? shell-builtins/zsh t)))
+     'keyword]
+    [(set-member? shell-builtins/common t) 'keyword]
+    [(regexp-match? #px"^\\$\\{?.*" txt) 'value]
+    [(regexp-match? #px"^[a-zA-Z_][a-zA-Z0-9_]*=.*" txt) 'name]
+    [(regexp-match? #px"^-{1,2}[a-zA-Z0-9][a-zA-Z0-9_-]*$" txt) 'value]
+    [(regexp-match? #px"^[0-9]+$" txt) 'value]
+    [else 'name]))
+
+(define (tokenize-shell shell s)
+  (define sh (normalize-scribble-shell 'tokenize-shell shell))
+  (define len (string-length s))
+  (let loop ([i 0] [acc null])
+    (cond
+      [(>= i len) (reverse acc)]
+      [else
+       (define ch (string-ref s i))
+       (define (emit cls j)
+         (loop j (cons (cons cls (substring s i j)) acc)))
+       (cond
+         [(char-whitespace? ch)
+          (emit 'plain (read-while s i char-whitespace?))]
+         [(shell-comment-start? s i)
+          (define j
+            (let find-line-end ([k (add1 i)])
+              (cond
+                [(>= k len) len]
+                [(char=? (string-ref s k) #\newline) k]
+                [else (find-line-end (add1 k))])))
+          (emit 'comment j)]
+         [(or (char=? ch #\") (char=? ch #\'))
+          (emit 'value (read-string-literal s i))]
+         [(char=? ch #\`)
+          (emit 'value (read-shell-backticks s i))]
+         [(and (char=? ch #\$) (< (add1 i) len)
+               (char=? (string-ref s (add1 i)) #\{))
+          (emit 'value (read-shell-braced-var s i))]
+         [(and (char=? ch #\$) (< (add1 i) len)
+               (char=? (string-ref s (add1 i)) #\())
+          (emit 'value (read-shell-command-subst s i))]
+         [(char=? ch #\$)
+          (define j
+            (if (and (< (add1 i) len)
+                     (or (shell-ident-start? (string-ref s (add1 i)))
+                         (char-numeric? (string-ref s (add1 i)))
+                         (memv (string-ref s (add1 i)) '(#\* #\@ #\# #\? #\! #\- #\$ #\_))))
+                (read-while s (add1 i)
+                            (lambda (c)
+                              (or (shell-ident-char? c)
+                                  (char-numeric? c)
+                                  (memv c '(#\* #\@ #\# #\? #\! #\- #\$ #\_)))))
+                (add1 i)))
+          (emit 'value j)]
+         [(shell-punct-char? ch)
+          (define two (if (< (add1 i) len) (substring s i (+ i 2)) #f))
+          (define j
+            (if (and two (member two '("&&" "||" ">>" "<<" ";;" ";&" "|&" ">&" "<&" ">|" "<<-" "<<<")))
+                (+ i 2)
+                (add1 i)))
+          (emit 'punct j)]
+         [else
+          (define j (read-shell-word s i))
+          (emit (shell-word-class sh (substring s i j)) j)])])))
 
 (define (wasm-word-char? ch)
   (or (char-alphabetic? ch)
@@ -2039,6 +2233,8 @@ JS
     [(html) (tokenize-html s)]
     [(js) (tokenize-js s)]
     [(wasm) (tokenize-wasm s)]
+    [(bash) (tokenize-shell 'bash s)]
+    [(zsh) (tokenize-shell 'zsh s)]
     [(scribble) (tokenize-scribble s)]
     [else (list (cons 'plain s))]))
 
@@ -2892,7 +3088,12 @@ JS
                   (js-contextual-mdn-url lang mdn-cls txt prev1 prev2 next1
                                          js-object-aliases js-method-aliases)]
                  [(wasm-spec-3.0)
-                  (wasm-spec-3.0-url-for-token cls txt)])]
+                 (wasm-spec-3.0-url-for-token cls txt)])]
+              [(memq lang '(bash zsh))
+               (and mdn-links?
+                    (shell-doc-url-for-token lang cls txt
+                                             #:docs-source (or docs-source
+                                                              (current-shell-docs-source))))]
               [else
                (and mdn-links?
                     (js-contextual-mdn-url lang mdn-cls txt prev1 prev2 next1
@@ -3434,6 +3635,47 @@ JS
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-for-syntax (do-shell-block stx inset?)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:shell shell-expr:expr)
+                              #:defaults ([shell-expr #'(current-scribble-shell)])
+                              #:name "#:shell keyword")
+                   (~optional (~seq #:docs-source docs-source-expr:expr)
+                              #:defaults ([docs-source-expr #'(current-shell-docs-source)])
+                              #:name "#:docs-source keyword")
+                   (~optional (~seq #:indent indent-expr:expr)
+                              #:defaults ([indent-expr #'0])
+                              #:name "#:indent keyword")
+                   (~optional (~seq #:line-numbers line-numbers-expr:expr)
+                              #:defaults ([line-numbers-expr #'#f])
+                              #:name "#:line-numbers keyword")
+                   (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
+                              #:defaults ([line-number-sep-expr #'1])
+                              #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:copy-button? copy-button-expr:expr)
+                              #:defaults ([copy-button-expr #'#t])
+                              #:name "#:copy-button? keyword")
+                   (~optional (~seq #:file filename-expr:expr)
+                              #:defaults ([filename-expr #'#f])
+                              #:name "#:file keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(let ([shell* (normalize-scribble-shell 'shellblock shell-expr)])
+         (typeset-lang-block/chunks shell*
+                                    #:file filename-expr
+                                    #:indent indent-expr
+                                    #:line-numbers line-numbers-expr
+                                    #:line-number-sep line-number-sep-expr
+                                    #:copy-button? copy-button-expr
+                                    #:docs-source docs-source-expr
+                                    #:inset? #,inset?
+                                    (list #,@(chunks-template #'(str ...) esc-id))))]))
+
 (define-syntax (css-code stx)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:color-swatch? color-swatch-expr:expr)
@@ -3526,6 +3768,26 @@ JS
                                    #:docs-source docs-source-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-syntax (shell-code stx)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:shell shell-expr:expr)
+                              #:defaults ([shell-expr #'(current-scribble-shell)])
+                              #:name "#:shell keyword")
+                   (~optional (~seq #:docs-source docs-source-expr:expr)
+                              #:defaults ([docs-source-expr #'(current-shell-docs-source)])
+                              #:name "#:docs-source keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(let ([shell* (normalize-scribble-shell 'shell-code shell-expr)])
+         (typeset-lang-inline/chunks shell*
+                                     #:docs-source docs-source-expr
+                                     (list #,@(chunks-template #'(str ...) esc-id))))]))
+
 (define-syntax (scribble-code stx)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:context ctx-expr:expr)
@@ -3549,6 +3811,8 @@ JS
 (define-syntax (jsblock stx) (do-js-block stx #t))
 (define-syntax (wasmblock0 stx) (do-wasm-block stx #f))
 (define-syntax (wasmblock stx) (do-wasm-block stx #t))
+(define-syntax (shellblock0 stx) (do-shell-block stx #f))
+(define-syntax (shellblock stx) (do-shell-block stx #t))
 (define-syntax (scribbleblock0 stx) (do-scribble-block stx #f))
 (define-syntax (scribbleblock stx) (do-scribble-block stx #t))
 
@@ -3599,6 +3863,7 @@ JS
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
   (check-true (block? (wasmblock "(module (func))")))
+  (check-true (block? (shellblock "if [ -f ./x ]; then echo ok; fi")))
   (check-true (block? (scribbleblock "@title{Hi}\nText.")))
   (check-true (block? (cssblock #:copy-button? #f "h1 { color: red; }")))
   (check-true (block? (htmlblock #:copy-button? #f "<h1 class=\"x\">Hi</h1>")))
@@ -3610,7 +3875,10 @@ JS
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
   (check-true (element? (wasm-code "(module (func))")))
+  (check-true (element? (shell-code "echo $HOME")))
   (check-true (element? (scribble-code "@bold{Hi}")))
+  (check-true (parameter? current-scribble-shell))
+  (check-true (parameter? current-shell-docs-source))
   (check-true (parameter? current-scribble-context))
   (check-false (contains-link? (scribble-code "@bold{Hi}")))
   (check-true (element? (scribble-code #:context #'here "@bold{Hi}")))
@@ -3644,6 +3912,13 @@ JS
     (check-not-false (member 'operator cls)))
   (check-not-false
    (member 'comment (classes 'js "// hi\nconst x = 1;")))
+  (let ([cls (classes 'bash "if [ -f \"$HOME/.zshrc\" ]; then echo ok # note\nfi\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'comment cls)))
+  (let ([cls (classes 'zsh "setopt prompt_subst\nautoload -Uz compinit\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls)))
   (let ([cls (classes 'wasm (read-fixture "wasm-folded.wat"))])
     (check-not-false (member 'wasm-form cls))
     (check-not-false (member 'wasm-type cls))
@@ -3682,6 +3957,20 @@ JS
   (check-false (contains-link? (js-code #:mdn-links? #f "const x = 1;")))
   (check-true (contains-link? (wasm-code "(module (func (result i32) (i32.const 1)))")))
   (check-false (contains-link? (wasm-code #:docs-source 'none "(module (func (result i32) (i32.const 1)))")))
+  (check-true (contains-link? (shell-code "if [ -f ./x ]; then echo ok; fi")))
+  (check-false (contains-link? (shell-code #:docs-source 'none "if [ -f ./x ]; then echo ok; fi")))
+  (check-true (contains-link? (shell-code #:shell 'zsh "setopt prompt_subst")))
+  (check-true
+   (parameterize ([current-scribble-shell 'zsh])
+     (contains-link? (shell-code "setopt prompt_subst"))))
+  (check-exn exn:fail?
+             (lambda ()
+               (parameterize ([current-scribble-shell 'fish])
+                 (shell-code "echo hi"))))
+  (check-exn exn:fail?
+             (lambda ()
+               (parameterize ([current-shell-docs-source 'bogus])
+                 (shell-code "if true; then echo ok; fi"))))
   (let ([urls (collect-target-urls (wasm-code "(module (func (result i32) (i32.const 1)))"))])
     (check-not-false
      (member "https://webassembly.github.io/spec/core/syntax/modules.html#syntax-func"
