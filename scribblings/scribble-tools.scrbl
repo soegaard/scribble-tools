@@ -392,6 +392,9 @@ Default: @racket[(current-scribble-shell)].
 @racket[#:docs-source] selects where shell documentation links point:
 @racket['auto], @racket['bash], @racket['zsh], @racket['posix], or @racket['none].
 Default: @racket[(current-shell-docs-source)].
+When the effective value is @racket['auto], links follow the effective shell:
+@racket['bash] when @racket[#:shell] (or @racket[current-scribble-shell]) is
+@racket['bash], and @racket['zsh] when it is @racket['zsh].
 
 An optional @racket[#:escape] identifier configures escapes of the
 form @racket[(escape-id expr)] to splice @racket[expr]-produced
@@ -606,7 +609,7 @@ Options:
 
 @itemlist[
  @item{@racket[#:shell] selects shell flavor: @racket['bash] or @racket['zsh]. Default: @racket[(current-scribble-shell)].}
- @item{@racket[#:docs-source] selects link targets: @racket['auto], @racket['bash], @racket['zsh], @racket['posix], or @racket['none]. Default: @racket[(current-shell-docs-source)].}
+ @item{@racket[#:docs-source] selects link targets: @racket['auto], @racket['bash], @racket['zsh], @racket['posix], or @racket['none]. Default: @racket[(current-shell-docs-source)]. With @racket['auto], links follow the effective shell selected by @racket[#:shell] (or @racket[current-scribble-shell]).}
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
@@ -699,7 +702,10 @@ The default value is @racket['bash].
 Controls the default shell documentation source used by @racket[shell-code],
 @racket[shellblock], and @racket[shellblock0] when @racket[#:docs-source]
 is not provided.
-The default value is @racket['auto].
+The default value is @racket['auto], which means: use Bash docs when the
+effective shell is @racket['bash], and Zsh docs when the effective shell is
+@racket['zsh]. To force one source regardless of shell selection, use
+@racket['bash], @racket['zsh], @racket['posix], or @racket['none].
 }
 
 @defparam[current-scribble-context ctx (or/c #f syntax?)]{
@@ -869,3 +875,193 @@ racket -l scribble-tools/mdn-map-build -- --out mdn-map-built.rktd
 racket -l scribble-tools/mdn-map-build -- --merge mdn-map-custom.rktd --out mdn-map-merged.rktd
 racket -l scribble-tools/mdn-map-build -- --merge mdn-map-custom.rktd --install
 }|
+
+@section{Extended Examples}
+
+This chapter provides longer rendered examples for each supported language.
+Each block uses line numbers and a file label to make lexer behavior and
+documentation links easier to inspect.
+
+@subsection{CSS}
+
+@cssblock[#:line-numbers 1
+          #:file "extended/styles.css"
+          #:dimension-preview? #t]{
+:root {
+  --brand: #0b62a3;
+  --accent: oklch(66% 0.18 28);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  margin: 16px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #f6f8fb, #eef3ff);
+}
+
+.button {
+  color: white;
+  background: color-mix(in srgb, var(--brand) 80%, black);
+  border: 1px solid #0a4f83;
+  padding: 0.5rem 0.8rem;
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+}
+}
+
+@subsection{HTML}
+
+@htmlblock[#:line-numbers 1
+           #:file "extended/index.html"]{
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Extended Example</title>
+    <style>
+      .hero { color: #c33; margin: 12px; }
+      .hero em { font-family: "Georgia", serif; }
+    </style>
+  </head>
+  <body>
+    <main id="app">
+      <h1 class="hero">Hello <em>world</em></h1>
+      <button type="button" data-role="save">Save</button>
+    </main>
+    <script>
+      const root = document.querySelector("#app");
+      if (root) root.setAttribute("data-ready", "yes");
+    </script>
+  </body>
+</html>
+}
+
+@subsection{JavaScript}
+
+@jsblock[#:line-numbers 1
+         #:file "extended/app.js"]{
+function quickSort(xs, cmp = (a, b) => a - b) {
+  if (xs.length <= 1) return xs.slice();
+  const [pivot, ...rest] = xs;
+  const left = [];
+  const right = [];
+  for (const x of rest) {
+    if (cmp(x, pivot) < 0) left.push(x); else right.push(x);
+  }
+  return [...quickSort(left, cmp), pivot, ...quickSort(right, cmp)];
+}
+
+function renderNumbers(listEl, numbers) {
+  listEl.textContent = "";
+  for (const n of numbers) {
+    const li = document.createElement("li");
+    li.textContent = String(n);
+    listEl.append(li);
+  }
+}
+
+function parseInput(inputEl) {
+  return inputEl.value
+    .split(/[\\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => Number.isFinite(n));
+}
+
+function boot() {
+  const inputEl = document.querySelector("#numbers");
+  const buttonEl = document.querySelector("#sort");
+  const listEl = document.querySelector("#result");
+  if (!inputEl || !buttonEl || !listEl) return;
+
+  buttonEl.addEventListener("click", () => {
+    const data = parseInput(inputEl);
+    const sorted = quickSort(data);
+    renderNumbers(listEl, sorted);
+  });
+}
+
+boot();
+}
+
+@subsection{Shell}
+
+This utility copies one directory tree to another and validates arguments
+before running the copy operation.
+
+@shellblock[#:line-numbers 1
+            #:file "extended/copy-tree.sh"
+            #:shell 'bash
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            "\n"
+            "usage() {\n"
+            "  echo \"usage: $0 <source-dir> [dest-dir]\"\n"
+            "}\n"
+            "\n"
+            "copy_tree() {\n"
+            "  local src=\"$1\"\n"
+            "  local dst=\"$2\"\n"
+            "  mkdir -p \"$dst\"\n"
+            "  cp -R \"$src\"/. \"$dst\"/\n"
+            "}\n"
+            "\n"
+            "main() {\n"
+            "  if [ \"$#\" -lt 1 ] || [ \"$#\" -gt 2 ]; then\n"
+            "    usage\n"
+            "    return 2\n"
+            "  fi\n"
+            "  local src=\"$1\"\n"
+            "  local dst=\"${2:-./out}\"\n"
+            "  if [ ! -d \"$src\" ]; then\n"
+            "    echo \"error: source directory not found: $src\" >&2\n"
+            "    return 1\n"
+            "  fi\n"
+            "  copy_tree \"$src\" \"$dst\"\n"
+            "  echo \"copied $src -> $dst\"\n"
+            "}\n"
+            "\n"
+            "main \"$@\"\n"]
+
+@subsection{WebAssembly}
+
+@wasmblock[#:line-numbers 1
+           #:file "extended/module.wat"]{
+(module
+  (memory (export "mem") 1)
+  (func $add (param $x i32) (param $y i32) (result i32)
+    (i32.add
+      (local.get $x)
+      (local.get $y)))
+  (func (export "sum_to") (param $n i32) (result i32)
+    (local $i i32)
+    (local $acc i32)
+    (loop $loop
+      (if (i32.gt_s (local.get $i) (local.get $n))
+        (then (br 1)))
+      (local.set $acc
+        (i32.add (local.get $acc) (local.get $i)))
+      (local.set $i
+        (i32.add (local.get $i) (i32.const 1)))
+      (br $loop))
+    (local.get $acc)))
+}
+
+@subsection{Scribble}
+
+@scribbleblock[#:line-numbers 1
+               #:file "extended/guide.scrbl"
+               #:context #'here
+               "@title{Extended Scribble Example}\n"
+               "@section{Overview}\n"
+               "This paragraph includes @bold{inline formatting},\n"
+               "@italic{emphasis}, and @racket[code] references.\n"
+               "@itemlist[\n"
+               "  @item{First point}\n"
+               "  @item{Second point}\n"
+               "  @item{Third point}\n"
+               "]\n"
+               "@subsection{Details}\n"
+               "See @secref[\"reference-inline-forms\"] for inline forms.\n"]
