@@ -31,6 +31,45 @@
   (list->set
    '("autoload" "setopt" "unsetopt" "emulate" "typeset" "local" "zmodload")))
 
+(define zsh-entry-no-bracket
+  (list->set
+   '("." ":" "bye" "chdir")))
+
+(define (unreserved-char? c)
+  (or (char-alphabetic? c)
+      (char-numeric? c)
+      (memv c '(#\- #\_ #\. #\~))))
+
+(define (hex2 n)
+  (define digits "0123456789ABCDEF")
+  (string (string-ref digits (quotient n 16))
+          (string-ref digits (remainder n 16))))
+
+(define (pct-encode s)
+  (define out (open-output-string))
+  (for ([ch (in-string s)])
+    (cond
+      [(unreserved-char? ch) (write-char ch out)]
+      [else
+       (display "%" out)
+       (display (hex2 (char->integer ch)) out)]))
+  (get-output-string out))
+
+(define (zsh-fragment-for-command token)
+  (cond
+    [(string=? token ".") "`.` file [ arg ... ]"]
+    [(set-member? zsh-entry-no-bracket token)
+     (string-append "`" token "`")]
+    [else
+     ;; Most builtin entries begin with a synopsis line like: `cmd` [ ... ]
+     ;; Using this fragment avoids matching incidental mentions earlier on the page.
+     (string-append "`" token "` [")]))
+
+(define (zsh-text-fragment-url fragment)
+  (string-append
+   "https://zsh.sourceforge.io/Doc/Release/Shell-Builtin-Commands.html#:~:text="
+   (pct-encode fragment)))
+
 (define (resolve-shell-docs-source shell docs-source)
   (case (normalize-shell-docs-source 'shell-doc-url-for-token docs-source)
     [(none) 'none]
@@ -73,10 +112,12 @@
         "https://zsh.sourceforge.io/Doc/Release/Functions.html"])]
     [(or (set-member? shell-builtins t)
          (set-member? zsh-builtins t))
-     "https://zsh.sourceforge.io/Doc/Release/Shell-Builtin-Commands.html"]
+     (zsh-text-fragment-url (zsh-fragment-for-command t))]
     [(and (eq? cls 'name)
-          (regexp-match? #px"^[a-z_][a-z0-9_]*$" t))
-     "https://zsh.sourceforge.io/Doc/Release/Shell-Builtin-Commands.html"]
+          (regexp-match? #px"^[a-z_][a-z0-9_]*$" t)
+          (or (set-member? shell-builtins t)
+              (set-member? zsh-builtins t)))
+     (zsh-text-fragment-url (zsh-fragment-for-command t))]
     [else #f]))
 
 (define (posix-url cls token)
@@ -98,4 +139,3 @@
     [(zsh) (zsh-url cls token)]
     [(posix) (posix-url cls token)]
     [else #f]))
-

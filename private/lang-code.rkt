@@ -3960,6 +3960,13 @@ JS
   (check-true (contains-link? (shell-code "if [ -f ./x ]; then echo ok; fi")))
   (check-false (contains-link? (shell-code #:docs-source 'none "if [ -f ./x ]; then echo ok; fi")))
   (check-true (contains-link? (shell-code #:shell 'zsh "setopt prompt_subst")))
+  (check-false (contains-link? (shell-code #:shell 'zsh "prompt_subst compinit")))
+  (let ([urls (collect-target-urls (shell-code #:shell 'zsh "setopt prompt_subst"))])
+    (check-not-false
+     (for/or ([u (in-list urls)])
+       (and (string-contains? u "Shell-Builtin-Commands.html#:~:text=")
+            (string-contains? u "setopt")
+            (string-contains? u "%5B")))))
   (check-true
    (parameterize ([current-scribble-shell 'zsh])
      (contains-link? (shell-code "setopt prompt_subst"))))
