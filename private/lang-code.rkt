@@ -158,6 +158,16 @@
   (list->set
    '("autoload" "setopt" "unsetopt" "emulate" "typeset" "local" "zmodload")))
 
+(define shell-keywords/powershell
+  (list->set
+   '("if" "elseif" "else" "switch"
+     "for" "foreach" "while" "do" "until"
+     "break" "continue"
+     "function" "filter" "param"
+     "begin" "process" "end"
+     "return" "throw" "try" "catch" "finally" "trap"
+     "class" "enum" "using")))
+
 (define current-preview-css-url (make-parameter #f))
 (define current-preview-tooltips? (make-parameter #t))
 (define current-jsx? (make-parameter #f))
@@ -182,10 +192,11 @@
 
 (define (normalize-scribble-shell who v)
   (cond
-    [(memq v '(bash zsh)) v]
+    [(eq? v 'pwsh) 'powershell]
+    [(memq v '(bash zsh powershell)) v]
     [else
      (raise-argument-error who
-                           "(or/c 'bash 'zsh)"
+                           "(or/c 'bash 'zsh 'powershell 'pwsh)"
                            v)]))
 
 (define (preview-url-attrs)
@@ -924,7 +935,7 @@ JS
        [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
-    [(bash zsh)
+    [(bash zsh powershell)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -1953,6 +1964,8 @@ JS
       (char=? c #\})
       (char=? c #\[)
       (char=? c #\])
+      (char=? c #\")
+      (char=? c #\')
       (char=? c #\;)
       (char=? c #\|)
       (char=? c #\&)
@@ -2028,6 +2041,10 @@ JS
     [(string=? t "") 'plain]
     [(or (set-member? shell-keywords/common t)
          (and (eq? shell 'zsh) (set-member? shell-builtins/zsh t)))
+     'keyword]
+    [(and (eq? shell 'powershell)
+          (or (set-member? shell-keywords/powershell t)
+              (regexp-match? #px"^[a-z][a-z0-9]*-[a-z][a-z0-9-]*$" t)))
      'keyword]
     [(set-member? shell-builtins/common t) 'keyword]
     [(regexp-match? #px"^\\$\\{?.*" txt) 'value]
@@ -2235,6 +2252,7 @@ JS
     [(wasm) (tokenize-wasm s)]
     [(bash) (tokenize-shell 'bash s)]
     [(zsh) (tokenize-shell 'zsh s)]
+    [(powershell) (tokenize-shell 'powershell s)]
     [(scribble) (tokenize-scribble s)]
     [else (list (cons 'plain s))]))
 
@@ -3089,7 +3107,7 @@ JS
                                          js-object-aliases js-method-aliases)]
                  [(wasm-spec-3.0)
                  (wasm-spec-3.0-url-for-token cls txt)])]
-              [(memq lang '(bash zsh))
+              [(memq lang '(bash zsh powershell))
                (and mdn-links?
                     (shell-doc-url-for-token lang cls txt
                                              #:docs-source (or docs-source
@@ -3919,6 +3937,10 @@ JS
   (let ([cls (classes 'zsh "setopt prompt_subst\nautoload -Uz compinit\n")])
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'name cls)))
+  (let ([cls (classes 'powershell "if ($x) { Get-ChildItem $HOME # note\n}\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'comment cls)))
   (let ([cls (classes 'wasm (read-fixture "wasm-folded.wat"))])
     (check-not-false (member 'wasm-form cls))
     (check-not-false (member 'wasm-type cls))
@@ -3979,6 +4001,13 @@ JS
    (shell-doc-url-for-token 'bash 'keyword "coproc" #:docs-source 'posix))
   (check-true (contains-link? (shell-code #:shell 'zsh "setopt prompt_subst")))
   (check-false (contains-link? (shell-code #:shell 'zsh "prompt_subst compinit")))
+  (check-true (contains-link? (shell-code #:shell 'powershell "if ($x) { Get-ChildItem $HOME }")))
+  (check-not-false
+   (shell-doc-url-for-token 'powershell 'keyword "Get-ChildItem"))
+  (check-true
+   (string-contains?
+    (shell-doc-url-for-token 'powershell 'keyword "Get-ChildItem")
+    "get-childitem"))
   (let ([urls (collect-target-urls (shell-code #:shell 'zsh "setopt prompt_subst"))])
     (check-not-false
      (for/or ([u (in-list urls)])
@@ -3988,6 +4017,9 @@ JS
   (check-true
    (parameterize ([current-scribble-shell 'zsh])
      (contains-link? (shell-code "setopt prompt_subst"))))
+  (check-true
+   (parameterize ([current-scribble-shell 'pwsh])
+     (contains-link? (shell-code "Get-ChildItem $HOME"))))
   (check-exn exn:fail?
              (lambda ()
                (parameterize ([current-scribble-shell 'fish])

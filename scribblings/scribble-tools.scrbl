@@ -10,7 +10,7 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, HTML,
-JavaScript, shell scripts (Bash/Zsh), WebAssembly (WAT), and Scribble snippets with syntax
+JavaScript, shell scripts (Bash/Zsh/PowerShell), WebAssembly (WAT), and Scribble snippets with syntax
 coloring.
 
 The inline forms (@racket[css-code], @racket[html-code],
@@ -279,7 +279,7 @@ By default, code output includes documentation links for common identifiers:
  @item{CSS properties (for example @css-code{display}, @css-code{grid}, @css-code{border-radius}).}
  @item{HTML elements (for example @html-code{<section>}, @html-code{<button>}, @html-code{<script>}).}
  @item{Common JavaScript classes, methods, and language keywords (for example @js-code{Array}, @js-code{querySelector}, @js-code{map}, @js-code{const}).}
- @item{Common shell keywords and builtins (for example @shell-code[#:shell 'bash]{if}, @shell-code[#:shell 'bash]{for}, @shell-code[#:shell 'zsh]{setopt}), linked to GNU Bash or Zsh documentation.}
+ @item{Common shell keywords and builtins (for example @shell-code[#:shell 'bash]{if}, @shell-code[#:shell 'zsh]{setopt}, @shell-code[#:shell 'powershell]{Get-ChildItem}), linked to GNU Bash, Zsh, or PowerShell documentation.}
  @item{Common WebAssembly instructions and declarations (for example @wasm-code{module}, @wasm-code{func}, @wasm-code{local.get}, @wasm-code{i32.add}), linked to the WebAssembly Core Spec site by default.}
 ]
 
@@ -386,15 +386,16 @@ Example: @js-code{const n = 42;}
 Typesets the concatenated strings as inline shell code.
 Newlines and surrounding whitespace are collapsed to single spaces.
 
-@racket[#:shell] selects shell flavor: @racket['bash] or @racket['zsh].
+@racket[#:shell] selects shell flavor: @racket['bash], @racket['zsh], @racket['powershell], or @racket['pwsh].
 Default: @racket[(current-scribble-shell)].
 
 @racket[#:docs-source] selects where shell documentation links point:
-@racket['auto], @racket['bash], @racket['zsh], @racket['posix], or @racket['none].
+@racket['auto], @racket['bash], @racket['zsh], @racket['powershell], @racket['posix], or @racket['none].
 Default: @racket[(current-shell-docs-source)].
 When the effective value is @racket['auto], links follow the effective shell:
 @racket['bash] when @racket[#:shell] (or @racket[current-scribble-shell]) is
-@racket['bash], and @racket['zsh] when it is @racket['zsh].
+@racket['bash], @racket['zsh] when it is @racket['zsh], and
+@racket['powershell] when it is @racket['powershell] or @racket['pwsh].
 
 An optional @racket[#:escape] identifier configures escapes of the
 form @racket[(escape-id expr)] to splice @racket[expr]-produced
@@ -608,8 +609,8 @@ Typesets shell source as a block inset using @racket['code-inset].
 Options:
 
 @itemlist[
- @item{@racket[#:shell] selects shell flavor: @racket['bash] or @racket['zsh]. Default: @racket[(current-scribble-shell)].}
- @item{@racket[#:docs-source] selects link targets: @racket['auto], @racket['bash], @racket['zsh], @racket['posix], or @racket['none]. Default: @racket[(current-shell-docs-source)]. With @racket['auto], links follow the effective shell selected by @racket[#:shell] (or @racket[current-scribble-shell]).}
+ @item{@racket[#:shell] selects shell flavor: @racket['bash], @racket['zsh], @racket['powershell], or @racket['pwsh]. Default: @racket[(current-scribble-shell)].}
+ @item{@racket[#:docs-source] selects link targets: @racket['auto], @racket['bash], @racket['zsh], @racket['powershell], @racket['posix], or @racket['none]. Default: @racket[(current-shell-docs-source)]. With @racket['auto], links follow the effective shell selected by @racket[#:shell] (or @racket[current-scribble-shell]).}
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
@@ -691,21 +692,23 @@ is not provided.
 The default value is @racket['wasm-spec-3.0].
 }
 
-@defparam[current-scribble-shell sh (or/c 'bash 'zsh)]{
+@defparam[current-scribble-shell sh (or/c 'bash 'zsh 'powershell 'pwsh)]{
 Controls the default shell flavor used by @racket[shell-code],
 @racket[shellblock], and @racket[shellblock0] when @racket[#:shell]
 is not provided.
 The default value is @racket['bash].
 }
 
-@defparam[current-shell-docs-source src (or/c 'auto 'bash 'zsh 'posix 'none)]{
+@defparam[current-shell-docs-source src (or/c 'auto 'bash 'zsh 'powershell 'pwsh 'posix 'none)]{
 Controls the default shell documentation source used by @racket[shell-code],
 @racket[shellblock], and @racket[shellblock0] when @racket[#:docs-source]
 is not provided.
 The default value is @racket['auto], which means: use Bash docs when the
-effective shell is @racket['bash], and Zsh docs when the effective shell is
-@racket['zsh]. To force one source regardless of shell selection, use
-@racket['bash], @racket['zsh], @racket['posix], or @racket['none].
+effective shell is @racket['bash], Zsh docs when the effective shell is
+@racket['zsh], and PowerShell docs when the effective shell is
+@racket['powershell] (or @racket['pwsh]). To force one source regardless of
+shell selection, use @racket['bash], @racket['zsh], @racket['powershell],
+@racket['posix], or @racket['none].
 }
 
 @defparam[current-scribble-context ctx (or/c #f syntax?)]{
@@ -1031,22 +1034,17 @@ before running the copy operation.
            #:file "extended/module.wat"]{
 (module
   (memory (export "mem") 1)
-  (func $add (param $x i32) (param $y i32) (result i32)
-    (i32.add
-      (local.get $x)
-      (local.get $y)))
+  (func $sum_to_acc (param $i i32) (param $n i32) (param $acc i32) (result i32)
+    (if (result i32) (i32.le_s (local.get $i) (local.get $n))
+      (then
+        (call $sum_to_acc
+          (i32.add (local.get $i) (i32.const 1))
+          (local.get $n)
+          (i32.add (local.get $acc) (local.get $i))))
+      (else
+        (local.get $acc))))
   (func (export "sum_to") (param $n i32) (result i32)
-    (local $i i32)
-    (local $acc i32)
-    (loop $loop
-      (if (i32.gt_s (local.get $i) (local.get $n))
-        (then (br 1)))
-      (local.set $acc
-        (i32.add (local.get $acc) (local.get $i)))
-      (local.set $i
-        (i32.add (local.get $i) (i32.const 1)))
-      (br $loop))
-    (local.get $acc)))
+    (call $sum_to_acc (i32.const 0) (local.get $n) (i32.const 0))))
 }
 
 @subsection{Scribble}

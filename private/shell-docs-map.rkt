@@ -8,10 +8,11 @@
 
 (define (normalize-shell-docs-source who v)
   (cond
-    [(memq v '(auto bash zsh posix none)) v]
+    [(eq? v 'pwsh) 'powershell]
+    [(memq v '(auto bash zsh powershell posix none)) v]
     [else
      (raise-argument-error who
-                           "(or/c 'auto 'bash 'zsh 'posix 'none)"
+                           "(or/c 'auto 'bash 'zsh 'powershell 'pwsh 'posix 'none)"
                            v)]))
 
 (define bash-keywords
@@ -30,6 +31,61 @@
 (define zsh-builtins
   (list->set
    '("autoload" "setopt" "unsetopt" "emulate" "typeset" "local" "zmodload")))
+
+(define powershell-keyword-url
+  (hash "if" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_if"
+        "elseif" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_if"
+        "else" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_if"
+        "switch" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_switch"
+        "for" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_for"
+        "foreach" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_foreach"
+        "while" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_while"
+        "do" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_do"
+        "until" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_do"
+        "break" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_break"
+        "continue" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_continue"
+        "function" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions"
+        "filter" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions"
+        "param" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters"
+        "begin" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions_advanced_methods"
+        "process" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions_advanced_methods"
+        "end" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions_advanced_methods"
+        "return" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_return"
+        "throw" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_throw"
+        "try" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_try_catch_finally"
+        "catch" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_try_catch_finally"
+        "finally" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_try_catch_finally"
+        "trap" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_trap"
+        "class" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_classes"
+        "enum" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_enum"
+        "using" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_using"))
+
+(define powershell-cmdlet-url
+  (hash "get-childitem" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-childitem"
+        "set-location" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/set-location"
+        "get-content" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-content"
+        "set-content" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/set-content"
+        "new-item" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/new-item"
+        "copy-item" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/copy-item"
+        "move-item" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/move-item"
+        "remove-item" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/remove-item"
+        "test-path" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/test-path"
+        "join-path" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/join-path"
+        "get-command" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/get-command"
+        "get-help" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/get-help"
+        "select-object" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/select-object"
+        "where-object" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/where-object"
+        "foreach-object" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object"
+        "sort-object" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/sort-object"
+        "measure-object" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/measure-object"
+        "convertto-json" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/convertto-json"
+        "convertfrom-json" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/convertfrom-json"
+        "invoke-restmethod" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-restmethod"
+        "invoke-webrequest" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-webrequest"
+        "write-output" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/write-output"
+        "write-host" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/write-host"
+        "write-warning" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/write-warning"
+        "write-error" "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/write-error"))
 
 (define posix-command-url
   (hash "." "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/dot.html"
@@ -213,10 +269,30 @@
                "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_15")]
     [else #f]))
 
+(define (powershell-url cls token)
+  (define raw (string-trim token))
+  (define t (string-downcase raw))
+  (cond
+    [(or (string=? t "$")
+         (regexp-match? #px"^\\$\\{?" t))
+     "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_variables"]
+    [(hash-ref powershell-keyword-url t #f)
+     (hash-ref powershell-keyword-url t #f)]
+    [(hash-ref powershell-cmdlet-url t #f)
+     (hash-ref powershell-cmdlet-url t #f)]
+    [(and (eq? cls 'keyword)
+          (regexp-match? #px"^[a-z][a-z0-9]*-[a-z][a-z0-9-]*$" t))
+     (string-append
+      "https://learn.microsoft.com/en-us/search/?terms="
+      (pct-encode raw)
+      "%20site%3Alearn.microsoft.com%2Fpowershell%2Fmodule")]
+    [else #f]))
+
 (define (shell-doc-url-for-token shell cls token #:docs-source [docs-source 'auto])
   (case (resolve-shell-docs-source shell docs-source)
     [(none) #f]
     [(bash) (bash-url cls token)]
     [(zsh) (zsh-url cls token)]
+    [(powershell) (powershell-url cls token)]
     [(posix) (posix-url cls token)]
     [else #f]))

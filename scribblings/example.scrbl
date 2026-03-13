@@ -41,6 +41,8 @@ Inline shell (Bash): @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok
 
 Inline shell (Zsh): @shell-code[#:shell 'zsh]{setopt prompt_subst}
 
+Inline shell (PowerShell): @shell-code[#:shell 'powershell]{if ($HOME) { Get-ChildItem . }}
+
 Inline WebAssembly: @wasm-code{(module (func (result i32) (i32.const 42)))}
 
 Inline Scribble: @scribble-code["@bold{Hi} there."]
@@ -270,6 +272,14 @@ make all
 @shellblock0[#:shell 'zsh #:indent 2]{
 typeset -g PROJECT_ROOT=$HOME/src/demo
 print -r -- $PROJECT_ROOT
+}
+
+@section{Shell Block (PowerShell)}
+
+@shellblock[#:shell 'powershell #:line-numbers 1 #:file "script.ps1"]{
+if ($HOME) {
+  Get-ChildItem .
+}
 }
 
 @section{Scribble Block}
