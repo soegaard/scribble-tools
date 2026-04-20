@@ -2174,7 +2174,7 @@ JS
           (if (zero? d) (+ i 2) (loop (+ i 2) d))]
          [else (loop (add1 i) depth)])])))
 
-(define (tokenize-wasm s)
+(define (tokenize-wasm-handwritten s)
   (define len (string-length s))
   (let loop ([i 0] [acc null])
     (cond
@@ -2219,6 +2219,21 @@ JS
               [(wasm-word-char? (string-ref txt 0)) (wasm-word-class txt)]
               [else 'plain]))
           (loop j (cons (cons cls txt) acc))])])))
+
+(define (tokenize-wasm s)
+  (define (class-map name txt)
+    (case name
+      [(comment) 'comment]
+      [(delimiter) 'punct]
+      [(literal) 'value]
+      [(keyword identifier)
+       (wasm-word-class txt)]
+      [else 'plain]))
+  (for/list ([token (in-list (wat-string->tokens s
+                                                 #:profile 'coloring
+                                                 #:source-positions #t))]
+             #:unless (lexer-token-eof? token))
+    (wat-projected-token->scribble-token token #:class-map class-map)))
 
 (define (scribble-token-type->symbol t)
   (cond
@@ -4246,7 +4261,7 @@ JS
     (check-true (has-class? block "scribble-copy-wrap")))
   (let ([block (pythonblock #:copy-button? #f "def identity(x):\n    return x\n")])
     (check-false (has-class? block "scribble-copy-wrap")))
-  (let* ([old (tokenize 'wasm (read-fixture "wasm-folded.wat"))]
+  (let* ([old (tokenize-wasm-handwritten (read-fixture "wasm-folded.wat"))]
          [new (wat-string->tokens (read-fixture "wasm-folded.wat")
                                   #:profile 'coloring
                                   #:source-positions #t)]
@@ -4258,16 +4273,15 @@ JS
                       #:new-class-normalizer normalize-render-class
                       #:new-token->piece
                       (lambda (token)
-                        (projected-token->scribble-token
+                        (wat-projected-token->scribble-token
                          token
                          #:class-map
                          (lambda (name text)
                            (case name
                              [(comment) 'comment]
-                             [(keyword) 'keyword]
-                             [(literal) 'value]
-                             [(identifier) 'name]
                              [(delimiter) 'punct]
+                             [(literal) 'value]
+                             [(keyword identifier) (wasm-word-class text)]
                              [else 'plain])))))])
     (check-true (hash-ref comparison 'source-match?))
     (check-true (hash-ref comparison 'new-contiguous?))

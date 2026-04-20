@@ -13,6 +13,7 @@
 (provide projected-token->scribble-token
          projected-tokens->scribble-tokens
          python-string->scribble-tokens
+         wat-projected-token->scribble-token
          wat-string->scribble-tokens
          normalize-render-class
          token-stream->source
@@ -60,6 +61,10 @@
                        #:profile 'coloring
                        #:source-positions #t)
    #:class-map class-map))
+
+(define (wat-projected-token->scribble-token token
+                                             #:class-map [class-map #f])
+  (projected-token->scribble-token token #:class-map class-map))
 
 (define (normalize-render-class cls)
   (case cls
