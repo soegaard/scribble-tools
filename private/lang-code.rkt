@@ -6,6 +6,10 @@
          racket/file
          racket/runtime-path
          "lexers-adapter.rkt"
+         (only-in lexers/html
+                  html-derived-token-has-tag?
+                  html-derived-token-text
+                  html-string->derived-tokens)
          (only-in lexers/scribble
                   scribble-derived-token-has-tag?
                   scribble-derived-token-start
@@ -1887,7 +1891,7 @@ JS
             [(char=? c #\`) (loop (add1 i) in-single? in-double? #t #f #f #f)]
             [else (loop (add1 i) #f #f #f #f #f #f)])])])))
 
-(define (tokenize-html s)
+(define (tokenize-html-handwritten s)
   (define len (string-length s))
   (let loop ([i 0] [mode 'text] [acc null])
     (define (emit cls a b [new-mode mode])
@@ -1962,7 +1966,7 @@ JS
               (emit 'value i end)
               (emit 'plain i (add1 i)))]
          [else
-         (define next-special
+          (define next-special
             (let find ([k i])
               (cond
                 [(>= k len) len]
@@ -1971,6 +1975,69 @@ JS
                  k]
                 [else (find (add1 k))])))
           (emit 'plain i next-special)])])))
+
+(define (tokenize-html s)
+  (define tokens (html-string->derived-tokens s))
+  (define count (length tokens))
+  (define mode-val (current-html-style-preview-mode))
+  (define style-preview-enabled? (not (eq? mode-val 'none)))
+  (define (html-token-class token)
+    (cond
+      [(html-derived-token-has-tag? token 'comment) 'comment]
+      [(html-derived-token-has-tag? token 'html-doctype) 'keyword]
+      [(or (html-derived-token-has-tag? token 'html-tag-name)
+           (html-derived-token-has-tag? token 'html-closing-tag-name))
+       'keyword]
+      [(html-derived-token-has-tag? token 'html-attribute-name) 'name]
+      [(or (html-derived-token-has-tag? token 'html-attribute-value)
+           (html-derived-token-has-tag? token 'html-entity))
+       'value]
+      [(or (html-derived-token-has-tag? token 'delimiter)
+           (html-derived-token-has-tag? token 'operator))
+       'punct]
+      [else 'plain]))
+  (define (collect-embedded-text start tag)
+    (let loop ([i start] [pieces null])
+      (cond
+        [(>= i count)
+         (values (apply string-append (reverse pieces)) i)]
+        [(html-derived-token-has-tag? (list-ref tokens i) tag)
+         (loop (add1 i)
+               (cons (html-derived-token-text (list-ref tokens i)) pieces))]
+        [else
+         (values (apply string-append (reverse pieces)) i)])))
+  (let loop ([i 0] [acc null])
+    (cond
+      [(>= i count) (reverse acc)]
+      [else
+       (define token (list-ref tokens i))
+       (cond
+         [(html-derived-token-has-tag? token 'embedded-css)
+          (define-values (body next-i) (collect-embedded-text i 'embedded-css))
+          (define body-tokens
+            (if (string=? body "")
+                null
+                (let* ([base (tokenize-css body)]
+                       [with-color (insert-css-color-swatch-tokens base (and style-preview-enabled? (current-html-style-color-swatch?)))]
+                       [with-font (insert-css-font-preview-tokens with-color (and style-preview-enabled? (current-html-style-font-preview?)))]
+                       [with-dim (insert-css-dimension-preview-tokens with-font (and style-preview-enabled? (current-html-style-dimension-preview?)))]
+                       [with-token (insert-css-design-token-tokens with-dim style-preview-enabled?)])
+                  (move-css-decorations-to-decl-end with-token))))
+          (loop next-i (append (reverse body-tokens) acc))]
+         [(html-derived-token-has-tag? token 'embedded-javascript)
+          (define-values (body next-i) (collect-embedded-text i 'embedded-javascript))
+          (define body-tokens
+            (if (string=? body "")
+                null
+                (insert-js-preview-tokens
+                 (tokenize-js body)
+                 (current-html-script-preview?))))
+          (loop next-i (append (reverse body-tokens) acc))]
+         [else
+          (loop (add1 i)
+                (cons (cons (html-token-class token)
+                            (html-derived-token-text token))
+                      acc))])])))
 
 (define (shell-ident-start? c)
   (or (char-alphabetic? c) (char=? c #\_)))
@@ -3960,6 +4027,26 @@ JS
   (define (class-count cls l)
     (for/sum ([x (in-list l)])
       (if (eq? x cls) 1 0)))
+  (define decoration-classes
+    '(swatch swatch-gradient font-preview spacing-preview radius-preview token-def token-use))
+  (define (source-bearing-text tokens)
+    (apply string-append
+           (for/list ([t (in-list tokens)]
+                      #:when (and (string? (cdr t))
+                                  (not (memq (car t) decoration-classes))))
+             (cdr t))))
+  (define (compare-class-normalize cls)
+    (if (memq cls decoration-classes)
+        cls
+        (normalize-render-class cls)))
+  (define (class-runs tokens)
+    (let loop ([rest (map (lambda (t) (compare-class-normalize (car t))) tokens)]
+               [prev #f]
+               [acc null])
+      (cond
+        [(null? rest) (reverse acc)]
+        [(eq? (car rest) prev) (loop (cdr rest) prev acc)]
+        [else (loop (cdr rest) (car rest) (cons (car rest) acc))])))
   (define (has-target-url-prop? st)
     (and (style? st)
          (for/or ([p (in-list (style-properties st))])
@@ -4567,5 +4654,14 @@ JS
     (check-not-false (member 'name cls))
     (check-not-false (member 'value cls))
     (check-not-false (member 'punct cls)))
+  (for ([src (in-list (list (read-fixture "html-basic.html")
+                            (read-fixture "html-inline-style-script-full.html")
+                            (read-fixture "html-malformed-recovery-2.html")))])
+    (define old (tokenize-html-handwritten src))
+    (define new (tokenize-html src))
+    (check-equal? (source-bearing-text old) src)
+    (check-equal? (source-bearing-text new) src)
+    (check-equal? (class-runs old)
+                  (class-runs new)))
   (check-true
    (block? (cssblock #:file "demo.css" ".x { color: red; }"))))
