@@ -6,6 +6,13 @@
          racket/file
          racket/runtime-path
          "lexers-adapter.rkt"
+         (only-in lexers/scribble
+                  scribble-derived-token-has-tag?
+                  scribble-derived-token-start
+                  scribble-derived-token-end
+                  scribble-derived-token-text
+                  scribble-string->derived-tokens)
+         lexers/shell
          syntax-color/scribble-lexer
          lexers/token
          lexers/wat
@@ -2067,7 +2074,7 @@ JS
     [(regexp-match? #px"^[0-9]+$" txt) 'value]
     [else 'name]))
 
-(define (tokenize-shell shell s)
+(define (tokenize-shell-handwritten shell s)
   (define sh (normalize-scribble-shell 'tokenize-shell shell))
   (define len (string-length s))
   (let loop ([i 0] [acc null])
@@ -2121,6 +2128,19 @@ JS
          [else
           (define j (read-shell-word s i))
           (emit (shell-word-class sh (substring s i j)) j)])])))
+
+(define (tokenize-shell shell s)
+  (define sh (normalize-scribble-shell 'tokenize-shell shell))
+  (define (class-map name txt)
+    (case name
+      [(comment) 'comment]
+      [(delimiter) 'punct]
+      [(literal) 'value]
+      [(keyword identifier) (shell-word-class sh txt)]
+      [else 'plain]))
+  (shell-string->scribble-tokens s
+                                 #:shell sh
+                                 #:class-map class-map))
 
 (define (wasm-word-char? ch)
   (or (char-alphabetic? ch)
@@ -2257,7 +2277,7 @@ JS
          'name
          'plain)]))
 
-(define (tokenize-scribble s)
+(define (tokenize-scribble-handwritten s)
   (define lx (make-scribble-inside-lexer))
   (define in (open-input-string s))
   (port-count-lines! in)
@@ -2272,6 +2292,22 @@ JS
                [txt (substring s a b)]
                [cls (scribble-token-class typ txt)])
           (loop new-mode (cons (cons cls txt) acc))))))
+
+(define (tokenize-scribble s)
+  (for/list ([token (in-list (scribble-string->derived-tokens s))])
+    (define txt (scribble-derived-token-text token))
+    (define cls
+      (cond
+        [(scribble-derived-token-has-tag? token 'comment) 'comment]
+        [(scribble-derived-token-has-tag? token 'scribble-string) 'value]
+        [(scribble-derived-token-has-tag? token 'scribble-constant) 'value]
+        [(scribble-derived-token-has-tag? token 'scribble-parenthesis) 'punct]
+        [(scribble-derived-token-has-tag? token 'scribble-symbol)
+         (scribble-token-class 'symbol txt)]
+        [(scribble-derived-token-has-tag? token 'whitespace) 'plain]
+        [(scribble-derived-token-has-tag? token 'scribble-text) 'plain]
+        [else 'plain]))
+    (cons cls txt)))
 
 (define (tokenize lang s)
   (case lang
@@ -3912,7 +3948,8 @@ JS
 (define-syntax (scribbleblock stx) (do-scribble-block stx #t))
 
 (module+ test
-  (require rackunit)
+  (require rackunit
+           parser-tools/lex)
   (define-syntax-rule (unsyntax e) e)
   (define-syntax-rule (UNQ e) e)
   (define-runtime-path fixtures-dir "test-fixtures")
@@ -4261,6 +4298,69 @@ JS
     (check-true (has-class? block "scribble-copy-wrap")))
   (let ([block (pythonblock #:copy-button? #f "def identity(x):\n    return x\n")])
     (check-false (has-class? block "scribble-copy-wrap")))
+  (for ([sh (in-list '(bash zsh powershell))]
+        [src (in-list (list "if [ -f \"$HOME/.zshrc\" ]; then echo ok # note\nfi\n"
+                            "setopt prompt_subst\nautoload -Uz compinit\n"
+                            "if ($x) { Get-ChildItem $HOME # note\n}\n"))])
+    (define comparison
+      (compare-token-streams
+       src
+       (tokenize-shell-handwritten sh src)
+       (shell-string->tokens src
+                             #:shell sh
+                             #:profile 'coloring
+                             #:source-positions #t)
+       #:old-class-normalizer normalize-render-class
+       #:new-class-normalizer normalize-render-class
+       #:new-token->piece
+       (lambda (token)
+         (shell-projected-token->scribble-token
+          token
+          #:class-map
+          (lambda (name text)
+            (case name
+              [(comment) 'comment]
+              [(delimiter) 'punct]
+              [(literal) 'value]
+              [(keyword identifier) (shell-word-class sh text)]
+              [else 'plain]))))))
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?))
+    (check-true (hash-ref comparison 'class-match?)))
+  (let* ([src (read-fixture "scribble-basic.scrbl")]
+         [comparison
+          (compare-token-streams
+           src
+           (tokenize-scribble-handwritten src)
+           (scribble-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-eof? (lambda (_token) #f)
+           #:new-contiguous?
+           (lambda (tokens)
+             (or (null? tokens)
+                 (for/and ([left (in-list tokens)]
+                           [right (in-list (cdr tokens))])
+                   (= (position-offset (scribble-derived-token-end left))
+                      (position-offset (scribble-derived-token-start right))))))
+           #:new-token->piece
+           (lambda (token)
+             (let ([text (scribble-derived-token-text token)])
+               (cons
+                (cond
+                  [(scribble-derived-token-has-tag? token 'comment) 'comment]
+                  [(scribble-derived-token-has-tag? token 'scribble-string) 'value]
+                  [(scribble-derived-token-has-tag? token 'scribble-constant) 'value]
+                  [(scribble-derived-token-has-tag? token 'scribble-parenthesis) 'punct]
+                  [(scribble-derived-token-has-tag? token 'scribble-symbol)
+                   (scribble-token-class 'symbol text)]
+                  [(scribble-derived-token-has-tag? token 'whitespace) 'plain]
+                  [(scribble-derived-token-has-tag? token 'scribble-text) 'plain]
+                  [else 'plain])
+                text))))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?))
+    (check-true (hash-ref comparison 'class-match?)))
   (let* ([old (tokenize-wasm-handwritten (read-fixture "wasm-folded.wat"))]
          [new (wat-string->tokens (read-fixture "wasm-folded.wat")
                                   #:profile 'coloring

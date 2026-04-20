@@ -7,12 +7,18 @@
          racket/string
          parser-tools/lex
          lexers/python
+         lexers/scribble
+         lexers/shell
          lexers/token
          lexers/wat)
 
 (provide projected-token->scribble-token
          projected-tokens->scribble-tokens
          python-string->scribble-tokens
+         scribble-projected-token->scribble-token
+         scribble-string->scribble-tokens
+         shell-projected-token->scribble-token
+         shell-string->scribble-tokens
          wat-projected-token->scribble-token
          wat-string->scribble-tokens
          normalize-render-class
@@ -53,6 +59,32 @@
    (python-string->tokens source
                           #:profile 'coloring
                           #:source-positions #t)))
+
+(define (scribble-string->scribble-tokens source
+                                          #:class-map [class-map #f])
+  (projected-tokens->scribble-tokens
+   (scribble-string->tokens source
+                            #:profile 'coloring
+                            #:source-positions #t)
+   #:class-map class-map))
+
+(define (scribble-projected-token->scribble-token token
+                                                  #:class-map [class-map #f])
+  (projected-token->scribble-token token #:class-map class-map))
+
+(define (shell-string->scribble-tokens source
+                                       #:shell [shell 'bash]
+                                       #:class-map [class-map #f])
+  (projected-tokens->scribble-tokens
+   (shell-string->tokens source
+                         #:shell shell
+                         #:profile 'coloring
+                         #:source-positions #t)
+   #:class-map class-map))
+
+(define (shell-projected-token->scribble-token token
+                                               #:class-map [class-map #f])
+  (projected-token->scribble-token token #:class-map class-map))
 
 (define (wat-string->scribble-tokens source
                                      #:class-map [class-map #f])
@@ -96,12 +128,14 @@
 (define (compare-token-streams source old-tokens new-token-likes
                                #:old-class-normalizer [old-class-normalizer normalize-render-class]
                                #:new-class-normalizer [new-class-normalizer normalize-render-class]
-                               #:new-token->piece [new-token->piece projected-token->scribble-token])
+                               #:new-token->piece [new-token->piece projected-token->scribble-token]
+                               #:new-contiguous? [new-contiguous-check token-stream-contiguous?]
+                               #:new-eof? [new-eof? lexer-token-eof?])
   (define old-source
     (token-stream->source old-tokens))
   (define new-pieces
     (for/list ([token (in-list new-token-likes)]
-               #:unless (lexer-token-eof? token))
+               #:unless (new-eof? token))
       (new-token->piece token)))
   (define new-source
     (token-stream->source new-pieces))
@@ -114,7 +148,7 @@
         'new-source new-source
         'source-match? (and (string=? source old-source)
                             (string=? source new-source))
-        'new-contiguous? (token-stream-contiguous? new-token-likes)
+        'new-contiguous? (new-contiguous-check new-token-likes)
         'old-classes old-classes
         'new-classes new-classes
         'class-match? (equal? old-classes new-classes)))
