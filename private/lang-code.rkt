@@ -14,6 +14,10 @@
                   html-derived-token-has-tag?
                   html-derived-token-text
                   html-string->derived-tokens)
+         (only-in lexers/javascript
+                  javascript-derived-token-has-tag?
+                  javascript-derived-token-text
+                  javascript-string->derived-tokens)
          (only-in lexers/scribble
                   scribble-derived-token-has-tag?
                   scribble-derived-token-start
@@ -1563,7 +1567,7 @@ JS
           (set! k (add1 k))
           (loop)])])))
 
-(define (tokenize-js s)
+(define (tokenize-js-handwritten s)
   (define len (string-length s))
   (define (has-fn-kind? brace-stack kinds)
     (for/or ([k (in-list brace-stack)])
@@ -1769,6 +1773,49 @@ JS
           (emit 'operator j (js-operator-can-start-regex? op) #f paren-stack next-decl)]
          [else
           (emit 'plain (add1 i) can-start-regex? last-keyword paren-stack decl-state)])])))
+
+(define js-delimiter-texts
+  '("{" "}" "(" ")" "[" "]" "," ";" "." "${" "}" "<" ">" "</" "/>" "<>" "</>"))
+
+(define (js-whitespace-text? txt)
+  (and (not (string=? txt ""))
+       (regexp-match? #px"^\\s+$" txt)))
+
+(define (js-operator-text? txt)
+  (member txt js-operators))
+
+(define (tokenize-js s)
+  (if (current-jsx?)
+      (tokenize-js-handwritten s)
+      (for/list ([token (in-list (javascript-string->derived-tokens s
+                                                                   #:jsx? #f))])
+        (define txt (javascript-derived-token-text token))
+        (define cls
+          (cond
+            [(javascript-derived-token-has-tag? token 'comment) 'comment]
+            [(js-whitespace-text? txt) 'plain]
+            [(javascript-derived-token-has-tag? token 'static-keyword-usage) 'static-keyword]
+            [(javascript-derived-token-has-tag? token 'object-key) 'object-key]
+            [(javascript-derived-token-has-tag? token 'parameter-name) 'param-name]
+            [(javascript-derived-token-has-tag? token 'declaration-name) 'decl-name]
+            [(javascript-derived-token-has-tag? token 'private-name) 'private-name]
+            [(javascript-derived-token-has-tag? token 'method-name) 'method-name]
+            [(javascript-derived-token-has-tag? token 'property-name) 'prop-name]
+            [(javascript-derived-token-has-tag? token 'keyword) 'keyword]
+            [(javascript-derived-token-has-tag? token 'identifier) 'name]
+            [(javascript-derived-token-has-tag? token 'template-interpolation-boundary)
+             'punct]
+            [(or (javascript-derived-token-has-tag? token 'string-literal)
+                 (javascript-derived-token-has-tag? token 'numeric-literal)
+                 (javascript-derived-token-has-tag? token 'regex-literal)
+                 (javascript-derived-token-has-tag? token 'template-literal)
+                 (javascript-derived-token-has-tag? token 'template-chunk))
+             'value]
+            [(member txt js-delimiter-texts)
+             'punct]
+            [(js-operator-text? txt) 'operator]
+            [else 'plain]))
+        (cons cls txt))))
 
 (define (string-ci-prefix-at? s i prefix)
   (define n (string-length prefix))
@@ -4590,6 +4637,24 @@ JS
     (check-equal? (source-bearing-text new) src)
     (check-equal? (class-runs/normalize old compare-css-class-normalize)
                   (class-runs/normalize new compare-css-class-normalize)))
+  (for ([src (in-list (list (read-fixture "js-tricky.js")
+                            (read-fixture "js-async.js")
+                            (read-fixture "js-modern-ops.js")
+                            "const re = /ab+c/i; const msg = `hi ${name}`;"))]
+        [jsx? (in-list '(#f #f #f #f))])
+    (parameterize ([current-jsx? jsx?])
+      (define old (tokenize-js-handwritten src))
+      (define new (tokenize-js src))
+      (check-equal? (source-bearing-text old) src)
+      (check-equal? (source-bearing-text new) src)))
+  (for ([src (in-list (list (read-fixture "js-jsx.js")
+                            (read-fixture "js-real-react.jsx")
+                            "const el = <Button kind=\"primary\">Hello {name}</Button>;"))])
+    (parameterize ([current-jsx? #t])
+      (define old (tokenize-js-handwritten src))
+      (define new (tokenize-js src))
+      (check-equal? (source-bearing-text old) src)
+      (check-equal? (source-bearing-text new) src)))
   (check-not-false
    (member 'keyword (classes 'html (read-fixture "html-basic.html"))))
   (check-not-false
