@@ -301,17 +301,34 @@ def square(x):
 
 @section{Additional Language Blocks}
 
+These examples cover the newly added generic language forms. They use file
+labels and, where useful, line numbers so it is easier to inspect the
+rendered output.
+
+@subsection{C}
+
+This small C example shows a compact function with control flow and a return
+value.
+
 @cblock[#:line-numbers 1 #:file "answer.c"]{
 int answer(void) {
   return 42;
 }
 }
 
+@subsection{CSV}
+
+CSV and TSV are useful for short data samples in manuals and notes.
+
 @csvblock[#:file "people.csv"]{
 name,age
 Ada,37
 Grace,48
 }
+
+@subsection{JSON}
+
+This JSON example shows nested objects, arrays, and booleans.
 
 @jsonblock[#:line-numbers 1 #:file "config.json"]{
 {
@@ -321,6 +338,11 @@ Grace,48
 }
 }
 
+@subsection{Markdown}
+
+Markdown examples are helpful when documenting generated notes or README-style
+content.
+
 @markdownblock[#:file "README.md"]{
 # Hello
 
@@ -328,21 +350,35 @@ Grace,48
 - two
 }
 
+@subsection{Racket}
+
+Racket examples use the same visual style as the other added languages.
+
 @racketblock[#:line-numbers 1 #:file "math.rkt"]{
 (define (add x y)
   (+ x y))
 }
+
+@subsection{Rhombus}
+
+Rhombus is included too, so manuals can show mixed Racket-family syntax.
 
 @rhombusblock[#:file "math.rhm"]{
 fun add(x, y):
   x + y
 }
 
+@subsection{TSV}
+
 @tsvblock[#:file "people.tsv"]{
 name	age
 Ada	37
 Grace	48
 }
+
+@subsection{YAML}
+
+YAML is useful for configuration-shaped examples.
 
 @yamlblock[#:line-numbers 1 #:file "config.yaml"]{
 name: Ada

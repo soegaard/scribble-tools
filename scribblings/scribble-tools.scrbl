@@ -1275,6 +1275,111 @@ boot();
              "        return \"no entries\"\n"
              "    return \", \".join(titles)\n"]
 
+@subsection{C}
+
+@cblock[#:line-numbers 1
+        #:file "extended/cache.c"]{
+typedef struct {
+  const char *key;
+  int value;
+} entry_t;
+
+static int lookup(const entry_t *entries, int count, const char *key) {
+  for (int i = 0; i < count; ++i) {
+    if (strcmp(entries[i].key, key) == 0) {
+      return entries[i].value;
+    }
+  }
+  return -1;
+}
+}
+
+@subsection{JSON}
+
+@jsonblock[#:line-numbers 1
+           #:file "extended/config.json"]{
+{
+  "name": "scribble-tools",
+  "features": {
+    "copyButton": true,
+    "lineNumbers": true,
+    "links": ["mdn", "shell-docs", "wasm-spec"]
+  },
+  "targets": ["html", "manual"]
+}
+}
+
+@subsection{Markdown}
+
+@markdownblock[#:line-numbers 1
+               #:file "extended/notes.md"]{
+# Release Notes
+
+## Highlights
+
+- Added Python support
+- Migrated lexers to the `lexers` package
+- Expanded rendered examples
+
+See `scribblings/scribble-tools.scrbl` for the full manual.
+}
+
+@subsection{Racket}
+
+@racketblock[#:line-numbers 1
+             #:file "extended/helpers.rkt"]{
+(define (group-by-length words)
+  (for/fold ([ht (hash)])
+            ([word (in-list words)])
+    (define len (string-length word))
+    (hash-update ht len (lambda (xs) (cons word xs)) '())))
+
+(group-by-length '("css" "html" "scribble"))
+}
+
+@subsection{Rhombus}
+
+@rhombusblock[#:line-numbers 1
+              #:file "extended/helpers.rhm"]{
+fun summarize(name, count):
+  if count == 1:
+    "$name has 1 item"
+  else:
+    "$name has $(count) items"
+}
+
+@subsection{CSV and TSV}
+
+@csvblock[#:line-numbers 1
+          #:file "extended/people.csv"]{
+name,role,active
+Ada,author,true
+Grace,editor,false
+Linus,reviewer,true
+}
+
+@tsvblock[#:line-numbers 1
+          #:file "extended/people.tsv"]{
+name	role	active
+Ada	author	true
+Grace	editor	false
+Linus	reviewer	true
+}
+
+@subsection{YAML}
+
+@yamlblock[#:line-numbers 1
+           #:file "extended/config.yaml"]{
+name: scribble-tools
+features:
+  copy_button: true
+  line_numbers: true
+  docs_links:
+    - mdn
+    - shell-docs
+    - wasm-spec
+}
+
 @subsection{Shell}
 
 This utility copies one directory tree to another and validates arguments
