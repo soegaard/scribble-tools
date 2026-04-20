@@ -7,6 +7,7 @@
          racket/runtime-path
          "lexers-adapter.rkt"
          (only-in lexers/c c-string->tokens)
+         (only-in lexers/cpp cpp-string->tokens)
          (only-in lexers/css
                   css-derived-token-has-tag?
                   css-derived-token-text
@@ -50,6 +51,7 @@
 
 (provide css-code
          c-code
+         cpp-code
          csv-code
          html-code
          js-code
@@ -66,6 +68,7 @@
          yaml-code
          cssblock
          cblock
+         cppblock
          csvblock
          htmlblock
          jsblock
@@ -82,6 +85,7 @@
          yamlblock
          cssblock0
          cblock0
+         cppblock0
          csvblock0
          htmlblock0
          jsblock0
@@ -992,7 +996,7 @@ JS
        [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
-    [(c json markdown racket rhombus swift yaml)
+    [(c cpp json markdown racket rhombus swift yaml)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -2520,6 +2524,8 @@ JS
     [(css) (tokenize-css s)]
     [(c) (projected-tokens->scribble-tokens
           (c-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(cpp) (projected-tokens->scribble-tokens
+            (cpp-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(csv) (projected-tokens->scribble-tokens
             (csv-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(html) (tokenize-html s)]
@@ -4161,6 +4167,7 @@ JS
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
 (define-syntax (c-code stx) (do-simple-inline stx 'c))
+(define-syntax (cpp-code stx) (do-simple-inline stx 'cpp))
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
 (define-syntax (json-code stx) (do-simple-inline stx 'json))
 (define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
@@ -4225,6 +4232,8 @@ JS
 (define-syntax (cssblock stx) (do-css-block stx #t))
 (define-syntax (cblock0 stx) (do-simple-block stx 'c #f))
 (define-syntax (cblock stx) (do-simple-block stx 'c #t))
+(define-syntax (cppblock0 stx) (do-simple-block stx 'cpp #f))
+(define-syntax (cppblock stx) (do-simple-block stx 'cpp #t))
 (define-syntax (csvblock0 stx) (do-simple-block stx 'csv #f))
 (define-syntax (csvblock stx) (do-simple-block stx 'csv #t))
 (define-syntax (htmlblock0 stx) (do-block stx 'html #f))
@@ -4337,6 +4346,7 @@ JS
                       (format "(class . \"~a\")" class-name)))
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (cblock "int main(void) { return 0; }")))
+  (check-true (block? (cppblock "int main() { return 0; }")))
   (check-true (block? (csvblock "name,age\nAda,37\n")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
@@ -4360,6 +4370,7 @@ JS
   (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (c-code "int x = 1;")))
+  (check-true (element? (cpp-code "std::vector<int> xs;")))
   (check-true (element? (csv-code "a,b")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))

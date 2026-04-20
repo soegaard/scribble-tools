@@ -7,6 +7,7 @@
   - `pythonblock`, `pythonblock0`
 - Added new `lexers`-backed forms for:
   - C: `c-code`, `cblock`, `cblock0`
+  - C++: `cpp-code`, `cppblock`, `cppblock0`
   - CSV: `csv-code`, `csvblock`, `csvblock0`
   - JSON: `json-code`, `jsonblock`, `jsonblock0`
   - Markdown: `markdown-code`, `markdownblock`, `markdownblock0`

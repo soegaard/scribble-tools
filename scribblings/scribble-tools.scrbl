@@ -9,12 +9,12 @@
 @author+email["Jens Axel Søgaard" "jensaxel@soegaard.net"]
 @defmodule[scribble-tools]
 
-This library provides Scribble forms for typesetting CSS, C, CSV, HTML,
+This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
 JavaScript, JSON, Markdown, Python, Racket, Rhombus, shell scripts
 (Bash/Zsh/PowerShell), Swift, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
-The inline forms (@racket[css-code], @racket[c-code], @racket[csv-code],
+The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[html-code], @racket[js-code], @racket[json-code],
 @racket[markdown-code], @racket[python-code], @racket[racket-code],
 @racket[rhombus-code], @racket[shell-code], @racket[swift-code], @racket[tsv-code],
@@ -22,7 +22,7 @@ The inline forms (@racket[css-code], @racket[c-code], @racket[csv-code],
 produce content.
 
 The block forms
-(@racket[cssblock], @racket[cblock], @racket[csvblock], @racket[htmlblock],
+(@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
         @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
         @racket[shellblock], @racket[swiftblock], @racket[tsvblock], @racket[wasmblock],
@@ -44,6 +44,7 @@ Use inline forms when you want code inside running text:
   (list @bold{Language} @bold{Scribble Form})
   (list "CSS"         @scribble-code["@css-code{.card { color: #c33; }}"])
   (list "C"           @scribble-code["@c-code{int answer = 42;}"])
+  (list "C++"         @scribble-code["@cpp-code{std::vector<int> xs = {1, 2, 3};}"])
   (list "CSV"         @scribble-code["@csv-code[\"name,age\"]"])
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
@@ -65,6 +66,7 @@ Use inline forms when you want code inside running text:
   (list @bold{Language} @bold{Result})
   (list "CSS"           @css-code{.card { color: #c33; }})
   (list "C"             @c-code{int answer = 42;})
+  (list "C++"           @cpp-code{std::vector<int> xs = {1, 2, 3};})
   (list "CSV"           @csv-code["name,age"])
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
@@ -450,6 +452,14 @@ Typesets the concatenated strings as inline C code.
 Example: @c-code{int answer = 42;}
 }
 
+@defform/subs[(cpp-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline C++ code.
+
+Example: @cpp-code{std::vector<int> xs = {1, 2, 3};}
+}
+
 @defform/subs[(csv-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -791,6 +801,14 @@ int main(void) {
 
 @defform[(cblock0 option ... str-expr ...+)]{
 Like @racket[cblock], but without the inset wrapper.
+}
+
+@defform[(cppblock option ... str-expr ...+)]{
+Typesets C++ as a block inset.
+}
+
+@defform[(cppblock0 option ... str-expr ...+)]{
+Like @racket[cppblock], but without the inset wrapper.
 }
 
 @defform[(csvblock option ... str-expr ...+)]{
@@ -1309,6 +1327,28 @@ static int lookup(const entry_t *entries, int count, const char *key) {
     }
   }
   return -1;
+}
+}
+
+@subsection{C++}
+
+@cppblock[#:line-numbers 1
+          #:file "extended/cache.cpp"]{
+#include <algorithm>
+#include <string>
+#include <vector>
+
+struct Entry {
+  std::string title;
+  int score;
+};
+
+std::vector<std::string> top_titles(std::vector<Entry> entries) {
+  std::sort(entries.begin(), entries.end(),
+            [](const Entry &a, const Entry &b) { return a.score > b.score; });
+  std::vector<std::string> out;
+  for (const auto &entry : entries) out.push_back(entry.title);
+  return out;
 }
 }
 

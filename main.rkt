@@ -4,6 +4,7 @@
 
 (provide css-code
          c-code
+         cpp-code
          csv-code
          html-code
          js-code
@@ -20,6 +21,7 @@
          yaml-code
          cssblock
          cblock
+         cppblock
          csvblock
          htmlblock
          jsblock
@@ -36,6 +38,7 @@
          yamlblock
          cssblock0
          cblock0
+         cppblock0
          csvblock0
          htmlblock0
          jsblock0
@@ -63,6 +66,7 @@
 
 (define-syntax-rule (css-code . rest) (api:css-code . rest))
 (define-syntax-rule (c-code . rest) (api:c-code . rest))
+(define-syntax-rule (cpp-code . rest) (api:cpp-code . rest))
 (define-syntax-rule (csv-code . rest) (api:csv-code . rest))
 (define-syntax-rule (html-code . rest) (api:html-code . rest))
 (define-syntax-rule (js-code . rest) (api:js-code . rest))
@@ -79,6 +83,7 @@
 (define-syntax-rule (yaml-code . rest) (api:yaml-code . rest))
 (define-syntax-rule (cssblock . rest) (api:cssblock . rest))
 (define-syntax-rule (cblock . rest) (api:cblock . rest))
+(define-syntax-rule (cppblock . rest) (api:cppblock . rest))
 (define-syntax-rule (csvblock . rest) (api:csvblock . rest))
 (define-syntax-rule (htmlblock . rest) (api:htmlblock . rest))
 (define-syntax-rule (jsblock . rest) (api:jsblock . rest))
@@ -95,6 +100,7 @@
 (define-syntax-rule (yamlblock . rest) (api:yamlblock . rest))
 (define-syntax-rule (cssblock0 . rest) (api:cssblock0 . rest))
 (define-syntax-rule (cblock0 . rest) (api:cblock0 . rest))
+(define-syntax-rule (cppblock0 . rest) (api:cppblock0 . rest))
 (define-syntax-rule (csvblock0 . rest) (api:csvblock0 . rest))
 (define-syntax-rule (htmlblock0 . rest) (api:htmlblock0 . rest))
 (define-syntax-rule (jsblock0 . rest) (api:jsblock0 . rest))

@@ -4,12 +4,13 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, CSV, HTML, JavaScript, JSON, Markdown, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, Markdown, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
 inline JS with @js-code{const n = 42;} and
 inline C with @c-code{int answer = 42;} and
+inline C++ with @cpp-code{std::vector<int> xs = {1, 2, 3};} and
 inline CSV with @csv-code["name,age"] and
 inline JSON with @json-code["{\"name\": \"Ada\"}"] and
 inline Markdown with @markdown-code["# Hello"] and
@@ -48,6 +49,8 @@ Inline HTML: @html-code{<em class="highlight">Hi</em>}
 Inline JS: @js-code{const n = 42;}
 
 Inline C: @c-code{int answer = 42;}
+
+Inline C++: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 
 Inline CSV: @csv-code["name,age"]
 
@@ -316,6 +319,22 @@ value.
 @cblock[#:line-numbers 1 #:file "answer.c"]{
 int answer(void) {
   return 42;
+}
+}
+
+@subsection{C++}
+
+This C++ example shows templates, standard-library containers, and a short
+algorithmic helper.
+
+@cppblock[#:line-numbers 1 #:file "answer.cpp"]{
+#include <vector>
+
+std::vector<int> top_three(std::vector<int> xs) {
+  if (xs.size() > 3) {
+    xs.resize(3);
+  }
+  return xs;
 }
 }
 
