@@ -5,7 +5,10 @@
          racket/string
          racket/file
          racket/runtime-path
+         "lexers-adapter.rkt"
          syntax-color/scribble-lexer
+         lexers/token
+         lexers/wat
          "mdn-map.rkt"
          "wasm-spec-map.rkt"
          "shell-docs-map.rkt"
@@ -20,18 +23,21 @@
 (provide css-code
          html-code
          js-code
+         python-code
          wasm-code
          shell-code
          scribble-code
          cssblock
          htmlblock
          jsblock
+         pythonblock
          wasmblock
          shellblock
          scribbleblock
          cssblock0
          htmlblock0
          jsblock0
+         pythonblock0
          wasmblock0
          shellblock0
          scribbleblock0
@@ -921,6 +927,14 @@ JS
        [(private-name) js-private-name-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(python)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(value) value-color]
+       [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
     [(wasm)
@@ -2249,6 +2263,7 @@ JS
     [(css) (tokenize-css s)]
     [(html) (tokenize-html s)]
     [(js) (tokenize-js s)]
+    [(python) (python-string->scribble-tokens s)]
     [(wasm) (tokenize-wasm s)]
     [(bash) (tokenize-shell 'bash s)]
     [(zsh) (tokenize-shell 'zsh s)]
@@ -3616,6 +3631,39 @@ JS
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-for-syntax (do-python-block stx inset?)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:indent indent-expr:expr)
+                              #:defaults ([indent-expr #'0])
+                              #:name "#:indent keyword")
+                   (~optional (~seq #:line-numbers line-numbers-expr:expr)
+                              #:defaults ([line-numbers-expr #'#f])
+                              #:name "#:line-numbers keyword")
+                   (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
+                              #:defaults ([line-number-sep-expr #'1])
+                              #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:copy-button? copy-button-expr:expr)
+                              #:defaults ([copy-button-expr #'#t])
+                              #:name "#:copy-button? keyword")
+                   (~optional (~seq #:file filename-expr:expr)
+                              #:defaults ([filename-expr #'#f])
+                              #:name "#:file keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-block/chunks 'python
+                                  #:file filename-expr
+                                  #:indent indent-expr
+                                  #:line-numbers line-numbers-expr
+                                  #:line-number-sep line-number-sep-expr
+                                  #:copy-button? copy-button-expr
+                                  #:inset? #,inset?
+                                  (list #,@(chunks-template #'(str ...) esc-id)))]))
+
 (define-for-syntax (do-wasm-block stx inset?)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:indent indent-expr:expr)
@@ -3770,6 +3818,18 @@ JS
                                    #:mdn-links? mdn-links-expr
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-syntax (python-code stx)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-inline/chunks 'python
+                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
+
 (define-syntax (wasm-code stx)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:docs-source docs-source-expr:expr)
@@ -3827,6 +3887,8 @@ JS
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
 (define-syntax (jsblock0 stx) (do-js-block stx #f))
 (define-syntax (jsblock stx) (do-js-block stx #t))
+(define-syntax (pythonblock0 stx) (do-python-block stx #f))
+(define-syntax (pythonblock stx) (do-python-block stx #t))
 (define-syntax (wasmblock0 stx) (do-wasm-block stx #f))
 (define-syntax (wasmblock stx) (do-wasm-block stx #t))
 (define-syntax (shellblock0 stx) (do-shell-block stx #f))
@@ -3877,21 +3939,29 @@ JS
               (collect-target-urls c))))]
       [(list? v) (append-map collect-target-urls v)]
       [else null]))
+  (define (contains-text? v needle)
+    (string-contains? (format "~s" v) needle))
+  (define (has-class? v class-name)
+    (string-contains? (format "~s" v)
+                      (format "(class . \"~a\")" class-name)))
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
+  (check-true (block? (pythonblock "def f(x):\n    return x\n")))
   (check-true (block? (wasmblock "(module (func))")))
   (check-true (block? (shellblock "if [ -f ./x ]; then echo ok; fi")))
   (check-true (block? (scribbleblock "@title{Hi}\nText.")))
   (check-true (block? (cssblock #:copy-button? #f "h1 { color: red; }")))
   (check-true (block? (htmlblock #:copy-button? #f "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock #:copy-button? #f "const x = 1;")))
+  (check-true (block? (pythonblock #:copy-button? #f "def f(x):\n    return x\n")))
   (check-true (block? (wasmblock #:copy-button? #f "(module (func))")))
   (check-true (block? (scribbleblock #:copy-button? #f "@title{Hi}\nText.")))
   (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
+  (check-true (element? (python-code "def f(x): return x")))
   (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (shell-code "echo $HOME")))
   (check-true (element? (scribble-code "@bold{Hi}")))
@@ -3930,6 +4000,19 @@ JS
     (check-not-false (member 'operator cls)))
   (check-not-false
    (member 'comment (classes 'js "// hi\nconst x = 1;")))
+  (let ([cls (classes 'python (read-fixture "python-basic.py"))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'comment cls)))
+  (let ([cls (classes 'python "def render(rows):\n    if rows:\n        return rows[0]\n    return None\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'punct cls))
+    (check-not-false (member 'name cls)))
+  (let ([cls (classes 'python (read-fixture "python-edge.py"))])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'plain cls)))
   (let ([cls (classes 'bash "if [ -f \"$HOME/.zshrc\" ]; then echo ok # note\nfi\n")])
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'value cls))
@@ -3964,6 +4047,10 @@ JS
    (block? (htmlblock "<p>" (unsyntax (bold "hi")) "</p>")))
   (check-true
    (block? (scribbleblock "@para{" (unsyntax (bold "Hi")) "}")))
+  (check-true
+   (element? (python-code "print(" (unsyntax (bold "\"hi\"")) ")")))
+  (check-true
+   (element? (python-code #:escape UNQ "print(" (UNQ (italic "\"hi\"")) ")")))
   (let ([cls (classes 'scribble (read-fixture "scribble-basic.scrbl"))])
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'punct cls))
@@ -4151,6 +4238,40 @@ JS
              (tokenize 'css ".x { font-family: \"Fira Code\"; }")
              #f)])
     (check-false (member 'font-preview (map car fp))))
+  (let ([block (pythonblock #:line-numbers 10
+                            #:file "sample.py"
+                            "def identity(x):\n    return x\n")])
+    (check-true (contains-text? block "sample.py"))
+    (check-true (contains-text? block "10"))
+    (check-true (has-class? block "scribble-copy-wrap")))
+  (let ([block (pythonblock #:copy-button? #f "def identity(x):\n    return x\n")])
+    (check-false (has-class? block "scribble-copy-wrap")))
+  (let* ([old (tokenize 'wasm (read-fixture "wasm-folded.wat"))]
+         [new (wat-string->tokens (read-fixture "wasm-folded.wat")
+                                  #:profile 'coloring
+                                  #:source-positions #t)]
+         [comparison (compare-token-streams
+                      (read-fixture "wasm-folded.wat")
+                      old
+                      new
+                      #:old-class-normalizer normalize-render-class
+                      #:new-class-normalizer normalize-render-class
+                      #:new-token->piece
+                      (lambda (token)
+                        (projected-token->scribble-token
+                         token
+                         #:class-map
+                         (lambda (name text)
+                           (case name
+                             [(comment) 'comment]
+                             [(keyword) 'keyword]
+                             [(literal) 'value]
+                             [(identifier) 'name]
+                             [(delimiter) 'punct]
+                             [else 'plain])))))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?))
+    (check-true (hash-ref comparison 'class-match?)))
   (let ([dp (insert-css-dimension-preview-tokens
              (tokenize 'css ".x { margin: 16px; gap: 1.5em; }")
              #t)])

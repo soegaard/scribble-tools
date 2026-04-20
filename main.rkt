@@ -5,18 +5,21 @@
 (provide css-code
          html-code
          js-code
+         python-code
          wasm-code
          shell-code
          scribble-code
          cssblock
          htmlblock
          jsblock
+         pythonblock
          wasmblock
          shellblock
          scribbleblock
          cssblock0
          htmlblock0
          jsblock0
+         pythonblock0
          wasmblock0
          shellblock0
          scribbleblock0
@@ -34,18 +37,21 @@
 (define-syntax-rule (css-code . rest) (api:css-code . rest))
 (define-syntax-rule (html-code . rest) (api:html-code . rest))
 (define-syntax-rule (js-code . rest) (api:js-code . rest))
+(define-syntax-rule (python-code . rest) (api:python-code . rest))
 (define-syntax-rule (wasm-code . rest) (api:wasm-code . rest))
 (define-syntax-rule (shell-code . rest) (api:shell-code . rest))
 (define-syntax-rule (scribble-code . rest) (api:scribble-code . rest))
 (define-syntax-rule (cssblock . rest) (api:cssblock . rest))
 (define-syntax-rule (htmlblock . rest) (api:htmlblock . rest))
 (define-syntax-rule (jsblock . rest) (api:jsblock . rest))
+(define-syntax-rule (pythonblock . rest) (api:pythonblock . rest))
 (define-syntax-rule (wasmblock . rest) (api:wasmblock . rest))
 (define-syntax-rule (shellblock . rest) (api:shellblock . rest))
 (define-syntax-rule (scribbleblock . rest) (api:scribbleblock . rest))
 (define-syntax-rule (cssblock0 . rest) (api:cssblock0 . rest))
 (define-syntax-rule (htmlblock0 . rest) (api:htmlblock0 . rest))
 (define-syntax-rule (jsblock0 . rest) (api:jsblock0 . rest))
+(define-syntax-rule (pythonblock0 . rest) (api:pythonblock0 . rest))
 (define-syntax-rule (wasmblock0 . rest) (api:wasmblock0 . rest))
 (define-syntax-rule (shellblock0 . rest) (api:shellblock0 . rest))
 (define-syntax-rule (scribbleblock0 . rest) (api:scribbleblock0 . rest))

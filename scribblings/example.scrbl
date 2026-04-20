@@ -4,11 +4,12 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, HTML, JavaScript, Shell, WebAssembly, and Scribble Code Forms}
+@title{Example: CSS, HTML, JavaScript, Python, Shell, WebAssembly, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
 inline JS with @js-code{const n = 42;} and
+inline Python with @python-code{def answer(): return 42} and
 inline shell with @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi} and
 inline WebAssembly with @wasm-code{(module (func (result i32) (i32.const 42)))} and
 inline Scribble with @scribble-code["@bold{Hi} there."].
@@ -36,6 +37,8 @@ Inline CSS (external preview stylesheet):
 Inline HTML: @html-code{<em class="highlight">Hi</em>}
 
 Inline JS: @js-code{const n = 42;}
+
+Inline Python: @python-code{def answer(): return 42}
 
 Inline shell (Bash): @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
 
@@ -230,6 +233,46 @@ let total = 0;
 for (const n of [1, 2, 3]) {
   total += n;
 }
+}
+
+@section{Python Block}
+
+@pythonblock{
+def normalize_name(name):
+    cleaned = name.strip().title()
+    return cleaned or "Anonymous"
+}
+
+@section{Python Block With Line Numbers}
+
+@pythonblock[#:line-numbers 1 #:line-number-sep 2]{
+def classify(total):
+    if total > 0:
+        return "positive"
+    return "zero"
+}
+
+@section{Python Block With File Name}
+
+@pythonblock[#:file "snippet.py"]{
+def greet(name):
+    return f"Hello, {name}"
+}
+
+@section{Python Block With Escape}
+
+@pythonblock[
+  #:escape unq
+  "print("
+  (unq (bold "\"escaped\""))
+  ")\n"
+]
+
+@subsection{Python Block0}
+
+@pythonblock0[#:file "plain.py" #:indent 2]{
+def square(x):
+    return x * x
 }
 
 @section{Shell Block}

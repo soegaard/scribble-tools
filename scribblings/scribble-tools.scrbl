@@ -10,15 +10,15 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, HTML,
-JavaScript, shell scripts (Bash/Zsh/PowerShell), WebAssembly (WAT), and Scribble snippets with syntax
+JavaScript, Python, shell scripts (Bash/Zsh/PowerShell), WebAssembly (WAT), and Scribble snippets with syntax
 coloring.
 
 The inline forms (@racket[css-code], @racket[html-code],
-@racket[js-code], @racket[shell-code], @racket[wasm-code], and @racket[scribble-code])
+@racket[js-code], @racket[python-code], @racket[shell-code], @racket[wasm-code], and @racket[scribble-code])
 produce content.
 
 The block forms
-(@racket[cssblock], @racket[htmlblock], @racket[jsblock],
+(@racket[cssblock], @racket[htmlblock], @racket[jsblock], @racket[pythonblock],
         @racket[shellblock], @racket[wasmblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
 
@@ -38,6 +38,7 @@ Use inline forms when you want code inside running text:
   (list "CSS"         @scribble-code["@css-code{.card { color: #c33; }}"])
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
+  (list "Python"      @scribble-code["@python-code{def total(xs): return sum(xs)}"])
   (list "Shell"       @scribble-code["@shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}"])
   (list "WebAssembly" @scribble-code["@wasm-code{(module (func (result i32) (i32.const 42)))}"])
   (list "Scribble"    @scribble-code["@scribble-code{\"@bold{Hello} world.\"}"]))]
@@ -49,6 +50,7 @@ Use inline forms when you want code inside running text:
   (list "CSS"           @css-code{.card { color: #c33; }})
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
+  (list "Python"        @python-code{def total(xs): return sum(xs)})
   (list "Shell"         @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi})
   (list "WebAssembly"   @wasm-code{(module (func (result i32) (i32.const 42)))})
   (list "Scribble"      @scribble-code["@bold{Hello} world."]))]
@@ -130,6 +132,24 @@ Use block forms for larger snippets:
              const r = await fetch("/api/data");
              return r.json();
            }
+           }})
+  (list
+   @nested{@bold{Python form}
+
+           @italic{Scribble source}
+           @scribbleblock[
+             "@pythonblock{\n"
+             "# normalize one name\n"
+             "def normalize_name(name):\n"
+             "    cleaned = name.strip().title()\n"
+             "    return cleaned or \"Anonymous\"\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @pythonblock{
+           # normalize one name
+           def normalize_name(name):
+               cleaned = name.strip().title()
+               return cleaned or "Anonymous"
            }})
   (list
    @nested{@bold{WebAssembly form}
@@ -378,6 +398,19 @@ elements into the typeset output.
 Example: @js-code{const n = 42;}
 }
 
+@defform/subs[(python-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Python code.
+Newlines and surrounding whitespace are collapsed to single spaces.
+
+An optional @racket[#:escape] identifier configures escapes of the
+form @racket[(escape-id expr)] to splice @racket[expr]-produced
+elements into the typeset output.
+
+Example: @python-code{def answer(): return 42}
+}
+
 @defform/subs[(shell-code maybe-options str-expr ...+)
               ([maybe-options code:blank
                               (code:line #:shell shell-expr)
@@ -590,6 +623,47 @@ Example:
 let total = 0;
 for (const n of [1, 2, 3]) {
   total += n;
+}
+}
+
+@defform/subs[(pythonblock option ... str-expr ...+)
+              ([option (code:line #:indent indent-expr)
+                       (code:line #:line-numbers line-number-expr)
+                       (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:copy-button? copy-button?-expr)
+                       (code:line #:file filename-expr)
+                       (code:line #:escape escape-id)])
+              #:contracts ([indent-expr exact-nonnegative-integer?]
+                           [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [line-number-sep-expr exact-nonnegative-integer?])]{
+Typesets Python as a block inset using @racket['code-inset].
+Options:
+
+@itemlist[
+ @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
+ @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
+ @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
+ @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
+]
+
+Example:
+
+@pythonblock[#:line-numbers 1]{
+def double(n):
+    return n * 2
+}
+}
+
+@defform[(pythonblock0 option ... str-expr ...+)]{
+Like @racket[pythonblock], but without the inset wrapper.
+
+Example:
+
+@pythonblock0[#:indent 2]{
+def greet(name):
+    return f"Hello, {name}"
 }
 }
 
@@ -988,6 +1062,30 @@ function boot() {
 
 boot();
 }
+
+@subsection{Python}
+
+@pythonblock[#:line-numbers 1
+             #:file "extended/report.py"
+             "from dataclasses import dataclass\n"
+             "\n"
+             "\n"
+             "@dataclass\n"
+             "class Entry:\n"
+             "    title: str\n"
+             "    score: int\n"
+             "\n"
+             "\n"
+             "def top_entries(rows, limit=3):\n"
+             "    ranked = sorted(rows, key=lambda row: row.score, reverse=True)\n"
+             "    return [entry.title for entry in ranked[:limit] if entry.score >= 0]\n"
+             "\n"
+             "\n"
+             "def format_report(rows):\n"
+             "    titles = top_entries(rows)\n"
+             "    if not titles:\n"
+             "        return \"no entries\"\n"
+             "    return \", \".join(titles)\n"]
 
 @subsection{Shell}
 
