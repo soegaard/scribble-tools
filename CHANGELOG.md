@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+- Added Python support:
+  - `python-code`
+  - `pythonblock`, `pythonblock0`
+- Added new `lexers`-backed forms for:
+  - C: `c-code`, `cblock`, `cblock0`
+  - CSV: `csv-code`, `csvblock`, `csvblock0`
+  - JSON: `json-code`, `jsonblock`, `jsonblock0`
+  - Markdown: `markdown-code`, `markdownblock`, `markdownblock0`
+  - Racket: `racket-code`, `racketblock`, `racketblock0`
+  - Rhombus: `rhombus-code`, `rhombusblock`, `rhombusblock0`
+  - TSV: `tsv-code`, `tsvblock`, `tsvblock0`
+  - YAML: `yaml-code`, `yamlblock`, `yamlblock0`
+- Added the `lexers` package as the lexer backend dependency.
+- Migrated language tokenization to `lexers` incrementally:
+  - Python via `lexers/python`
+  - WebAssembly via `lexers/wat`
+  - Shell via `lexers/shell`
+  - Scribble via `lexers/scribble`
+  - HTML via `lexers/html`
+  - CSS via `lexers/css`
+  - JavaScript via `lexers/javascript`
+- Added internal old-vs-new lexer comparison coverage to support one-language-at-a-time migration checks.
+- Kept JSX mode on the handwritten JavaScript lexer path for compatibility with the existing TSX-style generic-angle heuristic.
+
 ## 0.2.0 - 2026-03-11
 
 - Added block copy-button support across `cssblock/htmlblock/jsblock/scribbleblock` (and `0` variants):

@@ -2,24 +2,31 @@
 
 @(require scribble-tools
           (for-label racket/base
-                     scribble/manual
+                     (except-in scribble/manual racketblock racketblock0)
                      scribble-tools))
 
 @title{scribble-tools}
 @author+email["Jens Axel Søgaard" "jensaxel@soegaard.net"]
 @defmodule[scribble-tools]
 
-This library provides Scribble forms for typesetting CSS, HTML,
-JavaScript, Python, shell scripts (Bash/Zsh/PowerShell), WebAssembly (WAT), and Scribble snippets with syntax
-coloring.
+This library provides Scribble forms for typesetting CSS, C, CSV, HTML,
+JavaScript, JSON, Markdown, Python, Racket, Rhombus, shell scripts
+(Bash/Zsh/PowerShell), TSV, WebAssembly (WAT), YAML, and Scribble snippets
+with syntax coloring.
 
-The inline forms (@racket[css-code], @racket[html-code],
-@racket[js-code], @racket[python-code], @racket[shell-code], @racket[wasm-code], and @racket[scribble-code])
+The inline forms (@racket[css-code], @racket[c-code], @racket[csv-code],
+@racket[html-code], @racket[js-code], @racket[json-code],
+@racket[markdown-code], @racket[python-code], @racket[racket-code],
+@racket[rhombus-code], @racket[shell-code], @racket[tsv-code],
+@racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
 
 The block forms
-(@racket[cssblock], @racket[htmlblock], @racket[jsblock], @racket[pythonblock],
-        @racket[shellblock], @racket[wasmblock], and @racket[scribbleblock]) produce code
+(@racket[cssblock], @racket[cblock], @racket[csvblock], @racket[htmlblock],
+        @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
+        @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
+        @racket[shellblock], @racket[tsvblock], @racket[wasmblock],
+        @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
 
 @section{Guide}
@@ -36,11 +43,19 @@ Use inline forms when you want code inside running text:
   (list
   (list @bold{Language} @bold{Scribble Form})
   (list "CSS"         @scribble-code["@css-code{.card { color: #c33; }}"])
+  (list "C"           @scribble-code["@c-code{int answer = 42;}"])
+  (list "CSV"         @scribble-code["@csv-code[\"name,age\"]"])
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
+  (list "JSON"        @scribble-code["@json-code[\"{\\\"name\\\": \\\"Ada\\\"}\"]"])
+  (list "Markdown"    @scribble-code["@markdown-code[\"# Hello\"]"])
   (list "Python"      @scribble-code["@python-code{def total(xs): return sum(xs)}"])
+  (list "Racket"      @scribble-code["@racket-code{(define (add x y) (+ x y))}"])
+  (list "Rhombus"     @scribble-code["@rhombus-code{fun add(x, y): x + y}"])
   (list "Shell"       @scribble-code["@shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}"])
+  (list "TSV"         @scribble-code["@tsv-code[\"name\\tage\"]"])
   (list "WebAssembly" @scribble-code["@wasm-code{(module (func (result i32) (i32.const 42)))}"])
+  (list "YAML"        @scribble-code["@yaml-code[\"name: Ada\"]"])
   (list "Scribble"    @scribble-code["@scribble-code{\"@bold{Hello} world.\"}"]))]
 
 @tabular[
@@ -48,11 +63,19 @@ Use inline forms when you want code inside running text:
  (list
   (list @bold{Language} @bold{Result})
   (list "CSS"           @css-code{.card { color: #c33; }})
+  (list "C"             @c-code{int answer = 42;})
+  (list "CSV"           @csv-code["name,age"])
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
+  (list "JSON"          @json-code["{\"name\": \"Ada\"}"])
+  (list "Markdown"      @markdown-code["# Hello"])
   (list "Python"        @python-code{def total(xs): return sum(xs)})
+  (list "Racket"        @racket-code{(define (add x y) (+ x y))})
+  (list "Rhombus"       @rhombus-code{fun add(x, y): x + y})
   (list "Shell"         @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi})
+  (list "TSV"           @tsv-code["name\tage"])
   (list "WebAssembly"   @wasm-code{(module (func (result i32) (i32.const 42)))})
+  (list "YAML"          @yaml-code["name: Ada"])
   (list "Scribble"      @scribble-code["@bold{Hello} world."]))]
 
 If you want @racket[scribble-code] to link identifiers to their documentation,
@@ -411,6 +434,76 @@ elements into the typeset output.
 Example: @python-code{def answer(): return 42}
 }
 
+@subsection{Additional Inline Forms}
+
+The following inline forms follow the same shape as @racket[python-code]:
+they concatenate their string arguments, collapse inline whitespace, and
+support an optional @racket[#:escape] identifier.
+
+@defform/subs[(c-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline C code.
+
+Example: @c-code{int answer = 42;}
+}
+
+@defform/subs[(csv-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline CSV text.
+
+Example: @csv-code["name,age"]
+}
+
+@defform/subs[(json-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline JSON.
+
+Example: @json-code["{\"name\": \"Ada\"}"]
+}
+
+@defform/subs[(markdown-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Markdown.
+
+Example: @markdown-code["# Hello"]
+}
+
+@defform/subs[(racket-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Racket code.
+
+Example: @racket-code{(define (add x y) (+ x y))}
+}
+
+@defform/subs[(rhombus-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Rhombus code.
+
+Example: @rhombus-code{fun add(x, y): x + y}
+}
+
+@defform/subs[(tsv-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline TSV text.
+
+Example: @tsv-code["name\tage"]
+}
+
+@defform/subs[(yaml-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline YAML.
+
+Example: @yaml-code["name: Ada"]
+}
+
 @defform/subs[(shell-code maybe-options str-expr ...+)
               ([maybe-options code:blank
                               (code:line #:shell shell-expr)
@@ -664,6 +757,101 @@ Example:
 @pythonblock0[#:indent 2]{
 def greet(name):
     return f"Hello, {name}"
+}
+}
+
+@subsection{Additional Block Forms}
+
+The following block forms follow the same option set and behavior as
+@racket[pythonblock] and @racket[pythonblock0]: they support
+@racket[#:indent], @racket[#:line-numbers], @racket[#:line-number-sep],
+@racket[#:copy-button?], @racket[#:file], and @racket[#:escape].
+
+@defform[(cblock option ... str-expr ...+)]{
+Typesets C as a block inset.
+
+Example:
+
+@cblock[#:file "demo.c"]{
+int main(void) {
+  return 0;
+}
+}
+}
+
+@defform[(cblock0 option ... str-expr ...+)]{
+Like @racket[cblock], but without the inset wrapper.
+}
+
+@defform[(csvblock option ... str-expr ...+)]{
+Typesets CSV as a block inset.
+}
+
+@defform[(csvblock0 option ... str-expr ...+)]{
+Like @racket[csvblock], but without the inset wrapper.
+}
+
+@defform[(jsonblock option ... str-expr ...+)]{
+Typesets JSON as a block inset.
+
+Example:
+
+@jsonblock[#:line-numbers 1]{
+{
+  "name": "Ada",
+  "active": true
+}
+}
+}
+
+@defform[(jsonblock0 option ... str-expr ...+)]{
+Like @racket[jsonblock], but without the inset wrapper.
+}
+
+@defform[(markdownblock option ... str-expr ...+)]{
+Typesets Markdown as a block inset.
+}
+
+@defform[(markdownblock0 option ... str-expr ...+)]{
+Like @racket[markdownblock], but without the inset wrapper.
+}
+
+@defform[(racketblock option ... str-expr ...+)]{
+Typesets Racket code as a block inset.
+}
+
+@defform[(racketblock0 option ... str-expr ...+)]{
+Like @racket[racketblock], but without the inset wrapper.
+}
+
+@defform[(rhombusblock option ... str-expr ...+)]{
+Typesets Rhombus code as a block inset.
+}
+
+@defform[(rhombusblock0 option ... str-expr ...+)]{
+Like @racket[rhombusblock], but without the inset wrapper.
+}
+
+@defform[(tsvblock option ... str-expr ...+)]{
+Typesets TSV as a block inset.
+}
+
+@defform[(tsvblock0 option ... str-expr ...+)]{
+Like @racket[tsvblock], but without the inset wrapper.
+}
+
+@defform[(yamlblock option ... str-expr ...+)]{
+Typesets YAML as a block inset.
+}
+
+@defform[(yamlblock0 option ... str-expr ...+)]{
+Like @racket[yamlblock], but without the inset wrapper.
+
+Example:
+
+@yamlblock0[#:indent 2]{
+name: Ada
+active: true
 }
 }
 

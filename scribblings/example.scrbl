@@ -4,14 +4,22 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, HTML, JavaScript, Python, Shell, WebAssembly, and Scribble Code Forms}
+@title{Example: CSS, C, CSV, HTML, JavaScript, JSON, Markdown, Python, Racket, Rhombus, Shell, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
 inline JS with @js-code{const n = 42;} and
+inline C with @c-code{int answer = 42;} and
+inline CSV with @csv-code["name,age"] and
+inline JSON with @json-code["{\"name\": \"Ada\"}"] and
+inline Markdown with @markdown-code["# Hello"] and
 inline Python with @python-code{def answer(): return 42} and
+inline Racket with @racket-code{(define (add x y) (+ x y))} and
+inline Rhombus with @rhombus-code{fun add(x, y): x + y} and
 inline shell with @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi} and
+inline TSV with @tsv-code["name\tage"] and
 inline WebAssembly with @wasm-code{(module (func (result i32) (i32.const 42)))} and
+inline YAML with @yaml-code["name: Ada"] and
 inline Scribble with @scribble-code["@bold{Hi} there."].
 
 @section{Inline Forms}
@@ -38,7 +46,19 @@ Inline HTML: @html-code{<em class="highlight">Hi</em>}
 
 Inline JS: @js-code{const n = 42;}
 
+Inline C: @c-code{int answer = 42;}
+
+Inline CSV: @csv-code["name,age"]
+
+Inline JSON: @json-code["{\"name\": \"Ada\"}"]
+
+Inline Markdown: @markdown-code["# Hello"]
+
 Inline Python: @python-code{def answer(): return 42}
+
+Inline Racket: @racket-code{(define (add x y) (+ x y))}
+
+Inline Rhombus: @rhombus-code{fun add(x, y): x + y}
 
 Inline shell (Bash): @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
 
@@ -46,7 +66,11 @@ Inline shell (Zsh): @shell-code[#:shell 'zsh]{setopt prompt_subst}
 
 Inline shell (PowerShell): @shell-code[#:shell 'powershell]{if ($HOME) { Get-ChildItem . }}
 
+Inline TSV: @tsv-code["name\tage"]
+
 Inline WebAssembly: @wasm-code{(module (func (result i32) (i32.const 42)))}
+
+Inline YAML: @yaml-code["name: Ada"]
 
 Inline Scribble: @scribble-code["@bold{Hi} there."]
 
@@ -273,6 +297,59 @@ def greet(name):
 @pythonblock0[#:file "plain.py" #:indent 2]{
 def square(x):
     return x * x
+}
+
+@section{Additional Language Blocks}
+
+@cblock[#:line-numbers 1 #:file "answer.c"]{
+int answer(void) {
+  return 42;
+}
+}
+
+@csvblock[#:file "people.csv"]{
+name,age
+Ada,37
+Grace,48
+}
+
+@jsonblock[#:line-numbers 1 #:file "config.json"]{
+{
+  "name": "Ada",
+  "active": true,
+  "roles": ["admin", "writer"]
+}
+}
+
+@markdownblock[#:file "README.md"]{
+# Hello
+
+- one
+- two
+}
+
+@racketblock[#:line-numbers 1 #:file "math.rkt"]{
+(define (add x y)
+  (+ x y))
+}
+
+@rhombusblock[#:file "math.rhm"]{
+fun add(x, y):
+  x + y
+}
+
+@tsvblock[#:file "people.tsv"]{
+name	age
+Ada	37
+Grace	48
+}
+
+@yamlblock[#:line-numbers 1 #:file "config.yaml"]{
+name: Ada
+active: true
+roles:
+  - admin
+  - writer
 }
 
 @section{Shell Block}

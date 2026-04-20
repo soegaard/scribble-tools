@@ -6,10 +6,12 @@
          racket/file
          racket/runtime-path
          "lexers-adapter.rkt"
+         (only-in lexers/c c-string->tokens)
          (only-in lexers/css
                   css-derived-token-has-tag?
                   css-derived-token-text
                   css-string->derived-tokens)
+         (only-in lexers/csv csv-string->tokens)
          (only-in lexers/html
                   html-derived-token-has-tag?
                   html-derived-token-text
@@ -18,16 +20,22 @@
                   javascript-derived-token-has-tag?
                   javascript-derived-token-text
                   javascript-string->derived-tokens)
+         (only-in lexers/json json-string->tokens)
+         (only-in lexers/markdown markdown-string->tokens)
          (only-in lexers/scribble
                   scribble-derived-token-has-tag?
                   scribble-derived-token-start
                   scribble-derived-token-end
                   scribble-derived-token-text
                   scribble-string->derived-tokens)
+         (only-in lexers/racket racket-string->tokens)
+         (only-in lexers/rhombus rhombus-string->tokens)
          lexers/shell
          syntax-color/scribble-lexer
+         (only-in lexers/tsv tsv-string->tokens)
          lexers/token
          lexers/wat
+         (only-in lexers/yaml yaml-string->tokens)
          "mdn-map.rkt"
          "wasm-spec-map.rkt"
          "shell-docs-map.rkt"
@@ -40,26 +48,50 @@
                      syntax/parse))
 
 (provide css-code
+         c-code
+         csv-code
          html-code
          js-code
+         json-code
+         markdown-code
          python-code
+         racket-code
+         rhombus-code
          wasm-code
          shell-code
          scribble-code
+         tsv-code
+         yaml-code
          cssblock
+         cblock
+         csvblock
          htmlblock
          jsblock
+         jsonblock
+         markdownblock
          pythonblock
+         racketblock
+         rhombusblock
          wasmblock
          shellblock
          scribbleblock
+         tsvblock
+         yamlblock
          cssblock0
+         cblock0
+         csvblock0
          htmlblock0
          jsblock0
+         jsonblock0
+         markdownblock0
          pythonblock0
+         racketblock0
+         rhombusblock0
          wasmblock0
          shellblock0
          scribbleblock0
+         tsvblock0
+         yamlblock0
          current-wasm-docs-source
          current-scribble-context
          current-scribble-shell
@@ -954,6 +986,22 @@ JS
        [(keyword) js-keyword-color]
        [(value) value-color]
        [(name) js-name-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(c json markdown racket rhombus yaml)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(csv tsv)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(value) value-color]
+       [(name) symbol-color]
        [(punct) paren-color]
        [else no-color])]
     [(wasm)
@@ -2466,14 +2514,32 @@ JS
 (define (tokenize lang s)
   (case lang
     [(css) (tokenize-css s)]
+    [(c) (projected-tokens->scribble-tokens
+          (c-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(csv) (projected-tokens->scribble-tokens
+            (csv-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(html) (tokenize-html s)]
     [(js) (tokenize-js s)]
+    [(json) (projected-tokens->scribble-tokens
+             (json-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(markdown) (projected-tokens->scribble-tokens
+                 (markdown-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(python) (python-string->scribble-tokens s)]
+    [(racket) (projected-tokens->scribble-tokens
+               (racket-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(rhombus)
+     (with-handlers ([exn:fail? (lambda (_e) (list (cons 'plain s)))])
+       (projected-tokens->scribble-tokens
+        (rhombus-string->tokens s #:profile 'coloring #:source-positions #t)))]
     [(wasm) (tokenize-wasm s)]
     [(bash) (tokenize-shell 'bash s)]
     [(zsh) (tokenize-shell 'zsh s)]
     [(powershell) (tokenize-shell 'powershell s)]
     [(scribble) (tokenize-scribble s)]
+    [(tsv) (projected-tokens->scribble-tokens
+            (tsv-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(yaml) (projected-tokens->scribble-tokens
+             (yaml-string->tokens s #:profile 'coloring #:source-positions #t))]
     [else (list (cons 'plain s))]))
 
 (define (split-lines style s)
@@ -3869,6 +3935,39 @@ JS
                                   #:inset? #,inset?
                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-for-syntax (do-simple-block stx lang inset?)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:indent indent-expr:expr)
+                              #:defaults ([indent-expr #'0])
+                              #:name "#:indent keyword")
+                   (~optional (~seq #:line-numbers line-numbers-expr:expr)
+                              #:defaults ([line-numbers-expr #'#f])
+                              #:name "#:line-numbers keyword")
+                   (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
+                              #:defaults ([line-number-sep-expr #'1])
+                              #:name "#:line-number-sep keyword")
+                   (~optional (~seq #:copy-button? copy-button-expr:expr)
+                              #:defaults ([copy-button-expr #'#t])
+                              #:name "#:copy-button? keyword")
+                   (~optional (~seq #:file filename-expr:expr)
+                              #:defaults ([filename-expr #'#f])
+                              #:name "#:file keyword")
+                   (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-block/chunks '#,lang
+                                  #:file filename-expr
+                                  #:indent indent-expr
+                                  #:line-numbers line-numbers-expr
+                                  #:line-number-sep line-number-sep-expr
+                                  #:copy-button? copy-button-expr
+                                  #:inset? #,inset?
+                                  (list #,@(chunks-template #'(str ...) esc-id)))]))
+
 (define-for-syntax (do-wasm-block stx inset?)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:indent indent-expr:expr)
@@ -4035,6 +4134,27 @@ JS
      #`(typeset-lang-inline/chunks 'python
                                    (list #,@(chunks-template #'(str ...) esc-id)))]))
 
+(define-for-syntax (do-simple-inline stx lang)
+  (syntax-parse stx
+    [(_ (~seq (~or (~optional (~seq #:escape escape-id:identifier)
+                              #:name "#:escape keyword"))
+              ...)
+        str ...)
+     (define esc-id (if (attribute escape-id)
+                        #'escape-id
+                        (datum->syntax stx 'unsyntax)))
+     #`(typeset-lang-inline/chunks '#,lang
+                                   (list #,@(chunks-template #'(str ...) esc-id)))]))
+
+(define-syntax (c-code stx) (do-simple-inline stx 'c))
+(define-syntax (csv-code stx) (do-simple-inline stx 'csv))
+(define-syntax (json-code stx) (do-simple-inline stx 'json))
+(define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
+(define-syntax (racket-code stx) (do-simple-inline stx 'racket))
+(define-syntax (rhombus-code stx) (do-simple-inline stx 'rhombus))
+(define-syntax (tsv-code stx) (do-simple-inline stx 'tsv))
+(define-syntax (yaml-code stx) (do-simple-inline stx 'yaml))
+
 (define-syntax (wasm-code stx)
   (syntax-parse stx
     [(_ (~seq (~or (~optional (~seq #:docs-source docs-source-expr:expr)
@@ -4088,18 +4208,34 @@ JS
 
 (define-syntax (cssblock0 stx) (do-css-block stx #f))
 (define-syntax (cssblock stx) (do-css-block stx #t))
+(define-syntax (cblock0 stx) (do-simple-block stx 'c #f))
+(define-syntax (cblock stx) (do-simple-block stx 'c #t))
+(define-syntax (csvblock0 stx) (do-simple-block stx 'csv #f))
+(define-syntax (csvblock stx) (do-simple-block stx 'csv #t))
 (define-syntax (htmlblock0 stx) (do-block stx 'html #f))
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
 (define-syntax (jsblock0 stx) (do-js-block stx #f))
 (define-syntax (jsblock stx) (do-js-block stx #t))
+(define-syntax (jsonblock0 stx) (do-simple-block stx 'json #f))
+(define-syntax (jsonblock stx) (do-simple-block stx 'json #t))
+(define-syntax (markdownblock0 stx) (do-simple-block stx 'markdown #f))
+(define-syntax (markdownblock stx) (do-simple-block stx 'markdown #t))
 (define-syntax (pythonblock0 stx) (do-python-block stx #f))
 (define-syntax (pythonblock stx) (do-python-block stx #t))
+(define-syntax (racketblock0 stx) (do-simple-block stx 'racket #f))
+(define-syntax (racketblock stx) (do-simple-block stx 'racket #t))
+(define-syntax (rhombusblock0 stx) (do-simple-block stx 'rhombus #f))
+(define-syntax (rhombusblock stx) (do-simple-block stx 'rhombus #t))
 (define-syntax (wasmblock0 stx) (do-wasm-block stx #f))
 (define-syntax (wasmblock stx) (do-wasm-block stx #t))
 (define-syntax (shellblock0 stx) (do-shell-block stx #f))
 (define-syntax (shellblock stx) (do-shell-block stx #t))
 (define-syntax (scribbleblock0 stx) (do-scribble-block stx #f))
 (define-syntax (scribbleblock stx) (do-scribble-block stx #t))
+(define-syntax (tsvblock0 stx) (do-simple-block stx 'tsv #f))
+(define-syntax (tsvblock stx) (do-simple-block stx 'tsv #t))
+(define-syntax (yamlblock0 stx) (do-simple-block stx 'yaml #f))
+(define-syntax (yamlblock stx) (do-simple-block stx 'yaml #t))
 
 (module+ test
   (require rackunit
@@ -4183,12 +4319,20 @@ JS
     (string-contains? (format "~s" v)
                       (format "(class . \"~a\")" class-name)))
   (check-true (block? (cssblock "h1 { color: red; }")))
+  (check-true (block? (cblock "int main(void) { return 0; }")))
+  (check-true (block? (csvblock "name,age\nAda,37\n")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
+  (check-true (block? (jsonblock "{ \"name\": \"Ada\" }")))
+  (check-true (block? (markdownblock "# Title\n\n* item\n")))
   (check-true (block? (pythonblock "def f(x):\n    return x\n")))
+  (check-true (block? (racketblock "(define (f x) (+ x 1))")))
+  (check-true (block? (rhombusblock "fun add(x, y): x + y")))
   (check-true (block? (wasmblock "(module (func))")))
   (check-true (block? (shellblock "if [ -f ./x ]; then echo ok; fi")))
   (check-true (block? (scribbleblock "@title{Hi}\nText.")))
+  (check-true (block? (tsvblock "name\tage\nAda\t37\n")))
+  (check-true (block? (yamlblock "name: Ada\nactive: true\n")))
   (check-true (block? (cssblock #:copy-button? #f "h1 { color: red; }")))
   (check-true (block? (htmlblock #:copy-button? #f "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock #:copy-button? #f "const x = 1;")))
@@ -4197,12 +4341,20 @@ JS
   (check-true (block? (scribbleblock #:copy-button? #f "@title{Hi}\nText.")))
   (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
+  (check-true (element? (c-code "int x = 1;")))
+  (check-true (element? (csv-code "a,b")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
+  (check-true (element? (json-code "{ \"x\": 1 }")))
+  (check-true (element? (markdown-code "# Hi")))
   (check-true (element? (python-code "def f(x): return x")))
+  (check-true (element? (racket-code "(+ 1 2)")))
+  (check-true (element? (rhombus-code "fun add(x, y): x + y")))
   (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (shell-code "echo $HOME")))
   (check-true (element? (scribble-code "@bold{Hi}")))
+  (check-true (element? (tsv-code "a\tb")))
+  (check-true (element? (yaml-code "x: 1")))
   (check-true (parameter? current-scribble-shell))
   (check-true (parameter? current-shell-docs-source))
   (check-true (parameter? current-scribble-context))
