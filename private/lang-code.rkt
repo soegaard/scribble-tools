@@ -1785,6 +1785,9 @@ JS
   (member txt js-operators))
 
 (define (tokenize-js s)
+  ;; Keep JSX on the handwritten path for now. The old lexer has a TSX-like
+  ;; generic-angle heuristic (`<T>(x) => x`) that `lexers/javascript` in JSX
+  ;; mode does not currently match, and the docs/tests rely on that behavior.
   (if (current-jsx?)
       (tokenize-js-handwritten s)
       (for/list ([token (in-list (javascript-string->derived-tokens s
