@@ -6,6 +6,10 @@
          racket/file
          racket/runtime-path
          "lexers-adapter.rkt"
+         (only-in lexers/css
+                  css-derived-token-has-tag?
+                  css-derived-token-text
+                  css-string->derived-tokens)
          (only-in lexers/html
                   html-derived-token-has-tag?
                   html-derived-token-text
@@ -1037,7 +1041,14 @@ JS
                   (lambda (c)
                     (or (char-alphabetic? c) (char=? c #\-))))))
 
-(define (tokenize-css s)
+(define css-punct-texts
+  '("{" "}" ":" ";" "(" ")" "[" "]" "," ">" "+" "~" "*" "=" "|" "#" "/"))
+
+(define (css-whitespace-text? txt)
+  (and (not (string=? txt ""))
+       (regexp-match? #px"^\\s+$" txt)))
+
+(define (tokenize-css-handwritten s)
   (define len (string-length s))
   (let loop ([i 0]
              [mode 'selector]
@@ -1110,6 +1121,32 @@ JS
           (emit cls j)]
          [else
           (emit 'plain (add1 i))])])))
+
+(define (tokenize-css s)
+  (for/list ([token (in-list (css-string->derived-tokens s))])
+    (define txt (css-derived-token-text token))
+    (define cls
+      (cond
+        [(css-derived-token-has-tag? token 'comment) 'comment]
+        [(css-whitespace-text? txt) 'plain]
+        [(or (css-derived-token-has-tag? token 'declaration-value-token)
+             (css-derived-token-has-tag? token 'color-literal)
+             (css-derived-token-has-tag? token 'color-function)
+             (css-derived-token-has-tag? token 'gradient-function)
+             (css-derived-token-has-tag? token 'string-literal)
+             (css-derived-token-has-tag? token 'numeric-literal)
+             (css-derived-token-has-tag? token 'function-name))
+         'value]
+        [(or (css-derived-token-has-tag? token 'property-name)
+             (css-derived-token-has-tag? token 'custom-property-name))
+         'name]
+        [(or (css-derived-token-has-tag? token 'selector-token)
+             (css-derived-token-has-tag? token 'at-rule-name)
+             (css-derived-token-has-tag? token 'property-name-candidate))
+         'keyword]
+        [(member txt css-punct-texts) 'punct]
+        [else 'plain]))
+    (cons cls txt)))
 
 (define js-keywords
   '(break case catch class const continue debugger default delete do else export extends
@@ -4039,8 +4076,20 @@ JS
     (if (memq cls decoration-classes)
         cls
         (normalize-render-class cls)))
+  (define (compare-css-class-normalize cls)
+    (case cls
+      [(keyword name) 'ident]
+      [else (compare-class-normalize cls)]))
   (define (class-runs tokens)
     (let loop ([rest (map (lambda (t) (compare-class-normalize (car t))) tokens)]
+               [prev #f]
+               [acc null])
+      (cond
+        [(null? rest) (reverse acc)]
+        [(eq? (car rest) prev) (loop (cdr rest) prev acc)]
+        [else (loop (cdr rest) (car rest) (cons (car rest) acc))])))
+  (define (class-runs/normalize tokens normalize)
+    (let loop ([rest (map (lambda (t) (normalize (car t))) tokens)]
                [prev #f]
                [acc null])
       (cond
@@ -4532,6 +4581,15 @@ JS
                        [(null? xs) 999]
                        [(and (eq? (caar xs) 'punct) (string=? (cdar xs) "}")) i]
                        [else (loop (cdr xs) (add1 i))])))))
+  (for ([src (in-list (list (read-fixture "css-basic.css")
+                            (read-fixture "css-nesting.css")
+                            ".x { color: #c33; background: linear-gradient(red, blue); font-family: \"Fira Code\"; margin: calc(100% - 2rem); }"))])
+    (define old (tokenize-css-handwritten src))
+    (define new (tokenize-css src))
+    (check-equal? (source-bearing-text old) src)
+    (check-equal? (source-bearing-text new) src)
+    (check-equal? (class-runs/normalize old compare-css-class-normalize)
+                  (class-runs/normalize new compare-css-class-normalize)))
   (check-not-false
    (member 'keyword (classes 'html (read-fixture "html-basic.html"))))
   (check-not-false
