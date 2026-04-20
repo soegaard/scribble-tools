@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, Markdown, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, Markdown, Objective-C, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -14,6 +14,7 @@ inline C++ with @cpp-code{std::vector<int> xs = {1, 2, 3};} and
 inline CSV with @csv-code["name,age"] and
 inline JSON with @json-code["{\"name\": \"Ada\"}"] and
 inline Markdown with @markdown-code["# Hello"] and
+inline Objective-C with @objc-code[@"Hello"] and
 inline Python with @python-code{def answer(): return 42} and
 inline Racket with @racket-code{(define (add x y) (+ x y))} and
 inline Rhombus with @rhombus-code{fun add(x, y): x + y} and
@@ -57,6 +58,8 @@ Inline CSV: @csv-code["name,age"]
 Inline JSON: @json-code["{\"name\": \"Ada\"}"]
 
 Inline Markdown: @markdown-code["# Hello"]
+
+Inline Objective-C: @objc-code[@"Hello"]
 
 Inline Python: @python-code{def answer(): return 42}
 
@@ -371,6 +374,18 @@ content.
 - one
 - two
 }
+
+@subsection{Objective-C}
+
+Objective-C is useful for Cocoa- and Foundation-oriented examples.
+
+@objcblock[#:line-numbers 1
+           #:file "Greeter.m"
+           "#import <Foundation/Foundation.h>\n"
+           "\n"
+           "@interface Greeter : NSObject\n"
+           "- (NSString *)messageFor:(NSString *)name;\n"
+           "@end\n"]
 
 @subsection{Racket}
 

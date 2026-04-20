@@ -10,13 +10,13 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-JavaScript, JSON, Markdown, Python, Racket, Rhombus, shell scripts
+JavaScript, JSON, Markdown, Objective-C, Python, Racket, Rhombus, shell scripts
 (Bash/Zsh/PowerShell), Swift, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[html-code], @racket[js-code], @racket[json-code],
-@racket[markdown-code], @racket[python-code], @racket[racket-code],
+@racket[markdown-code], @racket[objc-code], @racket[python-code], @racket[racket-code],
 @racket[rhombus-code], @racket[shell-code], @racket[swift-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
@@ -24,7 +24,7 @@ produce content.
 The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
-        @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
+        @racket[objcblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
         @racket[shellblock], @racket[swiftblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
@@ -50,6 +50,7 @@ Use inline forms when you want code inside running text:
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
   (list "JSON"        @scribble-code["@json-code[\"{\\\"name\\\": \\\"Ada\\\"}\"]"])
   (list "Markdown"    @scribble-code["@markdown-code[\"# Hello\"]"])
+  (list "Objective-C" @scribble-code["@objc-code{@\"Hello\"}"])
   (list "Python"      @scribble-code["@python-code{def total(xs): return sum(xs)}"])
   (list "Racket"      @scribble-code["@racket-code{(define (add x y) (+ x y))}"])
   (list "Rhombus"     @scribble-code["@rhombus-code{fun add(x, y): x + y}"])
@@ -72,6 +73,7 @@ Use inline forms when you want code inside running text:
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
   (list "JSON"          @json-code["{\"name\": \"Ada\"}"])
   (list "Markdown"      @markdown-code["# Hello"])
+  (list "Objective-C"   @objc-code[@"Hello"])
   (list "Python"        @python-code{def total(xs): return sum(xs)})
   (list "Racket"        @racket-code{(define (add x y) (+ x y))})
   (list "Rhombus"       @rhombus-code{fun add(x, y): x + y})
@@ -484,6 +486,14 @@ Typesets the concatenated strings as inline Markdown.
 Example: @markdown-code["# Hello"]
 }
 
+@defform/subs[(objc-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Objective-C code.
+
+Example: @objc-code[@"Hello"]
+}
+
 @defform/subs[(racket-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -842,6 +852,14 @@ Typesets Markdown as a block inset.
 
 @defform[(markdownblock0 option ... str-expr ...+)]{
 Like @racket[markdownblock], but without the inset wrapper.
+}
+
+@defform[(objcblock option ... str-expr ...+)]{
+Typesets Objective-C as a block inset.
+}
+
+@defform[(objcblock0 option ... str-expr ...+)]{
+Like @racket[objcblock], but without the inset wrapper.
 }
 
 @defform[(racketblock option ... str-expr ...+)]{
@@ -1381,6 +1399,22 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
 
 See `scribblings/scribble-tools.scrbl` for the full manual.
 }
+
+@subsection{Objective-C}
+
+@objcblock[#:line-numbers 1
+           #:file "extended/view.m"
+           "#import <Foundation/Foundation.h>\n"
+           "\n"
+           "@interface Greeter : NSObject\n"
+           "- (NSString *)messageFor:(NSString *)name;\n"
+           "@end\n"
+           "\n"
+           "@implementation Greeter\n"
+           "- (NSString *)messageFor:(NSString *)name {\n"
+           "  return [NSString stringWithFormat:@\"Hello, %@\", name];\n"
+           "}\n"
+           "@end\n"]
 
 @subsection{Racket}
 
