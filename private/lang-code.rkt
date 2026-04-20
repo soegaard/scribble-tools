@@ -3630,18 +3630,26 @@ JS
          #:context [context (current-scribble-context)]
          chunks)
   (define maybe-src (chunks->string-or-false chunks))
+  (define synthetic-lang-line?
+    (and maybe-src
+         (not (regexp-match? #px"(?m:^\\s*#lang\\s+)" maybe-src))))
   (define source*
     (and maybe-src
-         (if (regexp-match? #px"(?m:^\\s*#lang\\s+)" maybe-src)
-             maybe-src
-             (string-append "#lang " lang-line "\n" maybe-src))))
+         (if synthetic-lang-line?
+             (string-append "#lang " lang-line "\n" maybe-src)
+             maybe-src)))
+  (define visible-line-numbers
+    (and line-numbers
+         (if synthetic-lang-line?
+             (max 0 (sub1 line-numbers))
+             line-numbers)))
   (define rendered
     (or (and source*
              (let ([v (typeset-code
                        #:keep-lang-line? #f
                        #:context context
                        #:indent indent
-                       #:line-numbers line-numbers
+                       #:line-numbers visible-line-numbers
                        #:line-number-sep line-number-sep
                        source*)])
                (if inset?
