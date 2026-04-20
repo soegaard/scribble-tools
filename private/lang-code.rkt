@@ -31,6 +31,7 @@
          (only-in lexers/racket racket-string->tokens)
          (only-in lexers/rhombus rhombus-string->tokens)
          lexers/shell
+         (only-in lexers/swift swift-string->tokens)
          syntax-color/scribble-lexer
          (only-in lexers/tsv tsv-string->tokens)
          lexers/token
@@ -57,6 +58,7 @@
          python-code
          racket-code
          rhombus-code
+         swift-code
          wasm-code
          shell-code
          scribble-code
@@ -72,6 +74,7 @@
          pythonblock
          racketblock
          rhombusblock
+         swiftblock
          wasmblock
          shellblock
          scribbleblock
@@ -87,6 +90,7 @@
          pythonblock0
          racketblock0
          rhombusblock0
+         swiftblock0
          wasmblock0
          shellblock0
          scribbleblock0
@@ -988,7 +992,7 @@ JS
        [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
-    [(c json markdown racket rhombus yaml)
+    [(c json markdown racket rhombus swift yaml)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -2531,6 +2535,8 @@ JS
      (with-handlers ([exn:fail? (lambda (_e) (list (cons 'plain s)))])
        (projected-tokens->scribble-tokens
         (rhombus-string->tokens s #:profile 'coloring #:source-positions #t)))]
+    [(swift) (projected-tokens->scribble-tokens
+              (swift-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(wasm) (tokenize-wasm s)]
     [(bash) (tokenize-shell 'bash s)]
     [(zsh) (tokenize-shell 'zsh s)]
@@ -4160,6 +4166,7 @@ JS
 (define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
 (define-syntax (racket-code stx) (do-simple-inline stx 'racket))
 (define-syntax (rhombus-code stx) (do-simple-inline stx 'rhombus))
+(define-syntax (swift-code stx) (do-simple-inline stx 'swift))
 (define-syntax (tsv-code stx) (do-simple-inline stx 'tsv))
 (define-syntax (yaml-code stx) (do-simple-inline stx 'yaml))
 
@@ -4234,6 +4241,8 @@ JS
 (define-syntax (racketblock stx) (do-simple-block stx 'racket #t))
 (define-syntax (rhombusblock0 stx) (do-simple-block stx 'rhombus #f))
 (define-syntax (rhombusblock stx) (do-simple-block stx 'rhombus #t))
+(define-syntax (swiftblock0 stx) (do-simple-block stx 'swift #f))
+(define-syntax (swiftblock stx) (do-simple-block stx 'swift #t))
 (define-syntax (wasmblock0 stx) (do-wasm-block stx #f))
 (define-syntax (wasmblock stx) (do-wasm-block stx #t))
 (define-syntax (shellblock0 stx) (do-shell-block stx #f))
@@ -4336,6 +4345,7 @@ JS
   (check-true (block? (pythonblock "def f(x):\n    return x\n")))
   (check-true (block? (racketblock "(define (f x) (+ x 1))")))
   (check-true (block? (rhombusblock "fun add(x, y): x + y")))
+  (check-true (block? (swiftblock "func add(_ x: Int, _ y: Int) -> Int { x + y }")))
   (check-true (block? (wasmblock "(module (func))")))
   (check-true (block? (shellblock "if [ -f ./x ]; then echo ok; fi")))
   (check-true (block? (scribbleblock "@title{Hi}\nText.")))
@@ -4358,6 +4368,7 @@ JS
   (check-true (element? (python-code "def f(x): return x")))
   (check-true (element? (racket-code "(+ 1 2)")))
   (check-true (element? (rhombus-code "fun add(x, y): x + y")))
+  (check-true (element? (swift-code "let answer = 42")))
   (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (shell-code "echo $HOME")))
   (check-true (element? (scribble-code "@bold{Hi}")))

@@ -12,6 +12,7 @@
   - Markdown: `markdown-code`, `markdownblock`, `markdownblock0`
   - Racket: `racket-code`, `racketblock`, `racketblock0`
   - Rhombus: `rhombus-code`, `rhombusblock`, `rhombusblock0`
+  - Swift: `swift-code`, `swiftblock`, `swiftblock0`
   - TSV: `tsv-code`, `tsvblock`, `tsvblock0`
   - YAML: `yaml-code`, `yamlblock`, `yamlblock0`
 - Added the `lexers` package as the lexer backend dependency.

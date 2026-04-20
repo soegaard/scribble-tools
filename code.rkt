@@ -13,6 +13,7 @@
          python-code
          racket-code
          rhombus-code
+         swift-code
          wasm-code
          shell-code
          scribble-code
@@ -28,6 +29,7 @@
          pythonblock
          racketblock
          rhombusblock
+         swiftblock
          wasmblock
          shellblock
          scribbleblock
@@ -43,6 +45,7 @@
          pythonblock0
          racketblock0
          rhombusblock0
+         swiftblock0
          wasmblock0
          shellblock0
          scribbleblock0
@@ -69,6 +72,7 @@
 (define-syntax-rule (python-code . rest) (lang:python-code . rest))
 (define-syntax-rule (racket-code . rest) (lang:racket-code . rest))
 (define-syntax-rule (rhombus-code . rest) (lang:rhombus-code . rest))
+(define-syntax-rule (swift-code . rest) (lang:swift-code . rest))
 (define-syntax-rule (wasm-code . rest) (lang:wasm-code . rest))
 (define-syntax-rule (shell-code . rest) (lang:shell-code . rest))
 (define-syntax-rule (scribble-code . rest) (lang:scribble-code . rest))
@@ -84,6 +88,7 @@
 (define-syntax-rule (pythonblock . rest) (lang:pythonblock . rest))
 (define-syntax-rule (racketblock . rest) (lang:racketblock . rest))
 (define-syntax-rule (rhombusblock . rest) (lang:rhombusblock . rest))
+(define-syntax-rule (swiftblock . rest) (lang:swiftblock . rest))
 (define-syntax-rule (wasmblock . rest) (lang:wasmblock . rest))
 (define-syntax-rule (shellblock . rest) (lang:shellblock . rest))
 (define-syntax-rule (scribbleblock . rest) (lang:scribbleblock . rest))
@@ -99,6 +104,7 @@
 (define-syntax-rule (pythonblock0 . rest) (lang:pythonblock0 . rest))
 (define-syntax-rule (racketblock0 . rest) (lang:racketblock0 . rest))
 (define-syntax-rule (rhombusblock0 . rest) (lang:rhombusblock0 . rest))
+(define-syntax-rule (swiftblock0 . rest) (lang:swiftblock0 . rest))
 (define-syntax-rule (wasmblock0 . rest) (lang:wasmblock0 . rest))
 (define-syntax-rule (shellblock0 . rest) (lang:shellblock0 . rest))
 (define-syntax-rule (scribbleblock0 . rest) (lang:scribbleblock0 . rest))

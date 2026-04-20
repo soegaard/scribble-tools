@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, CSV, HTML, JavaScript, JSON, Markdown, Python, Racket, Rhombus, Shell, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, CSV, HTML, JavaScript, JSON, Markdown, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -17,6 +17,7 @@ inline Python with @python-code{def answer(): return 42} and
 inline Racket with @racket-code{(define (add x y) (+ x y))} and
 inline Rhombus with @rhombus-code{fun add(x, y): x + y} and
 inline shell with @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi} and
+inline Swift with @swift-code{let answer = 42} and
 inline TSV with @tsv-code["name\tage"] and
 inline WebAssembly with @wasm-code{(module (func (result i32) (i32.const 42)))} and
 inline YAML with @yaml-code["name: Ada"] and
@@ -61,6 +62,8 @@ Inline Racket: @racket-code{(define (add x y) (+ x y))}
 Inline Rhombus: @rhombus-code{fun add(x, y): x + y}
 
 Inline shell (Bash): @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
+
+Inline Swift: @swift-code{let answer = 42}
 
 Inline shell (Zsh): @shell-code[#:shell 'zsh]{setopt prompt_subst}
 
@@ -366,6 +369,22 @@ Rhombus is included too, so manuals can show mixed Racket-family syntax.
 @rhombusblock[#:file "math.rhm"]{
 fun add(x, y):
   x + y
+}
+
+@subsection{Swift}
+
+Swift works well for API- and app-oriented examples with types and concise
+control flow.
+
+@swiftblock[#:line-numbers 1 #:file "helpers.swift"]{
+struct User {
+  let name: String
+  let score: Int
+}
+
+func topNames(_ users: [User]) -> [String] {
+  users.sorted { $0.score > $1.score }.map(\.name)
+}
 }
 
 @subsection{TSV}

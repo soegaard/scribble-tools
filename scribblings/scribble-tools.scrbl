@@ -11,13 +11,13 @@
 
 This library provides Scribble forms for typesetting CSS, C, CSV, HTML,
 JavaScript, JSON, Markdown, Python, Racket, Rhombus, shell scripts
-(Bash/Zsh/PowerShell), TSV, WebAssembly (WAT), YAML, and Scribble snippets
-with syntax coloring.
+(Bash/Zsh/PowerShell), Swift, TSV, WebAssembly (WAT), YAML, and Scribble
+snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[csv-code],
 @racket[html-code], @racket[js-code], @racket[json-code],
 @racket[markdown-code], @racket[python-code], @racket[racket-code],
-@racket[rhombus-code], @racket[shell-code], @racket[tsv-code],
+@racket[rhombus-code], @racket[shell-code], @racket[swift-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
 
@@ -25,7 +25,7 @@ The block forms
 (@racket[cssblock], @racket[cblock], @racket[csvblock], @racket[htmlblock],
         @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
         @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
-        @racket[shellblock], @racket[tsvblock], @racket[wasmblock],
+        @racket[shellblock], @racket[swiftblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
 
@@ -53,6 +53,7 @@ Use inline forms when you want code inside running text:
   (list "Racket"      @scribble-code["@racket-code{(define (add x y) (+ x y))}"])
   (list "Rhombus"     @scribble-code["@rhombus-code{fun add(x, y): x + y}"])
   (list "Shell"       @scribble-code["@shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}"])
+  (list "Swift"       @scribble-code["@swift-code{let answer = 42}"])
   (list "TSV"         @scribble-code["@tsv-code[\"name\\tage\"]"])
   (list "WebAssembly" @scribble-code["@wasm-code{(module (func (result i32) (i32.const 42)))}"])
   (list "YAML"        @scribble-code["@yaml-code[\"name: Ada\"]"])
@@ -73,6 +74,7 @@ Use inline forms when you want code inside running text:
   (list "Racket"        @racket-code{(define (add x y) (+ x y))})
   (list "Rhombus"       @rhombus-code{fun add(x, y): x + y})
   (list "Shell"         @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi})
+  (list "Swift"         @swift-code{let answer = 42})
   (list "TSV"           @tsv-code["name\tage"])
   (list "WebAssembly"   @wasm-code{(module (func (result i32) (i32.const 42)))})
   (list "YAML"          @yaml-code["name: Ada"])
@@ -488,6 +490,14 @@ Typesets the concatenated strings as inline Rhombus code.
 Example: @rhombus-code{fun add(x, y): x + y}
 }
 
+@defform/subs[(swift-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Swift code.
+
+Example: @swift-code{let answer = 42}
+}
+
 @defform/subs[(tsv-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -830,6 +840,14 @@ Typesets Rhombus code as a block inset.
 
 @defform[(rhombusblock0 option ... str-expr ...+)]{
 Like @racket[rhombusblock], but without the inset wrapper.
+}
+
+@defform[(swiftblock option ... str-expr ...+)]{
+Typesets Swift code as a block inset.
+}
+
+@defform[(swiftblock0 option ... str-expr ...+)]{
+Like @racket[swiftblock], but without the inset wrapper.
 }
 
 @defform[(tsvblock option ... str-expr ...+)]{
@@ -1346,6 +1364,23 @@ fun summarize(name, count):
     "$name has 1 item"
   else:
     "$name has $(count) items"
+}
+
+@subsection{Swift}
+
+@swiftblock[#:line-numbers 1
+            #:file "extended/helpers.swift"]{
+struct Entry {
+  let title: String
+  let score: Int
+}
+
+func topTitles(_ entries: [Entry], limit: Int = 3) -> [String] {
+  entries
+    .sorted { $0.score > $1.score }
+    .prefix(limit)
+    .map(\.title)
+}
 }
 
 @subsection{CSV and TSV}
