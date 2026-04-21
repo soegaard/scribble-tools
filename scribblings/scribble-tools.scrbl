@@ -446,7 +446,8 @@ Example: @js-code{const n = 42;}
 Typesets the concatenated strings as inline C code.
 
 Common C keywords and standard library identifiers are linked to
-@hyperlink["https://en.cppreference.com/w/c"]{cppreference}.
+@hyperlink["https://en.cppreference.com/w/c"]{cppreference}. The bundled
+identifier map was generated in 2026.
 
 Example: @c-code{int answer = 42;}
 }
@@ -457,7 +458,8 @@ Example: @c-code{int answer = 42;}
 Typesets the concatenated strings as inline C++ code.
 
 Common C++ keywords and standard library identifiers are linked to
-@hyperlink["https://en.cppreference.com/w/cpp"]{cppreference}.
+@hyperlink["https://en.cppreference.com/w/cpp"]{cppreference}. The bundled
+identifier map was generated in 2026.
 
 Example: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 }
