@@ -51,6 +51,7 @@
          "cppreference-docs-map.rkt"
          "latex-docs-map.rkt"
          "rust-docs-map.rkt"
+         "rustdoc-docs-map.rkt"
          "wasm-spec-map.rkt"
          "shell-docs-map.rkt"
          scribble/base
@@ -3514,7 +3515,7 @@ JS
               [(eq? lang 'latex)
                (latex-doc-url-for-token cls txt)]
               [(eq? lang 'rust)
-               (rust-doc-url-for-token cls txt prev1 prev2 next1)]
+               (generated-rust-doc-url-for-token cls txt prev1 prev2 next1)]
               [(memq lang '(c cpp))
                (c/cpp-doc-url-for-token lang cls txt prev1 prev2)]
               [else
@@ -4627,8 +4628,8 @@ JS
   (check-not-false (mdn-url-for-token 'wasm 'keyword "module"))
   (check-not-false (c/cpp-doc-url-for-token 'c 'keyword "return" #f #f))
   (check-not-false (c/cpp-doc-url-for-token 'cpp 'identifier "vector" "::" "std"))
-  (check-not-false (rust-doc-url-for-token 'keyword "fn" #f #f #f))
-  (check-not-false (rust-doc-url-for-token 'identifier "Vec" #f #f #f))
+  (check-not-false (generated-rust-doc-url-for-token 'keyword "fn" #f #f #f))
+  (check-not-false (generated-rust-doc-url-for-token 'identifier "Vec" #f #f #f))
   (check-not-false (latex-doc-url-for-token 'keyword "\\section"))
   (check-not-false (latex-doc-url-for-token 'literal "itemize"))
   (check-not-false (latex-doc-url-for-token 'identifier "\\draw"))
