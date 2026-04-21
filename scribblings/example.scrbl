@@ -17,6 +17,7 @@ inline LaTeX with @latex-code{\section{Intro}} and
 inline Makefile with @makefile-code{all: build test} and
 inline Markdown with @markdown-code["# Hello"] and
 inline Objective-C with @objc-code[@"Hello"] and
+inline Pascal with @pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;} and
 inline plist with @plist-code{<plist/>} and
 inline Python with @python-code{def answer(): return 42} and
 inline Racket with @racket-code{(define (add x y) (+ x y))} and
@@ -69,6 +70,8 @@ Inline Makefile: @makefile-code{all: build test}
 Inline Markdown: @markdown-code["# Hello"]
 
 Inline Objective-C: @objc-code[@"Hello"]
+
+Inline Pascal: @pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;}
 
 Inline plist: @plist-code{<plist/>}
 
@@ -436,6 +439,21 @@ Objective-C is useful for Cocoa- and Foundation-oriented examples.
            "@interface Greeter : NSObject\n"
            "- (NSString *)messageFor:(NSString *)name;\n"
            "@end\n"]
+
+@subsection{Pascal}
+
+Pascal works well for classic procedural examples with explicit type
+annotations and structured control flow.
+
+@pascalblock[#:line-numbers 1 #:file "helpers.pas"]{
+function Factorial(n: Integer): Integer;
+begin
+  if n <= 1 then
+    Factorial := 1
+  else
+    Factorial := n * Factorial(n - 1);
+end;
+}
 
 @subsection{plist}
 

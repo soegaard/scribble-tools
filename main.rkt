@@ -9,6 +9,7 @@
          tex-code
          latex-code
          objc-code
+         pascal-code
          plist-code
          csv-code
          html-code
@@ -32,6 +33,7 @@
          texblock
          latexblock
          objcblock
+         pascalblock
          plistblock
          csvblock
          htmlblock
@@ -55,6 +57,7 @@
          texblock0
          latexblock0
          objcblock0
+         pascalblock0
          plistblock0
          csvblock0
          htmlblock0
@@ -89,6 +92,7 @@
 (define-syntax-rule (tex-code . rest) (api:tex-code . rest))
 (define-syntax-rule (latex-code . rest) (api:latex-code . rest))
 (define-syntax-rule (objc-code . rest) (api:objc-code . rest))
+(define-syntax-rule (pascal-code . rest) (api:pascal-code . rest))
 (define-syntax-rule (plist-code . rest) (api:plist-code . rest))
 (define-syntax-rule (csv-code . rest) (api:csv-code . rest))
 (define-syntax-rule (html-code . rest) (api:html-code . rest))
@@ -112,6 +116,7 @@
 (define-syntax-rule (texblock . rest) (api:texblock . rest))
 (define-syntax-rule (latexblock . rest) (api:latexblock . rest))
 (define-syntax-rule (objcblock . rest) (api:objcblock . rest))
+(define-syntax-rule (pascalblock . rest) (api:pascalblock . rest))
 (define-syntax-rule (plistblock . rest) (api:plistblock . rest))
 (define-syntax-rule (csvblock . rest) (api:csvblock . rest))
 (define-syntax-rule (htmlblock . rest) (api:htmlblock . rest))
@@ -135,6 +140,7 @@
 (define-syntax-rule (texblock0 . rest) (api:texblock0 . rest))
 (define-syntax-rule (latexblock0 . rest) (api:latexblock0 . rest))
 (define-syntax-rule (objcblock0 . rest) (api:objcblock0 . rest))
+(define-syntax-rule (pascalblock0 . rest) (api:pascalblock0 . rest))
 (define-syntax-rule (plistblock0 . rest) (api:plistblock0 . rest))
 (define-syntax-rule (csvblock0 . rest) (api:csvblock0 . rest))
 (define-syntax-rule (htmlblock0 . rest) (api:htmlblock0 . rest))

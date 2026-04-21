@@ -14,6 +14,7 @@
   - Makefile: `makefile-code`, `makefileblock`, `makefileblock0`
   - Markdown: `markdown-code`, `markdownblock`, `markdownblock0`
   - Objective-C: `objc-code`, `objcblock`, `objcblock0`
+  - Pascal: `pascal-code`, `pascalblock`, `pascalblock0`
   - plist: `plist-code`, `plistblock`, `plistblock0`
   - Racket: `racket-code`, `racketblock`, `racketblock0`
   - Rhombus: `rhombus-code`, `rhombusblock`, `rhombusblock0`

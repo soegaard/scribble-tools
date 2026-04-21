@@ -69,6 +69,7 @@
          tex-code
          latex-code
          objc-code
+         pascal-code
          plist-code
          csv-code
          html-code
@@ -92,6 +93,7 @@
          texblock
          latexblock
          objcblock
+         pascalblock
          plistblock
          csvblock
          htmlblock
@@ -115,6 +117,7 @@
          texblock0
          latexblock0
          objcblock0
+         pascalblock0
          plistblock0
          csvblock0
          htmlblock0
@@ -4280,6 +4283,7 @@ JS
 (define-syntax (tex-code stx) (do-simple-inline stx 'tex))
 (define-syntax (latex-code stx) (do-simple-inline stx 'latex))
 (define-syntax (objc-code stx) (do-simple-inline stx 'objc))
+(define-syntax (pascal-code stx) (do-simple-inline stx 'pascal))
 (define-syntax (plist-code stx) (do-simple-inline stx 'plist))
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
 (define-syntax (json-code stx) (do-simple-inline stx 'json))
@@ -4356,6 +4360,8 @@ JS
 (define-syntax (latexblock stx) (do-simple-block stx 'latex #t))
 (define-syntax (objcblock0 stx) (do-simple-block stx 'objc #f))
 (define-syntax (objcblock stx) (do-simple-block stx 'objc #t))
+(define-syntax (pascalblock0 stx) (do-simple-block stx 'pascal #f))
+(define-syntax (pascalblock stx) (do-simple-block stx 'pascal #t))
 (define-syntax (plistblock0 stx) (do-simple-block stx 'plist #f))
 (define-syntax (plistblock stx) (do-simple-block stx 'plist #t))
 (define-syntax (csvblock0 stx) (do-simple-block stx 'csv #f))
@@ -4477,6 +4483,7 @@ JS
   (check-true (block? (texblock "\\hbox{Hello}")))
   (check-true (block? (latexblock "\\section{Hi}")))
   (check-true (block? (objcblock "@interface Box : NSObject @end")))
+  (check-true (block? (pascalblock "function Add(x, y: Integer): Integer; begin Add := x + y; end;")))
   (check-true (block? (plistblock "<plist><dict><key>Name</key><string>Ada</string></dict></plist>")))
   (check-true (block? (csvblock "name,age\nAda,37\n")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
@@ -4515,6 +4522,7 @@ JS
   (check-true (element? (tex-code "\\hbox{Hello}")))
   (check-true (element? (latex-code "\\section{Hi}")))
   (check-true (element? (objc-code "@\"hello\"")))
+  (check-true (element? (pascal-code "var answer: Integer;")))
   (check-true (element? (plist-code "<plist/>")))
   (check-true (element? (csv-code "a,b")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))

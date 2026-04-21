@@ -16,7 +16,7 @@ snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[html-code], @racket[js-code], @racket[json-code],
-@racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
+@racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
 @racket[rhombus-code], @racket[rust-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
@@ -24,7 +24,7 @@ produce content.
 The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
-        @racket[latexblock], @racket[makefileblock], @racket[objcblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
+        @racket[latexblock], @racket[makefileblock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
         @racket[rustblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
@@ -53,6 +53,7 @@ Use inline forms when you want code inside running text:
   (list "Makefile"    @scribble-code["@makefile-code{all: build test}"])
   (list "Markdown"    @scribble-code["@markdown-code[\"# Hello\"]"])
   (list "Objective-C" @scribble-code["@objc-code{@\"Hello\"}"])
+  (list "Pascal"      @scribble-code["@pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;}"])
   (list "plist"       @scribble-code["@plist-code{<plist/>}"])
   (list "Python"      @scribble-code["@python-code{def total(xs): return sum(xs)}"])
   (list "Racket"      @scribble-code["@racket-code{(define (add x y) (+ x y))}"])
@@ -81,6 +82,7 @@ Use inline forms when you want code inside running text:
   (list "Makefile"      @makefile-code{all: build test})
   (list "Markdown"      @markdown-code["# Hello"])
   (list "Objective-C"   @objc-code[@"Hello"])
+  (list "Pascal"        @pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;})
   (list "plist"         @plist-code{<plist/>})
   (list "Python"        @python-code{def total(xs): return sum(xs)})
   (list "Racket"        @racket-code{(define (add x y) (+ x y))})
@@ -482,6 +484,14 @@ Typesets the concatenated strings as inline Objective-C code.
 Example: @objc-code[@"Hello"]
 }
 
+@defform/subs[(pascal-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Pascal code.
+
+Example: @pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;}
+}
+
 @defform/subs[(python-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -862,6 +872,14 @@ Typesets Objective-C as a block inset.
 
 @defform[(objcblock0 option ... str-expr ...+)]{
 Like @racket[objcblock], but without the inset wrapper.
+}
+
+@defform[(pascalblock option ... str-expr ...+)]{
+Typesets Pascal as a block inset.
+}
+
+@defform[(pascalblock0 option ... str-expr ...+)]{
+Like @racket[pascalblock], but without the inset wrapper.
 }
 
 @defform/subs[(pythonblock option ... str-expr ...+)
@@ -1565,6 +1583,19 @@ raco test private/lang-code.rkt
            "  return [NSString stringWithFormat:@\"Hello, %@\", name];\n"
            "}\n"
            "@end\n"]
+
+@subsection{Pascal}
+
+@pascalblock[#:line-numbers 1
+             #:file "extended/helpers.pas"]{
+function Factorial(n: Integer): Integer;
+begin
+  if n <= 1 then
+    Factorial := 1
+  else
+    Factorial := n * Factorial(n - 1);
+end;
+}
 
 @subsection{plist}
 
