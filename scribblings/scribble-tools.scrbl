@@ -1466,10 +1466,12 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
             #:file "extended/doc.tex"]{
 \section{Overview}
 
-\begin{itemize}
-  \item First item
-  \item Second item
-\end{itemize}
+\usepackage{tikz}
+
+\begin{tikzpicture}
+  \draw (0,0) -- (2,1);
+  \node[right] at (2,1) {Endpoint};
+\end{tikzpicture}
 }
 
 @subsection{Makefile}

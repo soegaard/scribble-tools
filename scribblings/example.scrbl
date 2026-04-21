@@ -377,13 +377,16 @@ This JSON example shows nested objects, arrays, and booleans.
 
 @subsection{LaTeX}
 
-LaTeX snippets are useful for math-heavy or document-structure examples.
+LaTeX snippets are useful for math-heavy, document-structure, or TikZ drawing examples.
 
 @latexblock[#:line-numbers 1 #:file "doc.tex"]{
 \section{Intro}
-\begin{equation}
-  a^2 + b^2 = c^2
-\end{equation}
+\usepackage{tikz}
+
+\begin{tikzpicture}
+  \draw (0,0) -- (2,1);
+  \node[right] at (2,1) {Endpoint};
+\end{tikzpicture}
 }
 
 @subsection{Makefile}
