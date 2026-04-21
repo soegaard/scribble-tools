@@ -336,6 +336,7 @@ By default, code output includes documentation links for common identifiers:
  @item{CSS properties (for example @css-code{display}, @css-code{grid}, @css-code{border-radius}).}
  @item{HTML elements (for example @html-code{<section>}, @html-code{<button>}, @html-code{<script>}).}
  @item{Common JavaScript classes, methods, and language keywords (for example @js-code{Array}, @js-code{querySelector}, @js-code{map}, @js-code{const}).}
+ @item{Common LaTeX commands and environments (for example @latex-code{\section}, @latex-code{\label}, @latex-code{\begin{itemize}}), linked to the LaTeX2e reference manual at @hyperlink["https://latexref.xyz/Index.html"]{latexref.xyz}.}
  @item{Common shell keywords and builtins (for example @shell-code[#:shell 'bash]{if}, @shell-code[#:shell 'zsh]{setopt}, @shell-code[#:shell 'powershell]{Get-ChildItem}), linked to GNU Bash, Zsh, or PowerShell documentation.}
  @item{Common WebAssembly instructions and declarations (for example @wasm-code{module}, @wasm-code{func}, @wasm-code{local.get}, @wasm-code{i32.add}), linked to the WebAssembly Core Spec site by default.}
 ]
@@ -490,6 +491,8 @@ Example: @json-code["{\"name\": \"Ada\"}"]
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline LaTeX code.
+Common LaTeX commands and environments are linked to the LaTeX2e
+reference manual at @hyperlink["https://latexref.xyz/Index.html"]{latexref.xyz}.
 
 Example: @latex-code{\section{Intro}}
 }

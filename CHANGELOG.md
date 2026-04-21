@@ -32,6 +32,7 @@
   - JavaScript via `lexers/javascript`
 - Added internal old-vs-new lexer comparison coverage to support one-language-at-a-time migration checks.
 - Kept JSX mode on the handwritten JavaScript lexer path for compatibility with the existing TSX-style generic-angle heuristic.
+- Added LaTeX identifier links via `latexref.xyz` for common LaTeX commands and environments.
 
 ## 0.2.0 - 2026-03-11
 

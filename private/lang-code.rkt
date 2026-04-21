@@ -44,6 +44,7 @@
          lexers/wat
          (only-in lexers/yaml yaml-string->tokens)
          "mdn-map.rkt"
+         "latex-docs-map.rkt"
          "wasm-spec-map.rkt"
          "shell-docs-map.rkt"
          scribble/base
@@ -3440,6 +3441,8 @@ JS
                     (shell-doc-url-for-token lang cls txt
                                              #:docs-source (or docs-source
                                                               (current-shell-docs-source))))]
+              [(eq? lang 'latex)
+               (latex-doc-url-for-token cls txt)]
               [else
                (and mdn-links?
                     (js-contextual-mdn-url lang mdn-cls txt prev1 prev2 next1
@@ -4535,12 +4538,16 @@ JS
   (check-not-false (mdn-url-for-token 'html 'keyword "div"))
   (check-not-false (mdn-url-for-token 'js 'keyword "const"))
   (check-not-false (mdn-url-for-token 'wasm 'keyword "module"))
+  (check-not-false (latex-doc-url-for-token 'keyword "\\section"))
+  (check-not-false (latex-doc-url-for-token 'literal "itemize"))
   (check-true (contains-link? (css-code "a{color:red;}")))
   (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))
   (check-true (contains-link? (html-code "<div class='x'>x</div>")))
   (check-false (contains-link? (js-code #:mdn-links? #f "const x = 1;")))
   (check-true (contains-link? (wasm-code "(module (func (result i32) (i32.const 1)))")))
   (check-false (contains-link? (wasm-code #:docs-source 'none "(module (func (result i32) (i32.const 1)))")))
+  (check-true (contains-link? (latex-code "\\section{Intro}\\begin{itemize}\\item x\\end{itemize}")))
+  (check-false (contains-link? (tex-code "\\hbox{Hello}")))
   (check-true (contains-link? (shell-code "if [ -f ./x ]; then echo ok; fi")))
   (check-false (contains-link? (shell-code #:docs-source 'none "if [ -f ./x ]; then echo ok; fi")))
   (for ([cmd (in-list '("cd" "echo" "printf" "read"
