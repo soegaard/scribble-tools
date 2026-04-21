@@ -1049,25 +1049,6 @@ Typesets Markdown as a block inset.
 Like @racket[markdownblock], but without the inset wrapper.
 }
 
-@defform/subs[(scribbleblock option ... str-expr ...+)
-              ([option (code:line #:indent indent-expr)
-                       (code:line #:line-numbers line-number-expr)
-                       (code:line #:line-number-sep line-number-sep-expr)
-                       (code:line #:lang lang-expr)
-                       (code:line #:context context-expr)
-                       (code:line #:copy-button? copy-button?-expr)
-                       (code:line #:file filename-expr)
-                       (code:line #:escape escape-id)])
-              #:contracts ([indent-expr exact-nonnegative-integer?]
-                           [line-number-expr (or/c #f exact-nonnegative-integer?)]
-                           [line-number-sep-expr exact-nonnegative-integer?])]{
-Typesets Scribble source as a block inset.
-}
-
-@defform[(scribbleblock0 option ... str-expr ...+)]{
-Like @racket[scribbleblock], but without the inset wrapper.
-}
-
 @defform[(texblock option ... str-expr ...+)]{
 Typesets TeX as a block inset.
 }
