@@ -22,6 +22,7 @@
                   javascript-derived-token-text
                   javascript-string->derived-tokens)
          (only-in lexers/json json-string->tokens)
+         (only-in lexers/makefile makefile-string->tokens)
          (only-in lexers/markdown markdown-string->tokens)
          (only-in lexers/objc objc-string->tokens)
          (only-in lexers/scribble
@@ -53,6 +54,7 @@
 (provide css-code
          c-code
          cpp-code
+         makefile-code
          objc-code
          csv-code
          html-code
@@ -71,6 +73,7 @@
          cssblock
          cblock
          cppblock
+         makefileblock
          objcblock
          csvblock
          htmlblock
@@ -89,6 +92,7 @@
          cssblock0
          cblock0
          cppblock0
+         makefileblock0
          objcblock0
          csvblock0
          htmlblock0
@@ -1000,7 +1004,7 @@ JS
        [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
-    [(c cpp json markdown objc racket rhombus swift yaml)
+    [(c cpp json makefile markdown objc racket rhombus swift yaml)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -2530,6 +2534,8 @@ JS
           (c-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(cpp) (projected-tokens->scribble-tokens
             (cpp-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(makefile) (projected-tokens->scribble-tokens
+                 (makefile-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(objc) (projected-tokens->scribble-tokens
              (objc-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(csv) (projected-tokens->scribble-tokens
@@ -4174,6 +4180,7 @@ JS
 
 (define-syntax (c-code stx) (do-simple-inline stx 'c))
 (define-syntax (cpp-code stx) (do-simple-inline stx 'cpp))
+(define-syntax (makefile-code stx) (do-simple-inline stx 'makefile))
 (define-syntax (objc-code stx) (do-simple-inline stx 'objc))
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
 (define-syntax (json-code stx) (do-simple-inline stx 'json))
@@ -4241,6 +4248,8 @@ JS
 (define-syntax (cblock stx) (do-simple-block stx 'c #t))
 (define-syntax (cppblock0 stx) (do-simple-block stx 'cpp #f))
 (define-syntax (cppblock stx) (do-simple-block stx 'cpp #t))
+(define-syntax (makefileblock0 stx) (do-simple-block stx 'makefile #f))
+(define-syntax (makefileblock stx) (do-simple-block stx 'makefile #t))
 (define-syntax (objcblock0 stx) (do-simple-block stx 'objc #f))
 (define-syntax (objcblock stx) (do-simple-block stx 'objc #t))
 (define-syntax (csvblock0 stx) (do-simple-block stx 'csv #f))
@@ -4356,6 +4365,7 @@ JS
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (cblock "int main(void) { return 0; }")))
   (check-true (block? (cppblock "int main() { return 0; }")))
+  (check-true (block? (makefileblock "all:\n\t@echo ok\n")))
   (check-true (block? (objcblock "@interface Box : NSObject @end")))
   (check-true (block? (csvblock "name,age\nAda,37\n")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
@@ -4381,6 +4391,7 @@ JS
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (c-code "int x = 1;")))
   (check-true (element? (cpp-code "std::vector<int> xs;")))
+  (check-true (element? (makefile-code "all: build test")))
   (check-true (element? (objc-code "@\"hello\"")))
   (check-true (element? (csv-code "a,b")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))

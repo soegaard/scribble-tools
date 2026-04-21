@@ -10,13 +10,13 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-JavaScript, JSON, Markdown, Objective-C, Python, Racket, Rhombus, shell scripts
+JavaScript, JSON, Makefile, Markdown, Objective-C, Python, Racket, Rhombus, shell scripts
 (Bash/Zsh/PowerShell), Swift, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[html-code], @racket[js-code], @racket[json-code],
-@racket[markdown-code], @racket[objc-code], @racket[python-code], @racket[racket-code],
+@racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[python-code], @racket[racket-code],
 @racket[rhombus-code], @racket[shell-code], @racket[swift-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
@@ -24,7 +24,7 @@ produce content.
 The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
-        @racket[objcblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
+        @racket[makefileblock], @racket[objcblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
         @racket[shellblock], @racket[swiftblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
@@ -49,6 +49,7 @@ Use inline forms when you want code inside running text:
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
   (list "JSON"        @scribble-code["@json-code[\"{\\\"name\\\": \\\"Ada\\\"}\"]"])
+  (list "Makefile"    @scribble-code["@makefile-code{all: build test}"])
   (list "Markdown"    @scribble-code["@markdown-code[\"# Hello\"]"])
   (list "Objective-C" @scribble-code["@objc-code{@\"Hello\"}"])
   (list "Python"      @scribble-code["@python-code{def total(xs): return sum(xs)}"])
@@ -72,6 +73,7 @@ Use inline forms when you want code inside running text:
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
   (list "JSON"          @json-code["{\"name\": \"Ada\"}"])
+  (list "Makefile"      @makefile-code{all: build test})
   (list "Markdown"      @markdown-code["# Hello"])
   (list "Objective-C"   @objc-code[@"Hello"])
   (list "Python"        @python-code{def total(xs): return sum(xs)})
@@ -478,6 +480,14 @@ Typesets the concatenated strings as inline JSON.
 Example: @json-code["{\"name\": \"Ada\"}"]
 }
 
+@defform/subs[(makefile-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Makefile code.
+
+Example: @makefile-code{all: build test}
+}
+
 @defform/subs[(markdown-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -844,6 +854,14 @@ Example:
 
 @defform[(jsonblock0 option ... str-expr ...+)]{
 Like @racket[jsonblock], but without the inset wrapper.
+}
+
+@defform[(makefileblock option ... str-expr ...+)]{
+Typesets Makefile code as a block inset.
+}
+
+@defform[(makefileblock0 option ... str-expr ...+)]{
+Like @racket[makefileblock], but without the inset wrapper.
 }
 
 @defform[(markdownblock option ... str-expr ...+)]{
@@ -1383,6 +1401,21 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
   },
   "targets": ["html", "manual"]
 }
+}
+
+@subsection{Makefile}
+
+@makefileblock[#:line-numbers 1
+               #:file "extended/Makefile"]{
+APP = scribble-tools
+
+.PHONY: docs test
+
+docs:
+	raco scribble +m --html --dest html scribblings/scribble-tools.scrbl
+
+test:
+	raco test private/lang-code.rkt
 }
 
 @subsection{Markdown}

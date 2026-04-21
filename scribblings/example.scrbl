@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, Markdown, Objective-C, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, Makefile, Markdown, Objective-C, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -13,6 +13,7 @@ inline C with @c-code{int answer = 42;} and
 inline C++ with @cpp-code{std::vector<int> xs = {1, 2, 3};} and
 inline CSV with @csv-code["name,age"] and
 inline JSON with @json-code["{\"name\": \"Ada\"}"] and
+inline Makefile with @makefile-code{all: build test} and
 inline Markdown with @markdown-code["# Hello"] and
 inline Objective-C with @objc-code[@"Hello"] and
 inline Python with @python-code{def answer(): return 42} and
@@ -56,6 +57,8 @@ Inline C++: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 Inline CSV: @csv-code["name,age"]
 
 Inline JSON: @json-code["{\"name\": \"Ada\"}"]
+
+Inline Makefile: @makefile-code{all: build test}
 
 Inline Markdown: @markdown-code["# Hello"]
 
@@ -361,6 +364,20 @@ This JSON example shows nested objects, arrays, and booleans.
   "active": true,
   "roles": ["admin", "writer"]
 }
+}
+
+@subsection{Makefile}
+
+Makefile snippets are useful for small automation and build examples.
+
+@makefileblock[#:line-numbers 1 #:file "Makefile"]{
+all: docs test
+
+docs:
+	raco scribble +m --html --dest html scribblings/example.scrbl
+
+test:
+	raco test private/lang-code.rkt
 }
 
 @subsection{Markdown}

@@ -10,6 +10,7 @@
   - C++: `cpp-code`, `cppblock`, `cppblock0`
   - CSV: `csv-code`, `csvblock`, `csvblock0`
    - JSON: `json-code`, `jsonblock`, `jsonblock0`
+  - Makefile: `makefile-code`, `makefileblock`, `makefileblock0`
   - Markdown: `markdown-code`, `markdownblock`, `markdownblock0`
   - Objective-C: `objc-code`, `objcblock`, `objcblock0`
   - Racket: `racket-code`, `racketblock`, `racketblock0`
