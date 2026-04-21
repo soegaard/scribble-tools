@@ -17,6 +17,7 @@
   - plist: `plist-code`, `plistblock`, `plistblock0`
   - Racket: `racket-code`, `racketblock`, `racketblock0`
   - Rhombus: `rhombus-code`, `rhombusblock`, `rhombusblock0`
+  - Rust: `rust-code`, `rustblock`, `rustblock0`
   - Swift: `swift-code`, `swiftblock`, `swiftblock0`
   - TeX: `tex-code`, `texblock`, `texblock0`
   - TSV: `tsv-code`, `tsvblock`, `tsvblock0`

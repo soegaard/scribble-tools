@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -21,6 +21,7 @@ inline plist with @plist-code{<plist/>} and
 inline Python with @python-code{def answer(): return 42} and
 inline Racket with @racket-code{(define (add x y) (+ x y))} and
 inline Rhombus with @rhombus-code{fun add(x, y): x + y} and
+inline Rust with @rust-code{let xs: Vec<i32> = vec![1, 2, 3];} and
 inline shell with @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi} and
 inline Swift with @swift-code{let answer = 42} and
 inline TeX with @tex-code{\hbox{Hello}} and
@@ -76,6 +77,8 @@ Inline Python: @python-code{def answer(): return 42}
 Inline Racket: @racket-code{(define (add x y) (+ x y))}
 
 Inline Rhombus: @rhombus-code{fun add(x, y): x + y}
+
+Inline Rust: @rust-code{let xs: Vec<i32> = vec![1, 2, 3];}
 
 Inline shell (Bash): @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
 
@@ -479,6 +482,23 @@ struct User {
 
 func topNames(_ users: [User]) -> [String] {
   users.sorted { $0.score > $1.score }.map(\.name)
+}
+}
+
+@subsection{Rust}
+
+Rust works well for systems-oriented examples where standard library
+collections and explicit ownership-friendly types are part of the story.
+
+@rustblock[#:line-numbers 1 #:file "helpers.rs"]{
+use std::collections::HashMap;
+
+fn histogram(words: &[&str]) -> HashMap<String, usize> {
+    let mut counts = HashMap::new();
+    for word in words {
+        *counts.entry((*word).to_string()).or_insert(0) += 1;
+    }
+    counts
 }
 }
 

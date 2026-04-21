@@ -37,6 +37,7 @@
                   scribble-string->derived-tokens)
          (only-in lexers/racket racket-string->tokens)
          (only-in lexers/rhombus rhombus-string->tokens)
+         (only-in lexers/rust rust-string->tokens)
          lexers/shell
          (only-in lexers/swift swift-string->tokens)
          (only-in lexers/tex tex-string->tokens)
@@ -49,6 +50,7 @@
          "mdn-map.rkt"
          "cppreference-docs-map.rkt"
          "latex-docs-map.rkt"
+         "rust-docs-map.rkt"
          "wasm-spec-map.rkt"
          "shell-docs-map.rkt"
          scribble/base
@@ -75,6 +77,7 @@
          python-code
          racket-code
          rhombus-code
+         rust-code
          swift-code
          wasm-code
          shell-code
@@ -97,6 +100,7 @@
          pythonblock
          racketblock
          rhombusblock
+         rustblock
          swiftblock
          wasmblock
          shellblock
@@ -119,6 +123,7 @@
          pythonblock0
          racketblock0
          rhombusblock0
+         rustblock0
          swiftblock0
          wasmblock0
          shellblock0
@@ -2633,6 +2638,8 @@ JS
      (with-handlers ([exn:fail? (lambda (_e) (list (cons 'plain s)))])
        (projected-tokens->scribble-tokens
         (rhombus-string->tokens s #:profile 'coloring #:source-positions #t)))]
+    [(rust) (projected-tokens->scribble-tokens
+             (rust-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(swift) (projected-tokens->scribble-tokens
               (swift-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(tex) (projected-tokens->scribble-tokens
@@ -3506,6 +3513,8 @@ JS
                                                               (current-shell-docs-source))))]
               [(eq? lang 'latex)
                (latex-doc-url-for-token cls txt)]
+              [(eq? lang 'rust)
+               (rust-doc-url-for-token cls txt prev1 prev2 next1)]
               [(memq lang '(c cpp))
                (c/cpp-doc-url-for-token lang cls txt prev1 prev2)]
               [else
@@ -4276,6 +4285,7 @@ JS
 (define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
 (define-syntax (racket-code stx) (do-simple-inline stx 'racket))
 (define-syntax (rhombus-code stx) (do-simple-inline stx 'rhombus))
+(define-syntax (rust-code stx) (do-simple-inline stx 'rust))
 (define-syntax (swift-code stx) (do-simple-inline stx 'swift))
 (define-syntax (tsv-code stx) (do-simple-inline stx 'tsv))
 (define-syntax (yaml-code stx) (do-simple-inline stx 'yaml))
@@ -4363,6 +4373,8 @@ JS
 (define-syntax (racketblock stx) (do-simple-block stx 'racket #t))
 (define-syntax (rhombusblock0 stx) (do-simple-block stx 'rhombus #f))
 (define-syntax (rhombusblock stx) (do-simple-block stx 'rhombus #t))
+(define-syntax (rustblock0 stx) (do-simple-block stx 'rust #f))
+(define-syntax (rustblock stx) (do-simple-block stx 'rust #t))
 (define-syntax (swiftblock0 stx) (do-simple-block stx 'swift #f))
 (define-syntax (swiftblock stx) (do-simple-block stx 'swift #t))
 (define-syntax (wasmblock0 stx) (do-wasm-block stx #f))
@@ -4473,6 +4485,7 @@ JS
   (check-true (block? (pythonblock "def f(x):\n    return x\n")))
   (check-true (block? (racketblock "(define (f x) (+ x 1))")))
   (check-true (block? (rhombusblock "fun add(x, y): x + y")))
+  (check-true (block? (rustblock "fn add(x: i32, y: i32) -> i32 { x + y }")))
   (check-true (block? (swiftblock "func add(_ x: Int, _ y: Int) -> Int { x + y }")))
   (check-true (block? (wasmblock "(module (func))")))
   (check-true (block? (shellblock "if [ -f ./x ]; then echo ok; fi")))
@@ -4510,6 +4523,7 @@ JS
   (check-true (element? (python-code "def f(x): return x")))
   (check-true (element? (racket-code "(+ 1 2)")))
   (check-true (element? (rhombus-code "fun add(x, y): x + y")))
+  (check-true (element? (rust-code "let answer: i32 = 42;")))
   (check-true (element? (swift-code "let answer = 42")))
   (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (shell-code "echo $HOME")))
@@ -4613,11 +4627,14 @@ JS
   (check-not-false (mdn-url-for-token 'wasm 'keyword "module"))
   (check-not-false (c/cpp-doc-url-for-token 'c 'keyword "return" #f #f))
   (check-not-false (c/cpp-doc-url-for-token 'cpp 'identifier "vector" "::" "std"))
+  (check-not-false (rust-doc-url-for-token 'keyword "fn" #f #f #f))
+  (check-not-false (rust-doc-url-for-token 'identifier "Vec" #f #f #f))
   (check-not-false (latex-doc-url-for-token 'keyword "\\section"))
   (check-not-false (latex-doc-url-for-token 'literal "itemize"))
   (check-not-false (latex-doc-url-for-token 'identifier "\\draw"))
   (check-true (contains-link? (c-code "int main(void) { return 0; }")))
   (check-true (contains-link? (cpp-code "std::vector<int> xs;")))
+  (check-true (contains-link? (rust-code "fn main() { let xs: Vec<i32> = vec![1, 2, 3]; }")))
   (check-true (contains-link? (css-code "a{color:red;}")))
   (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))
   (check-true (contains-link? (html-code "<div class='x'>x</div>")))
