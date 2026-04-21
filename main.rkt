@@ -6,6 +6,8 @@
          c-code
          cpp-code
          makefile-code
+         tex-code
+         latex-code
          objc-code
          plist-code
          csv-code
@@ -26,6 +28,8 @@
          cblock
          cppblock
          makefileblock
+         texblock
+         latexblock
          objcblock
          plistblock
          csvblock
@@ -46,6 +50,8 @@
          cblock0
          cppblock0
          makefileblock0
+         texblock0
+         latexblock0
          objcblock0
          plistblock0
          csvblock0
@@ -77,6 +83,8 @@
 (define-syntax-rule (c-code . rest) (api:c-code . rest))
 (define-syntax-rule (cpp-code . rest) (api:cpp-code . rest))
 (define-syntax-rule (makefile-code . rest) (api:makefile-code . rest))
+(define-syntax-rule (tex-code . rest) (api:tex-code . rest))
+(define-syntax-rule (latex-code . rest) (api:latex-code . rest))
 (define-syntax-rule (objc-code . rest) (api:objc-code . rest))
 (define-syntax-rule (plist-code . rest) (api:plist-code . rest))
 (define-syntax-rule (csv-code . rest) (api:csv-code . rest))
@@ -97,6 +105,8 @@
 (define-syntax-rule (cblock . rest) (api:cblock . rest))
 (define-syntax-rule (cppblock . rest) (api:cppblock . rest))
 (define-syntax-rule (makefileblock . rest) (api:makefileblock . rest))
+(define-syntax-rule (texblock . rest) (api:texblock . rest))
+(define-syntax-rule (latexblock . rest) (api:latexblock . rest))
 (define-syntax-rule (objcblock . rest) (api:objcblock . rest))
 (define-syntax-rule (plistblock . rest) (api:plistblock . rest))
 (define-syntax-rule (csvblock . rest) (api:csvblock . rest))
@@ -117,6 +127,8 @@
 (define-syntax-rule (cblock0 . rest) (api:cblock0 . rest))
 (define-syntax-rule (cppblock0 . rest) (api:cppblock0 . rest))
 (define-syntax-rule (makefileblock0 . rest) (api:makefileblock0 . rest))
+(define-syntax-rule (texblock0 . rest) (api:texblock0 . rest))
+(define-syntax-rule (latexblock0 . rest) (api:latexblock0 . rest))
 (define-syntax-rule (objcblock0 . rest) (api:objcblock0 . rest))
 (define-syntax-rule (plistblock0 . rest) (api:plistblock0 . rest))
 (define-syntax-rule (csvblock0 . rest) (api:csvblock0 . rest))

@@ -36,6 +36,8 @@
          (only-in lexers/rhombus rhombus-string->tokens)
          lexers/shell
          (only-in lexers/swift swift-string->tokens)
+         (only-in lexers/tex tex-string->tokens)
+         (only-in lexers/latex latex-string->tokens)
          syntax-color/scribble-lexer
          (only-in lexers/tsv tsv-string->tokens)
          lexers/token
@@ -56,6 +58,8 @@
          c-code
          cpp-code
          makefile-code
+         tex-code
+         latex-code
          objc-code
          plist-code
          csv-code
@@ -76,6 +80,8 @@
          cblock
          cppblock
          makefileblock
+         texblock
+         latexblock
          objcblock
          plistblock
          csvblock
@@ -96,6 +102,8 @@
          cblock0
          cppblock0
          makefileblock0
+         texblock0
+         latexblock0
          objcblock0
          plistblock0
          csvblock0
@@ -1008,7 +1016,7 @@ JS
        [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
-    [(c cpp json makefile markdown objc racket rhombus swift yaml)
+    [(c cpp json latex makefile markdown objc plist racket rhombus swift tex yaml)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -2548,9 +2556,13 @@ JS
     [(js) (tokenize-js s)]
     [(json) (projected-tokens->scribble-tokens
              (json-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(latex) (projected-tokens->scribble-tokens
+              (latex-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(markdown) (projected-tokens->scribble-tokens
                  (markdown-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(python) (python-string->scribble-tokens s)]
+    [(plist) (projected-tokens->scribble-tokens
+              (plist-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(racket) (projected-tokens->scribble-tokens
                (racket-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(rhombus)
@@ -2559,6 +2571,8 @@ JS
         (rhombus-string->tokens s #:profile 'coloring #:source-positions #t)))]
     [(swift) (projected-tokens->scribble-tokens
               (swift-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(tex) (projected-tokens->scribble-tokens
+            (tex-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(wasm) (tokenize-wasm s)]
     [(bash) (tokenize-shell 'bash s)]
     [(zsh) (tokenize-shell 'zsh s)]
@@ -4185,6 +4199,8 @@ JS
 (define-syntax (c-code stx) (do-simple-inline stx 'c))
 (define-syntax (cpp-code stx) (do-simple-inline stx 'cpp))
 (define-syntax (makefile-code stx) (do-simple-inline stx 'makefile))
+(define-syntax (tex-code stx) (do-simple-inline stx 'tex))
+(define-syntax (latex-code stx) (do-simple-inline stx 'latex))
 (define-syntax (objc-code stx) (do-simple-inline stx 'objc))
 (define-syntax (plist-code stx) (do-simple-inline stx 'plist))
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
@@ -4255,6 +4271,10 @@ JS
 (define-syntax (cppblock stx) (do-simple-block stx 'cpp #t))
 (define-syntax (makefileblock0 stx) (do-simple-block stx 'makefile #f))
 (define-syntax (makefileblock stx) (do-simple-block stx 'makefile #t))
+(define-syntax (texblock0 stx) (do-simple-block stx 'tex #f))
+(define-syntax (texblock stx) (do-simple-block stx 'tex #t))
+(define-syntax (latexblock0 stx) (do-simple-block stx 'latex #f))
+(define-syntax (latexblock stx) (do-simple-block stx 'latex #t))
 (define-syntax (objcblock0 stx) (do-simple-block stx 'objc #f))
 (define-syntax (objcblock stx) (do-simple-block stx 'objc #t))
 (define-syntax (plistblock0 stx) (do-simple-block stx 'plist #f))
@@ -4373,6 +4393,8 @@ JS
   (check-true (block? (cblock "int main(void) { return 0; }")))
   (check-true (block? (cppblock "int main() { return 0; }")))
   (check-true (block? (makefileblock "all:\n\t@echo ok\n")))
+  (check-true (block? (texblock "\\hbox{Hello}")))
+  (check-true (block? (latexblock "\\section{Hi}")))
   (check-true (block? (objcblock "@interface Box : NSObject @end")))
   (check-true (block? (plistblock "<plist><dict><key>Name</key><string>Ada</string></dict></plist>")))
   (check-true (block? (csvblock "name,age\nAda,37\n")))
@@ -4400,6 +4422,8 @@ JS
   (check-true (element? (c-code "int x = 1;")))
   (check-true (element? (cpp-code "std::vector<int> xs;")))
   (check-true (element? (makefile-code "all: build test")))
+  (check-true (element? (tex-code "\\hbox{Hello}")))
+  (check-true (element? (latex-code "\\section{Hi}")))
   (check-true (element? (objc-code "@\"hello\"")))
   (check-true (element? (plist-code "<plist/>")))
   (check-true (element? (csv-code "a,b")))

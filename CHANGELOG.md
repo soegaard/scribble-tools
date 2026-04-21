@@ -9,7 +9,8 @@
   - C: `c-code`, `cblock`, `cblock0`
   - C++: `cpp-code`, `cppblock`, `cppblock0`
   - CSV: `csv-code`, `csvblock`, `csvblock0`
-   - JSON: `json-code`, `jsonblock`, `jsonblock0`
+  - JSON: `json-code`, `jsonblock`, `jsonblock0`
+  - LaTeX: `latex-code`, `latexblock`, `latexblock0`
   - Makefile: `makefile-code`, `makefileblock`, `makefileblock0`
   - Markdown: `markdown-code`, `markdownblock`, `markdownblock0`
   - Objective-C: `objc-code`, `objcblock`, `objcblock0`
@@ -17,6 +18,7 @@
   - Racket: `racket-code`, `racketblock`, `racketblock0`
   - Rhombus: `rhombus-code`, `rhombusblock`, `rhombusblock0`
   - Swift: `swift-code`, `swiftblock`, `swiftblock0`
+  - TeX: `tex-code`, `texblock`, `texblock0`
   - TSV: `tsv-code`, `tsvblock`, `tsvblock0`
   - YAML: `yaml-code`, `yamlblock`, `yamlblock0`
 - Added the `lexers` package as the lexer backend dependency.

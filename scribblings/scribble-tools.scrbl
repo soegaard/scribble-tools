@@ -10,22 +10,22 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-JavaScript, JSON, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, shell scripts
-(Bash/Zsh/PowerShell), Swift, TSV, WebAssembly (WAT), YAML, and Scribble
+JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, shell scripts
+(Bash/Zsh/PowerShell), Swift, TeX, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[html-code], @racket[js-code], @racket[json-code],
-@racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
-@racket[rhombus-code], @racket[shell-code], @racket[swift-code], @racket[tsv-code],
+@racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
+@racket[rhombus-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
 
 The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
-        @racket[makefileblock], @racket[objcblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
-        @racket[shellblock], @racket[swiftblock], @racket[tsvblock], @racket[wasmblock],
+        @racket[latexblock], @racket[makefileblock], @racket[objcblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
+        @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
 
@@ -49,6 +49,7 @@ Use inline forms when you want code inside running text:
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
   (list "JSON"        @scribble-code["@json-code[\"{\\\"name\\\": \\\"Ada\\\"}\"]"])
+  (list "LaTeX"       @scribble-code["@latex-code{\\section{Intro}}"])
   (list "Makefile"    @scribble-code["@makefile-code{all: build test}"])
   (list "Markdown"    @scribble-code["@markdown-code[\"# Hello\"]"])
   (list "Objective-C" @scribble-code["@objc-code{@\"Hello\"}"])
@@ -58,6 +59,7 @@ Use inline forms when you want code inside running text:
   (list "Rhombus"     @scribble-code["@rhombus-code{fun add(x, y): x + y}"])
   (list "Shell"       @scribble-code["@shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}"])
   (list "Swift"       @scribble-code["@swift-code{let answer = 42}"])
+  (list "TeX"         @scribble-code["@tex-code{\\hbox{Hello}}"])
   (list "TSV"         @scribble-code["@tsv-code[\"name\\tage\"]"])
   (list "WebAssembly" @scribble-code["@wasm-code{(module (func (result i32) (i32.const 42)))}"])
   (list "YAML"        @scribble-code["@yaml-code[\"name: Ada\"]"])
@@ -74,6 +76,7 @@ Use inline forms when you want code inside running text:
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
   (list "JSON"          @json-code["{\"name\": \"Ada\"}"])
+  (list "LaTeX"         @latex-code{\section{Intro}})
   (list "Makefile"      @makefile-code{all: build test})
   (list "Markdown"      @markdown-code["# Hello"])
   (list "Objective-C"   @objc-code[@"Hello"])
@@ -83,6 +86,7 @@ Use inline forms when you want code inside running text:
   (list "Rhombus"       @rhombus-code{fun add(x, y): x + y})
   (list "Shell"         @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi})
   (list "Swift"         @swift-code{let answer = 42})
+  (list "TeX"           @tex-code{\hbox{Hello}})
   (list "TSV"           @tsv-code["name\tage"])
   (list "WebAssembly"   @wasm-code{(module (func (result i32) (i32.const 42)))})
   (list "YAML"          @yaml-code["name: Ada"])
@@ -482,6 +486,14 @@ Typesets the concatenated strings as inline JSON.
 Example: @json-code["{\"name\": \"Ada\"}"]
 }
 
+@defform/subs[(latex-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline LaTeX code.
+
+Example: @latex-code{\section{Intro}}
+}
+
 @defform/subs[(makefile-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -512,6 +524,14 @@ Example: @objc-code[@"Hello"]
 Typesets the concatenated strings as inline plist XML.
 
 Example: @plist-code{<plist/>}
+}
+
+@defform/subs[(tex-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline TeX code.
+
+Example: @tex-code{\hbox{Hello}}
 }
 
 @defform/subs[(racket-code maybe-escape str-expr ...+)
@@ -866,6 +886,14 @@ Example:
 Like @racket[jsonblock], but without the inset wrapper.
 }
 
+@defform[(latexblock option ... str-expr ...+)]{
+Typesets LaTeX as a block inset.
+}
+
+@defform[(latexblock0 option ... str-expr ...+)]{
+Like @racket[latexblock], but without the inset wrapper.
+}
+
 @defform[(makefileblock option ... str-expr ...+)]{
 Typesets Makefile code as a block inset.
 }
@@ -896,6 +924,14 @@ Typesets plist XML as a block inset.
 
 @defform[(plistblock0 option ... str-expr ...+)]{
 Like @racket[plistblock], but without the inset wrapper.
+}
+
+@defform[(texblock option ... str-expr ...+)]{
+Typesets TeX as a block inset.
+}
+
+@defform[(texblock0 option ... str-expr ...+)]{
+Like @racket[texblock], but without the inset wrapper.
 }
 
 @defform[(racketblock option ... str-expr ...+)]{
@@ -1421,6 +1457,18 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
 }
 }
 
+@subsection{LaTeX}
+
+@latexblock[#:line-numbers 1
+            #:file "extended/doc.tex"]{
+\section{Overview}
+
+\begin{itemize}
+  \item First item
+  \item Second item
+\end{itemize}
+}
+
 @subsection{Makefile}
 
 @makefileblock[#:line-numbers 1
@@ -1521,6 +1569,15 @@ func topTitles(_ entries: [Entry], limit: Int = 3) -> [String] {
     .prefix(limit)
     .map(\.title)
 }
+}
+
+@subsection{TeX}
+
+@texblock[#:line-numbers 1
+          #:file "extended/doc.tex"]{
+\hbox{Hello}
+\vskip 1em
+\centerline{Sample}
 }
 
 @subsection{CSV and TSV}

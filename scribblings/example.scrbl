@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -13,6 +13,7 @@ inline C with @c-code{int answer = 42;} and
 inline C++ with @cpp-code{std::vector<int> xs = {1, 2, 3};} and
 inline CSV with @csv-code["name,age"] and
 inline JSON with @json-code["{\"name\": \"Ada\"}"] and
+inline LaTeX with @latex-code{\section{Intro}} and
 inline Makefile with @makefile-code{all: build test} and
 inline Markdown with @markdown-code["# Hello"] and
 inline Objective-C with @objc-code[@"Hello"] and
@@ -22,6 +23,7 @@ inline Racket with @racket-code{(define (add x y) (+ x y))} and
 inline Rhombus with @rhombus-code{fun add(x, y): x + y} and
 inline shell with @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi} and
 inline Swift with @swift-code{let answer = 42} and
+inline TeX with @tex-code{\hbox{Hello}} and
 inline TSV with @tsv-code["name\tage"] and
 inline WebAssembly with @wasm-code{(module (func (result i32) (i32.const 42)))} and
 inline YAML with @yaml-code["name: Ada"] and
@@ -59,6 +61,8 @@ Inline CSV: @csv-code["name,age"]
 
 Inline JSON: @json-code["{\"name\": \"Ada\"}"]
 
+Inline LaTeX: @latex-code{\section{Intro}}
+
 Inline Makefile: @makefile-code{all: build test}
 
 Inline Markdown: @markdown-code["# Hello"]
@@ -76,6 +80,8 @@ Inline Rhombus: @rhombus-code{fun add(x, y): x + y}
 Inline shell (Bash): @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
 
 Inline Swift: @swift-code{let answer = 42}
+
+Inline TeX: @tex-code{\hbox{Hello}}
 
 Inline shell (Zsh): @shell-code[#:shell 'zsh]{setopt prompt_subst}
 
@@ -369,6 +375,17 @@ This JSON example shows nested objects, arrays, and booleans.
 }
 }
 
+@subsection{LaTeX}
+
+LaTeX snippets are useful for math-heavy or document-structure examples.
+
+@latexblock[#:line-numbers 1 #:file "doc.tex"]{
+\section{Intro}
+\begin{equation}
+  a^2 + b^2 = c^2
+\end{equation}
+}
+
 @subsection{Makefile}
 
 Makefile snippets are useful for small automation and build examples.
@@ -453,6 +470,16 @@ struct User {
 func topNames(_ users: [User]) -> [String] {
   users.sorted { $0.score > $1.score }.map(\.name)
 }
+}
+
+@subsection{TeX}
+
+TeX snippets are useful for lower-level typesetting examples.
+
+@texblock[#:line-numbers 1 #:file "doc.tex"]{
+\hbox{Hello}
+\vskip 1em
+\centerline{Sample}
 }
 
 @subsection{TSV}
