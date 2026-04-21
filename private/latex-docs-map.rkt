@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require racket/string)
+(require racket/string
+         "tikz-docs-map.rkt")
 
 (provide latex-doc-url-for-token)
 
@@ -74,4 +75,14 @@
     [(and (memq cls '(literal value plain name keyword punct))
           (hash-has-key? latex-environment-url t))
      (string-append latexref-base-url (hash-ref latex-environment-url t))]
-    [else #f]))
+    [else
+     (or (tikz-doc-url-for-token (string-trim token))
+         #f)]))
+
+(module+ test
+  (require rackunit)
+  (check-not-false (latex-doc-url-for-token 'keyword "\\section"))
+  (check-not-false (latex-doc-url-for-token 'literal "itemize"))
+  (check-not-false (latex-doc-url-for-token 'identifier "\\draw"))
+  (check-not-false (latex-doc-url-for-token 'literal "/tikz/state"))
+  (check-false (latex-doc-url-for-token 'identifier "\\notarealcommand")))
