@@ -8,6 +8,7 @@
          cpp-code
          makefile-code
          objc-code
+         plist-code
          csv-code
          html-code
          js-code
@@ -27,6 +28,7 @@
          cppblock
          makefileblock
          objcblock
+         plistblock
          csvblock
          htmlblock
          jsblock
@@ -46,6 +48,7 @@
          cppblock0
          makefileblock0
          objcblock0
+         plistblock0
          csvblock0
          htmlblock0
          jsblock0
@@ -76,6 +79,7 @@
 (define-syntax-rule (cpp-code . rest) (lang:cpp-code . rest))
 (define-syntax-rule (makefile-code . rest) (lang:makefile-code . rest))
 (define-syntax-rule (objc-code . rest) (lang:objc-code . rest))
+(define-syntax-rule (plist-code . rest) (lang:plist-code . rest))
 (define-syntax-rule (csv-code . rest) (lang:csv-code . rest))
 (define-syntax-rule (html-code . rest) (lang:html-code . rest))
 (define-syntax-rule (js-code . rest) (lang:js-code . rest))
@@ -95,6 +99,7 @@
 (define-syntax-rule (cppblock . rest) (lang:cppblock . rest))
 (define-syntax-rule (makefileblock . rest) (lang:makefileblock . rest))
 (define-syntax-rule (objcblock . rest) (lang:objcblock . rest))
+(define-syntax-rule (plistblock . rest) (lang:plistblock . rest))
 (define-syntax-rule (csvblock . rest) (lang:csvblock . rest))
 (define-syntax-rule (htmlblock . rest) (lang:htmlblock . rest))
 (define-syntax-rule (jsblock . rest) (lang:jsblock . rest))
@@ -114,6 +119,7 @@
 (define-syntax-rule (cppblock0 . rest) (lang:cppblock0 . rest))
 (define-syntax-rule (makefileblock0 . rest) (lang:makefileblock0 . rest))
 (define-syntax-rule (objcblock0 . rest) (lang:objcblock0 . rest))
+(define-syntax-rule (plistblock0 . rest) (lang:plistblock0 . rest))
 (define-syntax-rule (csvblock0 . rest) (lang:csvblock0 . rest))
 (define-syntax-rule (htmlblock0 . rest) (lang:htmlblock0 . rest))
 (define-syntax-rule (jsblock0 . rest) (lang:jsblock0 . rest))

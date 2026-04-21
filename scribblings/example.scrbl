@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, Makefile, Markdown, Objective-C, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Shell, Swift, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -16,6 +16,7 @@ inline JSON with @json-code["{\"name\": \"Ada\"}"] and
 inline Makefile with @makefile-code{all: build test} and
 inline Markdown with @markdown-code["# Hello"] and
 inline Objective-C with @objc-code[@"Hello"] and
+inline plist with @plist-code{<plist/>} and
 inline Python with @python-code{def answer(): return 42} and
 inline Racket with @racket-code{(define (add x y) (+ x y))} and
 inline Rhombus with @rhombus-code{fun add(x, y): x + y} and
@@ -63,6 +64,8 @@ Inline Makefile: @makefile-code{all: build test}
 Inline Markdown: @markdown-code["# Hello"]
 
 Inline Objective-C: @objc-code[@"Hello"]
+
+Inline plist: @plist-code{<plist/>}
 
 Inline Python: @python-code{def answer(): return 42}
 
@@ -403,6 +406,20 @@ Objective-C is useful for Cocoa- and Foundation-oriented examples.
            "@interface Greeter : NSObject\n"
            "- (NSString *)messageFor:(NSString *)name;\n"
            "@end\n"]
+
+@subsection{plist}
+
+plist snippets are useful for Apple configuration files and metadata.
+
+@plistblock[#:line-numbers 1 #:file "Info.plist"]{
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+  <dict>
+    <key>CFBundleName</key>
+    <string>scribble-tools</string>
+  </dict>
+</plist>
+}
 
 @subsection{Racket}
 

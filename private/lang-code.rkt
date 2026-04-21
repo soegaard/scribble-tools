@@ -25,6 +25,7 @@
          (only-in lexers/makefile makefile-string->tokens)
          (only-in lexers/markdown markdown-string->tokens)
          (only-in lexers/objc objc-string->tokens)
+         (only-in lexers/plist plist-string->tokens)
          (only-in lexers/scribble
                   scribble-derived-token-has-tag?
                   scribble-derived-token-start
@@ -56,6 +57,7 @@
          cpp-code
          makefile-code
          objc-code
+         plist-code
          csv-code
          html-code
          js-code
@@ -75,6 +77,7 @@
          cppblock
          makefileblock
          objcblock
+         plistblock
          csvblock
          htmlblock
          jsblock
@@ -94,6 +97,7 @@
          cppblock0
          makefileblock0
          objcblock0
+         plistblock0
          csvblock0
          htmlblock0
          jsblock0
@@ -4182,6 +4186,7 @@ JS
 (define-syntax (cpp-code stx) (do-simple-inline stx 'cpp))
 (define-syntax (makefile-code stx) (do-simple-inline stx 'makefile))
 (define-syntax (objc-code stx) (do-simple-inline stx 'objc))
+(define-syntax (plist-code stx) (do-simple-inline stx 'plist))
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
 (define-syntax (json-code stx) (do-simple-inline stx 'json))
 (define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
@@ -4252,6 +4257,8 @@ JS
 (define-syntax (makefileblock stx) (do-simple-block stx 'makefile #t))
 (define-syntax (objcblock0 stx) (do-simple-block stx 'objc #f))
 (define-syntax (objcblock stx) (do-simple-block stx 'objc #t))
+(define-syntax (plistblock0 stx) (do-simple-block stx 'plist #f))
+(define-syntax (plistblock stx) (do-simple-block stx 'plist #t))
 (define-syntax (csvblock0 stx) (do-simple-block stx 'csv #f))
 (define-syntax (csvblock stx) (do-simple-block stx 'csv #t))
 (define-syntax (htmlblock0 stx) (do-block stx 'html #f))
@@ -4367,6 +4374,7 @@ JS
   (check-true (block? (cppblock "int main() { return 0; }")))
   (check-true (block? (makefileblock "all:\n\t@echo ok\n")))
   (check-true (block? (objcblock "@interface Box : NSObject @end")))
+  (check-true (block? (plistblock "<plist><dict><key>Name</key><string>Ada</string></dict></plist>")))
   (check-true (block? (csvblock "name,age\nAda,37\n")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
@@ -4393,6 +4401,7 @@ JS
   (check-true (element? (cpp-code "std::vector<int> xs;")))
   (check-true (element? (makefile-code "all: build test")))
   (check-true (element? (objc-code "@\"hello\"")))
+  (check-true (element? (plist-code "<plist/>")))
   (check-true (element? (csv-code "a,b")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
