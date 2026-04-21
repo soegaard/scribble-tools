@@ -22,7 +22,10 @@
                   javascript-derived-token-text
                   javascript-string->derived-tokens)
          (only-in lexers/json json-string->tokens)
-         (only-in lexers/makefile makefile-string->tokens)
+         (only-in lexers/makefile
+                  makefile-derived-token-has-tag?
+                  makefile-derived-token-text
+                  makefile-string->derived-tokens)
          (only-in lexers/markdown markdown-string->tokens)
          (only-in lexers/objc objc-string->tokens)
          (only-in lexers/plist plist-string->tokens)
@@ -1017,12 +1020,22 @@ JS
        [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
-    [(c cpp json latex makefile markdown objc plist racket rhombus swift tex yaml)
+    [(c cpp json latex markdown objc plist racket rhombus swift tex yaml)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
        [(value) value-color]
        [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(makefile)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
        [(punct) paren-color]
        [else no-color])]
     [(csv tsv)
@@ -2540,6 +2553,25 @@ JS
         [else 'plain]))
     (cons cls txt)))
 
+(define (tokenize-makefile s)
+  (for/list ([token (in-list (makefile-string->derived-tokens s))])
+    (define txt (makefile-derived-token-text token))
+    (define cls
+      (cond
+        [(makefile-derived-token-has-tag? token 'comment) 'comment]
+        [(makefile-derived-token-has-tag? token 'whitespace) 'plain]
+        [(makefile-derived-token-has-tag? token 'makefile-recipe-prefix) 'plain]
+        [(makefile-derived-token-has-tag? token 'shell-builtin) 'keyword]
+        [(makefile-derived-token-has-tag? token 'makefile-rule-target) 'keyword]
+        [(makefile-derived-token-has-tag? token 'makefile-variable-reference) 'value]
+        [(makefile-derived-token-has-tag? token 'shell-option) 'value]
+        [(makefile-derived-token-has-tag? token 'operator) 'operator]
+        [(makefile-derived-token-has-tag? token 'delimiter) 'punct]
+        [(makefile-derived-token-has-tag? token 'literal) 'value]
+        [(makefile-derived-token-has-tag? token 'identifier) 'name]
+        [else 'plain]))
+    (cons cls txt)))
+
 (define (tokenize lang s)
   (case lang
     [(css) (tokenize-css s)]
@@ -2547,8 +2579,7 @@ JS
           (c-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(cpp) (projected-tokens->scribble-tokens
             (cpp-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(makefile) (projected-tokens->scribble-tokens
-                 (makefile-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(makefile) (tokenize-makefile s)]
     [(objc) (projected-tokens->scribble-tokens
              (objc-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(csv) (projected-tokens->scribble-tokens
@@ -4425,6 +4456,12 @@ JS
   (check-true (element? (c-code "int x = 1;")))
   (check-true (element? (cpp-code "std::vector<int> xs;")))
   (check-true (element? (makefile-code "all: build test")))
+  (let ([cls (classes 'makefile ".PHONY: docs\ndocs:\n\traco scribble +m --html --dest html scribblings/scribble-tools.scrbl\n\ttest -f private/lang-code.rkt\nCC = cc\nall:\n\t$(CC) -o $@ $<\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'operator cls))
+    (check-not-false (member 'punct cls)))
   (check-true (element? (tex-code "\\hbox{Hello}")))
   (check-true (element? (latex-code "\\section{Hi}")))
   (check-true (element? (objc-code "@\"hello\"")))
