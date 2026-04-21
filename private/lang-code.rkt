@@ -28,6 +28,7 @@
                   makefile-string->derived-tokens)
          (only-in lexers/markdown markdown-string->tokens)
          (only-in lexers/objc objc-string->tokens)
+         (only-in lexers/pascal pascal-string->tokens)
          (only-in lexers/plist plist-string->tokens)
          (only-in lexers/scribble
                   scribble-derived-token-has-tag?
@@ -50,6 +51,7 @@
          "mdn-map.rkt"
          "cppreference-docs-map.rkt"
          "latex-docs-map.rkt"
+         "pascal-docs-map.rkt"
          "rust-docs-map.rkt"
          "rustdoc-docs-map.rkt"
          "wasm-spec-map.rkt"
@@ -2623,6 +2625,8 @@ JS
     [(makefile) (tokenize-makefile s)]
     [(objc) (projected-tokens->scribble-tokens
              (objc-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(pascal) (projected-tokens->scribble-tokens
+               (pascal-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(csv) (projected-tokens->scribble-tokens
             (csv-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(html) (tokenize-html s)]
@@ -3517,6 +3521,8 @@ JS
                                                               (current-shell-docs-source))))]
               [(eq? lang 'latex)
                (latex-doc-url-for-token cls txt)]
+              [(eq? lang 'pascal)
+               (pascal-doc-url-for-token cls txt)]
               [(eq? lang 'rust)
                (generated-rust-doc-url-for-token cls txt prev1 prev2 next1)]
               [(memq lang '(c cpp))
@@ -4641,9 +4647,14 @@ JS
   (check-not-false (latex-doc-url-for-token 'keyword "\\section"))
   (check-not-false (latex-doc-url-for-token 'literal "itemize"))
   (check-not-false (latex-doc-url-for-token 'identifier "\\draw"))
+  (check-not-false (pascal-doc-url-for-token 'keyword "function"))
+  (check-not-false (pascal-doc-url-for-token 'identifier "WriteLn"))
+  (check-not-false (pascal-doc-url-for-token 'identifier "Format"))
+  (check-not-false (pascal-doc-url-for-token 'identifier "SysUtils"))
   (check-true (contains-link? (c-code "int main(void) { return 0; }")))
   (check-true (contains-link? (cpp-code "std::vector<int> xs;")))
   (check-true (contains-link? (rust-code "fn main() { let xs: Vec<i32> = vec![1, 2, 3]; }")))
+  (check-true (contains-link? (pascal-code "function Add(x, y: Integer): Integer; begin WriteLn(Format('%d', [x])); end;")))
   (check-true (contains-link? (css-code "a{color:red;}")))
   (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))
   (check-true (contains-link? (html-code "<div class='x'>x</div>")))

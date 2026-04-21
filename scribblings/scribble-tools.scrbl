@@ -489,6 +489,9 @@ Example: @objc-code[@"Hello"]
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline Pascal code.
 
+Pascal snippets link language-reference entries and bundled Free Pascal API
+identifiers from the official Free Pascal documentation.
+
 Example: @pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;}
 }
 
