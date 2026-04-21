@@ -445,6 +445,9 @@ Example: @js-code{const n = 42;}
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline C code.
 
+Common C keywords and standard library identifiers are linked to
+@hyperlink["https://en.cppreference.com/w/c"]{cppreference}.
+
 Example: @c-code{int answer = 42;}
 }
 
@@ -452,6 +455,9 @@ Example: @c-code{int answer = 42;}
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline C++ code.
+
+Common C++ keywords and standard library identifiers are linked to
+@hyperlink["https://en.cppreference.com/w/cpp"]{cppreference}.
 
 Example: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 }

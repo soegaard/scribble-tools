@@ -47,6 +47,7 @@
          lexers/wat
          (only-in lexers/yaml yaml-string->tokens)
          "mdn-map.rkt"
+         "cppreference-docs-map.rkt"
          "latex-docs-map.rkt"
          "wasm-spec-map.rkt"
          "shell-docs-map.rkt"
@@ -157,6 +158,14 @@
   (make-style #f (list (attributes '((style . "color: #07A;"))))))
 (define css-name-color
   (make-style #f (list (attributes '((style . "color: #262680;"))))))
+(define makefile-target-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #07A;"))))))
+(define makefile-command-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #795E26;"))))))
+(define makefile-option-color
+  (make-style #f (list (attributes '((style . "color: #098658;"))))))
+(define makefile-variable-color
+  (make-style #f (list (attributes '((style . "color: #6B2F8A;"))))))
 (define wasm-form-color
   (make-style #f (list (attributes '((style . "color: #0B62A3;"))))))
 (define wasm-type-color
@@ -1032,7 +1041,10 @@ JS
     [(makefile)
      (case cls
        [(comment) comment-color]
-       [(keyword) js-keyword-color]
+       [(keyword make-target) makefile-target-color]
+       [(recipe-command) makefile-command-color]
+       [(recipe-option) makefile-option-color]
+       [(make-variable) makefile-variable-color]
        [(value) value-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
@@ -2554,23 +2566,43 @@ JS
     (cons cls txt)))
 
 (define (tokenize-makefile s)
-  (for/list ([token (in-list (makefile-string->derived-tokens s))])
+  (let loop ([tokens (makefile-string->derived-tokens s)]
+             [acc null]
+             [expect-recipe-command? #f])
+    (cond
+      [(null? tokens) (reverse acc)]
+      [else
+       (define token (car tokens))
     (define txt (makefile-derived-token-text token))
     (define cls
       (cond
         [(makefile-derived-token-has-tag? token 'comment) 'comment]
         [(makefile-derived-token-has-tag? token 'whitespace) 'plain]
         [(makefile-derived-token-has-tag? token 'makefile-recipe-prefix) 'plain]
+        [(makefile-derived-token-has-tag? token 'makefile-rule-target) 'make-target]
+        [(makefile-derived-token-has-tag? token 'makefile-variable-reference) 'make-variable]
+        [(and expect-recipe-command?
+              (or (makefile-derived-token-has-tag? token 'shell-word)
+                  (makefile-derived-token-has-tag? token 'shell-builtin)))
+         'recipe-command]
         [(makefile-derived-token-has-tag? token 'shell-builtin) 'keyword]
-        [(makefile-derived-token-has-tag? token 'makefile-rule-target) 'keyword]
-        [(makefile-derived-token-has-tag? token 'makefile-variable-reference) 'value]
-        [(makefile-derived-token-has-tag? token 'shell-option) 'value]
+        [(makefile-derived-token-has-tag? token 'shell-option) 'recipe-option]
         [(makefile-derived-token-has-tag? token 'operator) 'operator]
         [(makefile-derived-token-has-tag? token 'delimiter) 'punct]
         [(makefile-derived-token-has-tag? token 'literal) 'value]
         [(makefile-derived-token-has-tag? token 'identifier) 'name]
         [else 'plain]))
-    (cons cls txt)))
+       (define next-expect-recipe-command?
+         (cond
+           [(makefile-derived-token-has-tag? token 'makefile-recipe-prefix) #t]
+           [(regexp-match? #px"\n" txt) #f]
+           [(and expect-recipe-command?
+                 (not (makefile-derived-token-has-tag? token 'whitespace)))
+            #f]
+           [else expect-recipe-command?]))
+       (loop (cdr tokens)
+             (cons (cons cls txt) acc)
+             next-expect-recipe-command?)])))
 
 (define (tokenize lang s)
   (case lang
@@ -3474,6 +3506,8 @@ JS
                                                               (current-shell-docs-source))))]
               [(eq? lang 'latex)
                (latex-doc-url-for-token cls txt)]
+              [(memq lang '(c cpp))
+               (c/cpp-doc-url-for-token lang cls txt prev1 prev2)]
               [else
                (and mdn-links?
                     (js-contextual-mdn-url lang mdn-cls txt prev1 prev2 next1
@@ -4457,9 +4491,11 @@ JS
   (check-true (element? (cpp-code "std::vector<int> xs;")))
   (check-true (element? (makefile-code "all: build test")))
   (let ([cls (classes 'makefile ".PHONY: docs\ndocs:\n\traco scribble +m --html --dest html scribblings/scribble-tools.scrbl\n\ttest -f private/lang-code.rkt\nCC = cc\nall:\n\t$(CC) -o $@ $<\n")])
-    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'make-target cls))
+    (check-not-false (member 'recipe-command cls))
+    (check-not-false (member 'recipe-option cls))
+    (check-not-false (member 'make-variable cls))
     (check-not-false (member 'name cls))
-    (check-not-false (member 'value cls))
     (check-not-false (member 'operator cls))
     (check-not-false (member 'punct cls)))
   (check-true (element? (tex-code "\\hbox{Hello}")))
@@ -4575,9 +4611,13 @@ JS
   (check-not-false (mdn-url-for-token 'html 'keyword "div"))
   (check-not-false (mdn-url-for-token 'js 'keyword "const"))
   (check-not-false (mdn-url-for-token 'wasm 'keyword "module"))
+  (check-not-false (c/cpp-doc-url-for-token 'c 'keyword "return" #f #f))
+  (check-not-false (c/cpp-doc-url-for-token 'cpp 'identifier "vector" "::" "std"))
   (check-not-false (latex-doc-url-for-token 'keyword "\\section"))
   (check-not-false (latex-doc-url-for-token 'literal "itemize"))
   (check-not-false (latex-doc-url-for-token 'identifier "\\draw"))
+  (check-true (contains-link? (c-code "int main(void) { return 0; }")))
+  (check-true (contains-link? (cpp-code "std::vector<int> xs;")))
   (check-true (contains-link? (css-code "a{color:red;}")))
   (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))
   (check-true (contains-link? (html-code "<div class='x'>x</div>")))
