@@ -336,7 +336,7 @@ By default, code output includes documentation links for common identifiers:
  @item{CSS properties (for example @css-code{display}, @css-code{grid}, @css-code{border-radius}).}
  @item{HTML elements (for example @html-code{<section>}, @html-code{<button>}, @html-code{<script>}).}
  @item{Common JavaScript classes, methods, and language keywords (for example @js-code{Array}, @js-code{querySelector}, @js-code{map}, @js-code{const}).}
- @item{Common LaTeX commands and environments (for example @latex-code{\section}, @latex-code{\label}, @latex-code{\begin{itemize}}), linked to the LaTeX2e reference manual at @hyperlink["https://latexref.xyz/Index.html"]{latexref.xyz}.}
+ @item{Common LaTeX commands and environments (for example @latex-code{\section}, @latex-code{\label}, @latex-code{\begin{itemize}}) are linked to the LaTeX2e reference manual at @hyperlink["https://latexref.xyz/Index.html"]{latexref.xyz}, while TikZ commands used inside LaTeX snippets (for example @latex-code{\draw}) are linked to @hyperlink["https://tikz.dev/"]{tikz.dev}.}
  @item{Common shell keywords and builtins (for example @shell-code[#:shell 'bash]{if}, @shell-code[#:shell 'zsh]{setopt}, @shell-code[#:shell 'powershell]{Get-ChildItem}), linked to GNU Bash, Zsh, or PowerShell documentation.}
  @item{Common WebAssembly instructions and declarations (for example @wasm-code{module}, @wasm-code{func}, @wasm-code{local.get}, @wasm-code{i32.add}), linked to the WebAssembly Core Spec site by default.}
 ]
@@ -346,6 +346,8 @@ By default, code output includes documentation links for common identifiers:
 This section documents each form and procedure in detail.
 
 @subsection{Inline Forms}
+
+@subsubsection[#:tag "reference-inline-web-languages"]{Web Languages}
 
 @defform/subs[(css-code maybe-option ... str-expr ...+)
               ([maybe-option code:blank
@@ -436,24 +438,7 @@ elements into the typeset output.
 Example: @js-code{const n = 42;}
 }
 
-@defform/subs[(python-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline Python code.
-Newlines and surrounding whitespace are collapsed to single spaces.
-
-An optional @racket[#:escape] identifier configures escapes of the
-form @racket[(escape-id expr)] to splice @racket[expr]-produced
-elements into the typeset output.
-
-Example: @python-code{def answer(): return 42}
-}
-
-@subsection{Additional Inline Forms}
-
-The following inline forms follow the same shape as @racket[python-code]:
-they concatenate their string arguments, collapse inline whitespace, and
-support an optional @racket[#:escape] identifier.
+@subsubsection[#:tag "reference-inline-programming-languages"]{Programming Languages}
 
 @defform/subs[(c-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
@@ -471,46 +456,12 @@ Typesets the concatenated strings as inline C++ code.
 Example: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 }
 
-@defform/subs[(csv-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline CSV text.
-
-Example: @csv-code["name,age"]
-}
-
-@defform/subs[(json-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline JSON.
-
-Example: @json-code["{\"name\": \"Ada\"}"]
-}
-
-@defform/subs[(latex-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline LaTeX code.
-Common LaTeX commands and environments are linked to the LaTeX2e
-reference manual at @hyperlink["https://latexref.xyz/Index.html"]{latexref.xyz}.
-
-Example: @latex-code{\section{Intro}}
-}
-
 @defform/subs[(makefile-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline Makefile code.
 
 Example: @makefile-code{all: build test}
-}
-
-@defform/subs[(markdown-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline Markdown.
-
-Example: @markdown-code["# Hello"]
 }
 
 @defform/subs[(objc-code maybe-escape str-expr ...+)
@@ -521,20 +472,17 @@ Typesets the concatenated strings as inline Objective-C code.
 Example: @objc-code[@"Hello"]
 }
 
-@defform/subs[(plist-code maybe-escape str-expr ...+)
+@defform/subs[(python-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline plist XML.
+Typesets the concatenated strings as inline Python code.
+Newlines and surrounding whitespace are collapsed to single spaces.
 
-Example: @plist-code{<plist/>}
-}
+An optional @racket[#:escape] identifier configures escapes of the
+form @racket[(escape-id expr)] to splice @racket[expr]-produced
+elements into the typeset output.
 
-@defform/subs[(tex-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline TeX code.
-
-Example: @tex-code{\hbox{Hello}}
+Example: @python-code{def answer(): return 42}
 }
 
 @defform/subs[(racket-code maybe-escape str-expr ...+)
@@ -551,30 +499,6 @@ Example: @racket-code{(define (add x y) (+ x y))}
 Typesets the concatenated strings as inline Rhombus code.
 
 Example: @rhombus-code{fun add(x, y): x + y}
-}
-
-@defform/subs[(swift-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline Swift code.
-
-Example: @swift-code{let answer = 42}
-}
-
-@defform/subs[(tsv-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline TSV text.
-
-Example: @tsv-code["name\tage"]
-}
-
-@defform/subs[(yaml-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline YAML.
-
-Example: @yaml-code["name: Ada"]
 }
 
 @defform/subs[(shell-code maybe-options str-expr ...+)
@@ -603,6 +527,14 @@ elements into the typeset output.
 Example: @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
 }
 
+@defform/subs[(swift-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Swift code.
+
+Example: @swift-code{let answer = 42}
+}
+
 @defform/subs[(wasm-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:docs-source docs-source-expr)
@@ -620,6 +552,28 @@ form @racket[(escape-id expr)] to splice @racket[expr]-produced
 elements into the typeset output.
 
 Example: @wasm-code{(module (func (result i32) (i32.const 42)))}
+}
+
+@subsubsection[#:tag "reference-inline-document-languages"]{Document Languages}
+
+@defform/subs[(latex-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline LaTeX code.
+Common LaTeX commands and environments are linked to the LaTeX2e
+reference manual at @hyperlink["https://latexref.xyz/Index.html"]{latexref.xyz},
+and TikZ commands used inside LaTeX snippets are linked to
+@hyperlink["https://tikz.dev/"]{tikz.dev}.
+
+Example: @latex-code{\section{Intro}}
+}
+
+@defform/subs[(markdown-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Markdown.
+
+Example: @markdown-code["# Hello"]
 }
 
 @defform/subs[(scribble-code maybe-options str-expr ...+)
@@ -641,7 +595,59 @@ elements into the typeset output.
 Example: @scribble-code["@bold{Hi} there."]
 }
 
+@defform/subs[(tex-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline TeX code.
+
+Example: @tex-code{\hbox{Hello}}
+}
+
+@subsubsection[#:tag "reference-inline-data-formats"]{Data Formats}
+
+@defform/subs[(csv-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline CSV text.
+
+Example: @csv-code["name,age"]
+}
+
+@defform/subs[(json-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline JSON.
+
+Example: @json-code["{\"name\": \"Ada\"}"]
+}
+
+@defform/subs[(plist-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline plist XML.
+
+Example: @plist-code{<plist/>}
+}
+
+@defform/subs[(tsv-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline TSV text.
+
+Example: @tsv-code["name\tage"]
+}
+
+@defform/subs[(yaml-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline YAML.
+
+Example: @yaml-code["name: Ada"]
+}
+
 @subsection{Block Forms}
+
+@subsubsection[#:tag "reference-block-web-languages"]{Web Languages}
 
 @defform/subs[(cssblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
@@ -791,6 +797,49 @@ for (const n of [1, 2, 3]) {
   total += n;
 }
 }
+}
+
+@subsubsection[#:tag "reference-block-programming-languages"]{Programming Languages}
+
+@defform[(cblock option ... str-expr ...+)]{
+Typesets C as a block inset.
+
+Example:
+
+@cblock[#:file "demo.c"]{
+int main(void) {
+  return 0;
+}
+}
+}
+
+@defform[(cblock0 option ... str-expr ...+)]{
+Like @racket[cblock], but without the inset wrapper.
+}
+
+@defform[(cppblock option ... str-expr ...+)]{
+Typesets C++ as a block inset.
+}
+
+@defform[(cppblock0 option ... str-expr ...+)]{
+Like @racket[cppblock], but without the inset wrapper.
+}
+
+@defform[(makefileblock option ... str-expr ...+)]{
+Typesets Makefile code as a block inset.
+}
+
+@defform[(makefileblock0 option ... str-expr ...+)]{
+Like @racket[makefileblock], but without the inset wrapper.
+}
+
+@defform[(objcblock option ... str-expr ...+)]{
+Typesets Objective-C as a block inset.
+}
+
+@defform[(objcblock0 option ... str-expr ...+)]{
+Like @racket[objcblock], but without the inset wrapper.
+}
 
 @defform/subs[(pythonblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
@@ -832,109 +881,6 @@ def greet(name):
     return f"Hello, {name}"
 }
 }
-
-@subsection{Additional Block Forms}
-
-The following block forms follow the same option set and behavior as
-@racket[pythonblock] and @racket[pythonblock0]: they support
-@racket[#:indent], @racket[#:line-numbers], @racket[#:line-number-sep],
-@racket[#:copy-button?], @racket[#:file], and @racket[#:escape].
-
-@defform[(cblock option ... str-expr ...+)]{
-Typesets C as a block inset.
-
-Example:
-
-@cblock[#:file "demo.c"]{
-int main(void) {
-  return 0;
-}
-}
-}
-
-@defform[(cblock0 option ... str-expr ...+)]{
-Like @racket[cblock], but without the inset wrapper.
-}
-
-@defform[(cppblock option ... str-expr ...+)]{
-Typesets C++ as a block inset.
-}
-
-@defform[(cppblock0 option ... str-expr ...+)]{
-Like @racket[cppblock], but without the inset wrapper.
-}
-
-@defform[(csvblock option ... str-expr ...+)]{
-Typesets CSV as a block inset.
-}
-
-@defform[(csvblock0 option ... str-expr ...+)]{
-Like @racket[csvblock], but without the inset wrapper.
-}
-
-@defform[(jsonblock option ... str-expr ...+)]{
-Typesets JSON as a block inset.
-
-Example:
-
-@jsonblock[#:line-numbers 1]{
-{
-  "name": "Ada",
-  "active": true
-}
-}
-}
-
-@defform[(jsonblock0 option ... str-expr ...+)]{
-Like @racket[jsonblock], but without the inset wrapper.
-}
-
-@defform[(latexblock option ... str-expr ...+)]{
-Typesets LaTeX as a block inset.
-}
-
-@defform[(latexblock0 option ... str-expr ...+)]{
-Like @racket[latexblock], but without the inset wrapper.
-}
-
-@defform[(makefileblock option ... str-expr ...+)]{
-Typesets Makefile code as a block inset.
-}
-
-@defform[(makefileblock0 option ... str-expr ...+)]{
-Like @racket[makefileblock], but without the inset wrapper.
-}
-
-@defform[(markdownblock option ... str-expr ...+)]{
-Typesets Markdown as a block inset.
-}
-
-@defform[(markdownblock0 option ... str-expr ...+)]{
-Like @racket[markdownblock], but without the inset wrapper.
-}
-
-@defform[(objcblock option ... str-expr ...+)]{
-Typesets Objective-C as a block inset.
-}
-
-@defform[(objcblock0 option ... str-expr ...+)]{
-Like @racket[objcblock], but without the inset wrapper.
-}
-
-@defform[(plistblock option ... str-expr ...+)]{
-Typesets plist XML as a block inset.
-}
-
-@defform[(plistblock0 option ... str-expr ...+)]{
-Like @racket[plistblock], but without the inset wrapper.
-}
-
-@defform[(texblock option ... str-expr ...+)]{
-Typesets TeX as a block inset.
-}
-
-@defform[(texblock0 option ... str-expr ...+)]{
-Like @racket[texblock], but without the inset wrapper.
 }
 
 @defform[(racketblock option ... str-expr ...+)]{
@@ -951,37 +897,6 @@ Typesets Rhombus code as a block inset.
 
 @defform[(rhombusblock0 option ... str-expr ...+)]{
 Like @racket[rhombusblock], but without the inset wrapper.
-}
-
-@defform[(swiftblock option ... str-expr ...+)]{
-Typesets Swift code as a block inset.
-}
-
-@defform[(swiftblock0 option ... str-expr ...+)]{
-Like @racket[swiftblock], but without the inset wrapper.
-}
-
-@defform[(tsvblock option ... str-expr ...+)]{
-Typesets TSV as a block inset.
-}
-
-@defform[(tsvblock0 option ... str-expr ...+)]{
-Like @racket[tsvblock], but without the inset wrapper.
-}
-
-@defform[(yamlblock option ... str-expr ...+)]{
-Typesets YAML as a block inset.
-}
-
-@defform[(yamlblock0 option ... str-expr ...+)]{
-Like @racket[yamlblock], but without the inset wrapper.
-
-Example:
-
-@yamlblock0[#:indent 2]{
-name: Ada
-active: true
-}
 }
 
 @defform/subs[(shellblock option ... str-expr ...+)
@@ -1032,6 +947,14 @@ compinit
 }
 }
 
+@defform[(swiftblock option ... str-expr ...+)]{
+Typesets Swift code as a block inset.
+}
+
+@defform[(swiftblock0 option ... str-expr ...+)]{
+Like @racket[swiftblock], but without the inset wrapper.
+}
+
 @defform/subs[(wasmblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
@@ -1074,6 +997,110 @@ Example:
 (module
   (func (result i32)
     i32.const 7))
+}
+}
+
+@subsubsection[#:tag "reference-block-document-languages"]{Document Languages}
+
+@defform[(latexblock option ... str-expr ...+)]{
+Typesets LaTeX as a block inset.
+}
+
+@defform[(latexblock0 option ... str-expr ...+)]{
+Like @racket[latexblock], but without the inset wrapper.
+}
+
+@defform[(markdownblock option ... str-expr ...+)]{
+Typesets Markdown as a block inset.
+}
+
+@defform[(markdownblock0 option ... str-expr ...+)]{
+Like @racket[markdownblock], but without the inset wrapper.
+}
+
+@defform/subs[(scribbleblock option ... str-expr ...+)
+              ([option (code:line #:indent indent-expr)
+                       (code:line #:line-numbers line-number-expr)
+                       (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:lang lang-expr)
+                       (code:line #:context context-expr)
+                       (code:line #:copy-button? copy-button?-expr)
+                       (code:line #:file filename-expr)
+                       (code:line #:escape escape-id)])
+              #:contracts ([indent-expr exact-nonnegative-integer?]
+                           [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [line-number-sep-expr exact-nonnegative-integer?])]{
+Typesets Scribble source as a block inset.
+}
+
+@defform[(scribbleblock0 option ... str-expr ...+)]{
+Like @racket[scribbleblock], but without the inset wrapper.
+}
+
+@defform[(texblock option ... str-expr ...+)]{
+Typesets TeX as a block inset.
+}
+
+@defform[(texblock0 option ... str-expr ...+)]{
+Like @racket[texblock], but without the inset wrapper.
+}
+
+@subsubsection[#:tag "reference-block-data-formats"]{Data Formats}
+
+@defform[(csvblock option ... str-expr ...+)]{
+Typesets CSV as a block inset.
+}
+
+@defform[(csvblock0 option ... str-expr ...+)]{
+Like @racket[csvblock], but without the inset wrapper.
+}
+
+@defform[(jsonblock option ... str-expr ...+)]{
+Typesets JSON as a block inset.
+
+Example:
+
+@jsonblock[#:line-numbers 1]{
+{
+  "name": "Ada",
+  "active": true
+}
+}
+}
+
+@defform[(jsonblock0 option ... str-expr ...+)]{
+Like @racket[jsonblock], but without the inset wrapper.
+}
+
+@defform[(plistblock option ... str-expr ...+)]{
+Typesets plist XML as a block inset.
+}
+
+@defform[(plistblock0 option ... str-expr ...+)]{
+Like @racket[plistblock], but without the inset wrapper.
+}
+
+@defform[(tsvblock option ... str-expr ...+)]{
+Typesets TSV as a block inset.
+}
+
+@defform[(tsvblock0 option ... str-expr ...+)]{
+Like @racket[tsvblock], but without the inset wrapper.
+}
+
+@defform[(yamlblock option ... str-expr ...+)]{
+Typesets YAML as a block inset.
+}
+
+@defform[(yamlblock0 option ... str-expr ...+)]{
+Like @racket[yamlblock], but without the inset wrapper.
+
+Example:
+
+@yamlblock0[#:indent 2]{
+name: Ada
+active: true
+}
 }
 
 @defparam[current-wasm-docs-source src (or/c 'wasm-spec-3.0 'mdn 'none)]{
@@ -1501,7 +1528,14 @@ test:
 - Migrated lexers to the `lexers` package
 - Expanded rendered examples
 
-See `scribblings/scribble-tools.scrbl` for the full manual.
+```bash
+raco test private/lang-code.rkt
+```
+
+```racket
+(define (build-docs)
+  (displayln "scribblings/scribble-tools.scrbl"))
+```
 }
 
 @subsection{Objective-C}

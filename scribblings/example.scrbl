@@ -411,8 +411,15 @@ content.
 @markdownblock[#:file "README.md"]{
 # Hello
 
-- one
-- two
+Use fenced code blocks with language names:
+
+```bash
+raco test private/lang-code.rkt
+```
+
+```json
+{"name": "scribble-tools", "ok": true}
+```
 }
 
 @subsection{Objective-C}
