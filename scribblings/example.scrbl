@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, HTML, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, HTML, Haskell, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -12,6 +12,7 @@ inline JS with @js-code{const n = 42;} and
 inline C with @c-code{int answer = 42;} and
 inline C++ with @cpp-code{std::vector<int> xs = {1, 2, 3};} and
 inline CSV with @csv-code["name,age"] and
+inline Haskell with @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)} and
 inline JSON with @json-code["{\"name\": \"Ada\"}"] and
 inline LaTeX with @latex-code{\section{Intro}} and
 inline Makefile with @makefile-code{all: build test} and
@@ -60,6 +61,8 @@ Inline C: @c-code{int answer = 42;}
 Inline C++: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 
 Inline CSV: @csv-code["name,age"]
+
+Inline Haskell: @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)}
 
 Inline JSON: @json-code["{\"name\": \"Ada\"}"]
 
@@ -439,6 +442,20 @@ Objective-C is useful for Cocoa- and Foundation-oriented examples.
            "@interface Greeter : NSObject\n"
            "- (NSString *)messageFor:(NSString *)name;\n"
            "@end\n"]
+
+@subsection{Haskell}
+
+Haskell works well for functional examples with types, list processing,
+and compact local definitions.
+
+@haskellblock[#:line-numbers 1 #:file "Stats.hs"]{
+module Stats where
+
+sumSquares :: [Int] -> Int
+sumSquares xs = sum (map square xs)
+  where
+    square n = n * n
+}
 
 @subsection{Pascal}
 

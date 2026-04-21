@@ -13,6 +13,7 @@
                   css-derived-token-text
                   css-string->derived-tokens)
          (only-in lexers/csv csv-string->tokens)
+         (only-in lexers/haskell haskell-string->tokens)
          (only-in lexers/html
                   html-derived-token-has-tag?
                   html-derived-token-text
@@ -71,6 +72,7 @@
          tex-code
          latex-code
          objc-code
+         haskell-code
          pascal-code
          plist-code
          csv-code
@@ -95,6 +97,7 @@
          texblock
          latexblock
          objcblock
+         haskellblock
          pascalblock
          plistblock
          csvblock
@@ -119,6 +122,7 @@
          texblock0
          latexblock0
          objcblock0
+         haskellblock0
          pascalblock0
          plistblock0
          csvblock0
@@ -2625,6 +2629,8 @@ JS
     [(makefile) (tokenize-makefile s)]
     [(objc) (projected-tokens->scribble-tokens
              (objc-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(haskell) (projected-tokens->scribble-tokens
+                (haskell-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(pascal) (projected-tokens->scribble-tokens
                (pascal-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(csv) (projected-tokens->scribble-tokens
@@ -4289,6 +4295,7 @@ JS
 (define-syntax (tex-code stx) (do-simple-inline stx 'tex))
 (define-syntax (latex-code stx) (do-simple-inline stx 'latex))
 (define-syntax (objc-code stx) (do-simple-inline stx 'objc))
+(define-syntax (haskell-code stx) (do-simple-inline stx 'haskell))
 (define-syntax (pascal-code stx) (do-simple-inline stx 'pascal))
 (define-syntax (plist-code stx) (do-simple-inline stx 'plist))
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
@@ -4366,6 +4373,8 @@ JS
 (define-syntax (latexblock stx) (do-simple-block stx 'latex #t))
 (define-syntax (objcblock0 stx) (do-simple-block stx 'objc #f))
 (define-syntax (objcblock stx) (do-simple-block stx 'objc #t))
+(define-syntax (haskellblock0 stx) (do-simple-block stx 'haskell #f))
+(define-syntax (haskellblock stx) (do-simple-block stx 'haskell #t))
 (define-syntax (pascalblock0 stx) (do-simple-block stx 'pascal #f))
 (define-syntax (pascalblock stx) (do-simple-block stx 'pascal #t))
 (define-syntax (plistblock0 stx) (do-simple-block stx 'plist #f))
@@ -4489,6 +4498,7 @@ JS
   (check-true (block? (texblock "\\hbox{Hello}")))
   (check-true (block? (latexblock "\\section{Hi}")))
   (check-true (block? (objcblock "@interface Box : NSObject @end")))
+  (check-true (block? (haskellblock "add :: Int -> Int -> Int\nadd x y = x + y\n")))
   (check-true (block? (pascalblock "function Add(x, y: Integer): Integer; begin Add := x + y; end;")))
   (check-true (block? (plistblock "<plist><dict><key>Name</key><string>Ada</string></dict></plist>")))
   (check-true (block? (csvblock "name,age\nAda,37\n")))
@@ -4528,6 +4538,7 @@ JS
   (check-true (element? (tex-code "\\hbox{Hello}")))
   (check-true (element? (latex-code "\\section{Hi}")))
   (check-true (element? (objc-code "@\"hello\"")))
+  (check-true (element? (haskell-code "map (+1) [1,2,3]")))
   (check-true (element? (pascal-code "var answer: Integer;")))
   (check-true (element? (plist-code "<plist/>")))
   (check-true (element? (csv-code "a,b")))

@@ -10,13 +10,13 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
+JavaScript, JSON, Haskell, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
 (Bash/Zsh/PowerShell), Swift, TeX, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[html-code], @racket[js-code], @racket[json-code],
-@racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
+@racket[haskell-code], @racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
 @racket[rhombus-code], @racket[rust-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
@@ -24,7 +24,7 @@ produce content.
 The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
-        @racket[latexblock], @racket[makefileblock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
+        @racket[haskellblock], @racket[latexblock], @racket[makefileblock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
         @racket[rustblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
@@ -49,6 +49,7 @@ Use inline forms when you want code inside running text:
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
   (list "JSON"        @scribble-code["@json-code[\"{\\\"name\\\": \\\"Ada\\\"}\"]"])
+  (list "Haskell"     @scribble-code["@haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)}"])
   (list "LaTeX"       @scribble-code["@latex-code{\\section{Intro}}"])
   (list "Makefile"    @scribble-code["@makefile-code{all: build test}"])
   (list "Markdown"    @scribble-code["@markdown-code[\"# Hello\"]"])
@@ -78,6 +79,7 @@ Use inline forms when you want code inside running text:
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
   (list "JSON"          @json-code["{\"name\": \"Ada\"}"])
+  (list "Haskell"       @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)})
   (list "LaTeX"         @latex-code{\section{Intro}})
   (list "Makefile"      @makefile-code{all: build test})
   (list "Markdown"      @markdown-code["# Hello"])
@@ -484,6 +486,14 @@ Typesets the concatenated strings as inline Objective-C code.
 Example: @objc-code[@"Hello"]
 }
 
+@defform/subs[(haskell-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Haskell code.
+
+Example: @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)}
+}
+
 @defform/subs[(pascal-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -875,6 +885,14 @@ Typesets Objective-C as a block inset.
 
 @defform[(objcblock0 option ... str-expr ...+)]{
 Like @racket[objcblock], but without the inset wrapper.
+}
+
+@defform[(haskellblock option ... str-expr ...+)]{
+Typesets Haskell as a block inset.
+}
+
+@defform[(haskellblock0 option ... str-expr ...+)]{
+Like @racket[haskellblock], but without the inset wrapper.
 }
 
 @defform[(pascalblock option ... str-expr ...+)]{
@@ -1586,6 +1604,22 @@ raco test private/lang-code.rkt
            "  return [NSString stringWithFormat:@\"Hello, %@\", name];\n"
            "}\n"
            "@end\n"]
+
+@subsection{Haskell}
+
+@haskellblock[#:line-numbers 1
+              #:file "extended/Stats.hs"]{
+module Stats where
+
+sumSquares :: [Int] -> Int
+sumSquares xs = sum (map square xs)
+  where
+    square n = n * n
+
+describe :: [Int] -> String
+describe xs =
+  "count=" ++ show (length xs) ++ ", total=" ++ show (sum xs)
+}
 
 @subsection{Pascal}
 

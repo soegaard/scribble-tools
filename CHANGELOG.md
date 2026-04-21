@@ -9,6 +9,7 @@
   - C: `c-code`, `cblock`, `cblock0`
   - C++: `cpp-code`, `cppblock`, `cppblock0`
   - CSV: `csv-code`, `csvblock`, `csvblock0`
+  - Haskell: `haskell-code`, `haskellblock`, `haskellblock0`
   - JSON: `json-code`, `jsonblock`, `jsonblock0`
   - LaTeX: `latex-code`, `latexblock`, `latexblock0`
   - Makefile: `makefile-code`, `makefileblock`, `makefileblock0`
