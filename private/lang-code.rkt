@@ -1153,7 +1153,7 @@ JS
        [(operator) tex-operator-color]
        [(punct) paren-color]
        [else no-color])]
-    [(c cpp json markdown objc plist racket rhombus swift yaml)
+    [(c cpp go haskell java json markdown objc pascal plist racket rhombus rust swift yaml)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
