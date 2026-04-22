@@ -45,6 +45,12 @@
          (only-in lexers/swift swift-string->tokens)
          (only-in lexers/tex tex-string->tokens)
          (only-in lexers/latex latex-string->tokens)
+         (only-in lexers/latex
+                  latex-derived-token-has-tag?
+                  latex-derived-token-text
+                  latex-derived-token-start
+                  latex-derived-token-end
+                  latex-string->derived-tokens)
          syntax-color/scribble-lexer
          (only-in lexers/tsv tsv-string->tokens)
          lexers/token
@@ -2406,16 +2412,33 @@ JS
 
 (define (tokenize-shell shell s)
   (define sh (normalize-scribble-shell 'tokenize-shell shell))
-  (define (class-map name txt)
-    (case name
-      [(comment) 'comment]
-      [(delimiter) 'punct]
-      [(literal) 'value]
-      [(keyword identifier) (shell-word-class sh txt)]
-      [else 'plain]))
-  (shell-string->scribble-tokens s
-                                 #:shell sh
-                                 #:class-map class-map))
+  (for/list ([token (in-list (shell-string->derived-tokens s #:shell sh))])
+    (define txt (shell-derived-token-text token))
+    (define cls
+      (cond
+        [(shell-derived-token-has-tag? token 'comment) 'comment]
+        [(shell-derived-token-has-tag? token 'whitespace) 'plain]
+        [(or (shell-derived-token-has-tag? token 'shell-string-literal)
+             (shell-derived-token-has-tag? token 'shell-ansi-string-literal)
+             (shell-derived-token-has-tag? token 'shell-variable)
+             (shell-derived-token-has-tag? token 'shell-command-substitution)
+             (shell-derived-token-has-tag? token 'literal))
+         'value]
+        [(or (shell-derived-token-has-tag? token 'shell-pipeline-operator)
+             (shell-derived-token-has-tag? token 'shell-logical-operator)
+             (shell-derived-token-has-tag? token 'shell-redirection-operator)
+             (shell-derived-token-has-tag? token 'shell-heredoc-operator))
+         'operator]
+        [(shell-derived-token-has-tag? token 'delimiter) 'punct]
+        [(or (shell-derived-token-has-tag? token 'shell-builtin)
+             (shell-derived-token-has-tag? token 'shell-keyword)
+             (shell-derived-token-has-tag? token 'keyword))
+         'keyword]
+        [(or (shell-derived-token-has-tag? token 'shell-word)
+             (shell-derived-token-has-tag? token 'identifier))
+         (shell-word-class sh txt)]
+        [else 'plain]))
+    (cons cls txt)))
 
 (define (wasm-word-char? ch)
   (or (char-alphabetic? ch)
@@ -2530,6 +2553,49 @@ JS
              #:unless (lexer-token-eof? token))
     (wat-projected-token->scribble-token token #:class-map class-map)))
 
+(define (tokenize-latex s)
+  (for/list ([token (in-list (latex-string->derived-tokens s))])
+    (define txt (latex-derived-token-text token))
+    (define cls
+      (cond
+        [(latex-derived-token-has-tag? token 'comment) 'comment]
+        [(latex-derived-token-has-tag? token 'whitespace) 'plain]
+        [(latex-derived-token-has-tag? token 'latex-verbatim-literal) 'value]
+        [(or (latex-derived-token-has-tag? token 'tex-inline-math-shift)
+             (latex-derived-token-has-tag? token 'tex-display-math-shift)
+             (latex-derived-token-has-tag? token 'latex-line-break-command)
+             (latex-derived-token-has-tag? token 'tex-parameter-marker)
+             (latex-derived-token-has-tag? token 'tex-parameter-reference)
+             (latex-derived-token-has-tag? token 'tex-parameter-escape))
+         'operator]
+        [(or (latex-derived-token-has-tag? token 'tex-open-group-delimiter)
+             (latex-derived-token-has-tag? token 'tex-close-group-delimiter)
+             (latex-derived-token-has-tag? token 'tex-open-optional-delimiter)
+             (latex-derived-token-has-tag? token 'tex-close-optional-delimiter)
+             (latex-derived-token-has-tag? token 'delimiter))
+         'punct]
+        [(or (latex-derived-token-has-tag? token 'latex-environment-name)
+             (latex-derived-token-has-tag? token 'tex-text))
+         (if (regexp-match? #px"^[A-Za-z][A-Za-z0-9*_:-]*$" txt)
+             'name
+             'plain)]
+        [(or (latex-derived-token-has-tag? token 'latex-command)
+             (latex-derived-token-has-tag? token 'latex-environment-command)
+             (latex-derived-token-has-tag? token 'tex-control-word)
+             (latex-derived-token-has-tag? token 'tex-control-symbol)
+             (latex-derived-token-has-tag? token 'tex-accent-command)
+             (latex-derived-token-has-tag? token 'tex-spacing-command)
+             (latex-derived-token-has-tag? token 'tex-control-space)
+             (latex-derived-token-has-tag? token 'tex-italic-correction)
+             (latex-derived-token-has-tag? token 'tex-paragraph-command)
+             (latex-derived-token-has-tag? token 'keyword))
+         'keyword]
+        [(or (latex-derived-token-has-tag? token 'literal)
+             (latex-derived-token-has-tag? token 'tex-parameter))
+         'value]
+        [else 'plain]))
+    (cons cls txt)))
+
 (define (scribble-token-type->symbol t)
   (cond
     [(symbol? t) t]
@@ -2599,13 +2665,21 @@ JS
         [(makefile-derived-token-has-tag? token 'whitespace) 'plain]
         [(makefile-derived-token-has-tag? token 'makefile-recipe-prefix) 'plain]
         [(makefile-derived-token-has-tag? token 'makefile-rule-target) 'make-target]
-        [(makefile-derived-token-has-tag? token 'makefile-variable-reference) 'make-variable]
+        [(or (makefile-derived-token-has-tag? token 'makefile-paren-variable-reference)
+             (makefile-derived-token-has-tag? token 'makefile-brace-variable-reference)
+             (makefile-derived-token-has-tag? token 'makefile-variable-reference))
+         'make-variable]
         [(and expect-recipe-command?
               (or (makefile-derived-token-has-tag? token 'shell-word)
                   (makefile-derived-token-has-tag? token 'shell-builtin)))
          'recipe-command]
         [(makefile-derived-token-has-tag? token 'shell-builtin) 'keyword]
         [(makefile-derived-token-has-tag? token 'shell-option) 'recipe-option]
+        [(or (makefile-derived-token-has-tag? token 'makefile-order-only-delimiter)
+             (makefile-derived-token-has-tag? token 'makefile-rule-delimiter)
+             (makefile-derived-token-has-tag? token 'makefile-double-colon-delimiter))
+         'operator]
+        [(makefile-derived-token-has-tag? token 'makefile-recipe-separator) 'punct]
         [(makefile-derived-token-has-tag? token 'operator) 'operator]
         [(makefile-derived-token-has-tag? token 'delimiter) 'punct]
         [(makefile-derived-token-has-tag? token 'literal) 'value]
@@ -2645,8 +2719,7 @@ JS
     [(js) (tokenize-js s)]
     [(json) (projected-tokens->scribble-tokens
              (json-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(latex) (projected-tokens->scribble-tokens
-              (latex-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(latex) (tokenize-latex s)]
     [(markdown) (projected-tokens->scribble-tokens
                  (markdown-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(python) (python-string->scribble-tokens s)]
@@ -4500,6 +4573,18 @@ JS
   (define (has-class? v class-name)
     (string-contains? (format "~s" v)
                       (format "(class . \"~a\")" class-name)))
+  (define (shell-derived-stream-contiguous? tokens)
+    (or (null? tokens)
+        (for/and ([left (in-list tokens)]
+                  [right (in-list (cdr tokens))])
+          (= (position-offset (shell-derived-token-end left))
+             (position-offset (shell-derived-token-start right))))))
+  (define (latex-derived-stream-contiguous? tokens)
+    (or (null? tokens)
+        (for/and ([left (in-list tokens)]
+                  [right (in-list (cdr tokens))])
+          (= (position-offset (latex-derived-token-end left))
+             (position-offset (latex-derived-token-start right))))))
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (cblock "int main(void) { return 0; }")))
   (check-true (block? (cppblock "int main() { return 0; }")))
@@ -4543,10 +4628,18 @@ JS
     (check-not-false (member 'recipe-option cls))
     (check-not-false (member 'make-variable cls))
     (check-not-false (member 'name cls))
+    (check-not-false (member 'operator cls)))
+  (let ([cls (classes 'makefile "build: input | cache ; @echo ok\n\t${CC} -o $@ $<\n")])
     (check-not-false (member 'operator cls))
-    (check-not-false (member 'punct cls)))
+    (check-not-false (member 'make-variable cls)))
   (check-true (element? (tex-code "\\hbox{Hello}")))
   (check-true (element? (latex-code "\\section{Hi}")))
+  (let ([cls (classes 'latex "\\begin{itemize}\n\\item One\\\\\n\\verb|x+y|\n\\end{itemize}\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'operator cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'punct cls)))
   (check-true (element? (objc-code "@\"hello\"")))
   (check-true (element? (haskell-code "map (+1) [1,2,3]")))
   (check-true (element? (pascal-code "var answer: Integer;")))
@@ -4564,6 +4657,10 @@ JS
   (check-true (element? (swift-code "let answer = 42")))
   (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (shell-code "echo $HOME")))
+  (let ([cls (classes 'bash "cat <<EOF | grep hi && echo $'ok\\n' >out\n")])
+    (check-not-false (member 'operator cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'name cls)))
   (check-true (element? (scribble-code "@bold{Hi}")))
   (check-true (element? (tsv-code "a\tb")))
   (check-true (element? (yaml-code "x: 1")))
@@ -4874,27 +4971,98 @@ JS
       (compare-token-streams
        src
        (tokenize-shell-handwritten sh src)
-       (shell-string->tokens src
-                             #:shell sh
-                             #:profile 'coloring
-                             #:source-positions #t)
+       (shell-string->derived-tokens src
+                                     #:shell sh)
        #:old-class-normalizer normalize-render-class
        #:new-class-normalizer normalize-render-class
        #:new-token->piece
        (lambda (token)
-         (shell-projected-token->scribble-token
-          token
-          #:class-map
-          (lambda (name text)
-            (case name
-              [(comment) 'comment]
-              [(delimiter) 'punct]
-              [(literal) 'value]
-              [(keyword identifier) (shell-word-class sh text)]
-              [else 'plain]))))))
+         (define txt (shell-derived-token-text token))
+         (cons
+          (cond
+            [(shell-derived-token-has-tag? token 'comment) 'comment]
+            [(shell-derived-token-has-tag? token 'whitespace) 'plain]
+            [(or (shell-derived-token-has-tag? token 'shell-string-literal)
+                 (shell-derived-token-has-tag? token 'shell-ansi-string-literal)
+                 (shell-derived-token-has-tag? token 'shell-variable)
+                 (shell-derived-token-has-tag? token 'shell-command-substitution)
+                 (shell-derived-token-has-tag? token 'literal))
+             'value]
+            [(or (shell-derived-token-has-tag? token 'shell-pipeline-operator)
+                 (shell-derived-token-has-tag? token 'shell-logical-operator)
+                 (shell-derived-token-has-tag? token 'shell-redirection-operator)
+                 (shell-derived-token-has-tag? token 'shell-heredoc-operator))
+             'operator]
+            [(shell-derived-token-has-tag? token 'delimiter) 'punct]
+            [(or (shell-derived-token-has-tag? token 'shell-builtin)
+                 (shell-derived-token-has-tag? token 'shell-keyword)
+                 (shell-derived-token-has-tag? token 'keyword))
+             'keyword]
+            [(or (shell-derived-token-has-tag? token 'shell-word)
+                 (shell-derived-token-has-tag? token 'identifier))
+             (shell-word-class sh txt)]
+            [else 'plain])
+          txt))
+       #:new-contiguous? shell-derived-stream-contiguous?
+       #:new-eof? (lambda (_token) #f)))
     (check-true (hash-ref comparison 'source-match?))
     (check-true (hash-ref comparison 'new-contiguous?))
     (check-true (hash-ref comparison 'class-match?)))
+  (let* ([src "\\section{Hi}\n\\begin{itemize}\n\\item One\n\\verb|x+y|\n\\end{itemize}\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (latex-string->tokens src #:profile 'coloring #:source-positions #t))
+           (latex-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece
+           (lambda (token)
+             (define txt (latex-derived-token-text token))
+             (cons
+              (cond
+                [(latex-derived-token-has-tag? token 'comment) 'comment]
+                [(latex-derived-token-has-tag? token 'whitespace) 'plain]
+                [(latex-derived-token-has-tag? token 'latex-verbatim-literal) 'value]
+                [(or (latex-derived-token-has-tag? token 'tex-inline-math-shift)
+                     (latex-derived-token-has-tag? token 'tex-display-math-shift)
+                     (latex-derived-token-has-tag? token 'latex-line-break-command)
+                     (latex-derived-token-has-tag? token 'tex-parameter-marker)
+                     (latex-derived-token-has-tag? token 'tex-parameter-reference)
+                     (latex-derived-token-has-tag? token 'tex-parameter-escape))
+                 'operator]
+                [(or (latex-derived-token-has-tag? token 'tex-open-group-delimiter)
+                     (latex-derived-token-has-tag? token 'tex-close-group-delimiter)
+                     (latex-derived-token-has-tag? token 'tex-open-optional-delimiter)
+                     (latex-derived-token-has-tag? token 'tex-close-optional-delimiter)
+                     (latex-derived-token-has-tag? token 'delimiter))
+                 'punct]
+                [(or (latex-derived-token-has-tag? token 'latex-environment-name)
+                     (latex-derived-token-has-tag? token 'tex-text))
+                 (if (regexp-match? #px"^[A-Za-z][A-Za-z0-9*_:-]*$" txt)
+                     'name
+                     'plain)]
+                [(or (latex-derived-token-has-tag? token 'latex-command)
+                     (latex-derived-token-has-tag? token 'latex-environment-command)
+                     (latex-derived-token-has-tag? token 'tex-control-word)
+                     (latex-derived-token-has-tag? token 'tex-control-symbol)
+                     (latex-derived-token-has-tag? token 'tex-accent-command)
+                     (latex-derived-token-has-tag? token 'tex-spacing-command)
+                     (latex-derived-token-has-tag? token 'tex-control-space)
+                     (latex-derived-token-has-tag? token 'tex-italic-correction)
+                     (latex-derived-token-has-tag? token 'tex-paragraph-command)
+                     (latex-derived-token-has-tag? token 'keyword))
+                 'keyword]
+                [(or (latex-derived-token-has-tag? token 'literal)
+                     (latex-derived-token-has-tag? token 'tex-parameter))
+                 'value]
+                [else 'plain])
+              txt))
+           #:new-contiguous? latex-derived-stream-contiguous?
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
   (let* ([src (read-fixture "scribble-basic.scrbl")]
          [comparison
           (compare-token-streams
