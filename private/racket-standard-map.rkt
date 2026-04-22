@@ -58,6 +58,8 @@
        (or (racket-standard-form? t)
            (string-prefix? t "define-")
            (string-prefix? t "define/")
+           (string-prefix? t "let-")
+           (string-prefix? t "let/")
            (string-prefix? t "for/")
            (string-prefix? t "for*/"))))
 
@@ -75,6 +77,8 @@
   (check-true (racket-standard-formish? "define-flow"))
   (check-true (racket-standard-formish? "for/fold"))
   (check-true (racket-standard-formish? "for/custom"))
+  (check-true (racket-standard-formish? "let-values"))
+  (check-true (racket-standard-formish? "let/assert"))
   (check-true (racket-standard-builtin? "string-length"))
   (check-true (racket-standard-builtin? "hash-update"))
   (check-false (racket-standard-form? "definitely-not-racket"))
