@@ -147,7 +147,7 @@ Use block forms for larger snippets:
            @scribbleblock[
              "@htmlblock{\n"
              "<!-- Hero title -->\n"
-             "<main>\n"
+             "<main id=\"hero\">\n"
              "  <h1>Hello</h1>\n"
              "  <p>Welcome</p>\n"
              "</main>\n"
@@ -155,7 +155,7 @@ Use block forms for larger snippets:
    @nested{@italic{Rendered result}
            @htmlblock{
            <!-- Hero title -->
-           <main>
+           <main id="hero">
              <h1>Hello</h1>
              <p>Welcome</p>
            </main>
@@ -1645,13 +1645,27 @@ raco test private/lang-code.rkt
 @subsection{Go}
 
 @goblock[#:line-numbers 1
-         #:file "extended/server.go"]{
+         #:file "extended/quicksort.go"]{
 package main
 
-import "fmt"
+func quickSort(xs []int) []int {
+    if len(xs) < 2 {
+        return xs
+    }
 
-func greet(name string) string {
-	return fmt.Sprintf("Hello, %s", name)
+    pivot := xs[0]
+    var left, right []int
+    for _, x := range xs[1:] {
+        if x < pivot {
+            left = append(left, x)
+        } else {
+            right = append(right, x)
+        }
+    }
+
+    left = quickSort(left)
+    right = quickSort(right)
+    return append(append(left, pivot), right...)
 }
 }
 

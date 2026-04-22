@@ -59,7 +59,13 @@
                   makefile-derived-token-has-tag?
                   makefile-derived-token-text
                   makefile-string->derived-tokens)
-         (only-in lexers/markdown markdown-string->tokens)
+         (only-in lexers/markdown
+                  markdown-string->tokens
+                  markdown-string->derived-tokens
+                  markdown-derived-token-has-tag?
+                  markdown-derived-token-text
+                  markdown-derived-token-start
+                  markdown-derived-token-end)
          (only-in lexers/python
                   python-derived-token-has-tag?
                   python-derived-token-text
@@ -263,6 +269,20 @@
   (make-style #f (list (attributes '((style . "color: #07A;"))))))
 (define css-name-color
   (make-style #f (list (attributes '((style . "color: #262680;"))))))
+(define markdown-heading-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #7A1F5C;"))))))
+(define markdown-heading-1-color
+  (make-style #f (list (attributes '((style . "font-weight: 700; color: #8B1E3F;"))))))
+(define markdown-heading-2-color
+  (make-style #f (list (attributes '((style . "font-weight: 700; color: #7A1F5C;"))))))
+(define markdown-heading-3-color
+  (make-style #f (list (attributes '((style . "font-weight: 700; color: #5F3B8A;"))))))
+(define markdown-heading-4-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #2E5C88;"))))))
+(define markdown-heading-5-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #2F6F3E;"))))))
+(define markdown-heading-6-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #8A4F00;"))))))
 (define makefile-target-color
   (make-style #f (list (attributes '((style . "font-weight: 600; color: #07A;"))))))
 (define makefile-command-color
@@ -354,6 +374,23 @@
 
 (define c-family-type-introducers
   (list->set '("struct" "union" "enum" "class" "typename" "@interface" "@protocol")))
+
+(define go-builtin-type-names
+  (list->set
+   '("bool" "byte" "complex64" "complex128" "error" "float32" "float64"
+     "int" "int8" "int16" "int32" "int64" "rune" "string"
+     "uint" "uint8" "uint16" "uint32" "uint64" "uintptr"
+     "any" "comparable")))
+
+(define go-common-type-names
+  (list->set
+   '("Context" "CancelFunc" "Buffer" "Reader" "Writer"
+     "Time" "Duration" "Ticker" "Timer"
+     "Request" "Response" "Handler" "Client"
+     "Decoder" "Encoder" "RawMessage"
+     "Regexp" "Template"
+     "WaitGroup" "Mutex" "RWMutex"
+     "Scanner" "File" "URL")))
 
 (define css-spacing-properties
   (list->set
@@ -1190,6 +1227,31 @@ JS
        [(comment) comment-color]
        [(keyword) js-keyword-color]
        [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(go)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(markdown)
+     (case cls
+       [(comment) comment-color]
+       [(heading-1) markdown-heading-1-color]
+       [(heading-2) markdown-heading-2-color]
+       [(heading-3) markdown-heading-3-color]
+       [(heading-4) markdown-heading-4-color]
+       [(heading-5) markdown-heading-5-color]
+       [(heading-6) markdown-heading-6-color]
+       [(heading-marker heading-text keyword) markdown-heading-color]
        [(value) value-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
@@ -3032,8 +3094,31 @@ JS
    txt))
 
 (define (tokenize-go s)
-  (for/list ([token (in-list (go-string->derived-tokens s))])
-    (go-derived-token->piece token)))
+  (define (go-type-name? txt cls prev1 prev2)
+    (or (set-member? go-builtin-type-names txt)
+        (set-member? go-common-type-names txt)
+        (and prev1
+             (eq? (car prev1) 'keyword)
+             (string=? (cdr prev1) "type")
+             (eq? cls 'name))
+        (and prev1 prev2
+             (eq? cls 'name)
+             (eq? (car prev1) 'punct)
+             (string=? (cdr prev1) ".")
+             (memq (car prev2) '(name type-name))
+             (set-member? go-common-type-names txt))))
+  (let loop ([rest (go-string->derived-tokens s)] [acc null] [prev1 #f] [prev2 #f])
+    (cond
+      [(null? rest) (reverse acc)]
+      [else
+       (define piece0 (go-derived-token->piece (car rest)))
+       (define piece
+         (if (go-type-name? (cdr piece0) (car piece0) prev1 prev2)
+             (cons 'type-name (cdr piece0))
+             piece0))
+       (define next-prev1 (if (token-nonplain? piece) piece prev1))
+       (define next-prev2 (if (token-nonplain? piece) prev1 prev2))
+       (loop (cdr rest) (cons piece acc) next-prev1 next-prev2)])))
 
 (define (haskell-derived-token->piece token)
   (define txt (haskell-derived-token-text token))
@@ -3241,6 +3326,64 @@ JS
              (cons (cons cls txt) acc)
              next-expect-recipe-command?)])))
 
+(define (markdown-derived-token->piece token)
+  (define txt (markdown-derived-token-text token))
+  (cons
+   (cond
+     [(markdown-derived-token-has-tag? token 'comment) 'comment]
+     [(markdown-derived-token-has-tag? token 'whitespace) 'plain]
+     [(markdown-derived-token-has-tag? token 'markdown-heading-marker) 'heading-marker]
+     [(markdown-derived-token-has-tag? token 'markdown-heading-text) 'heading-text]
+     [(or (markdown-derived-token-has-tag? token 'markdown-code-span)
+          (markdown-derived-token-has-tag? token 'markdown-code-block)
+          (markdown-derived-token-has-tag? token 'literal))
+      'value]
+     [(markdown-derived-token-has-tag? token 'operator) 'operator]
+     [(markdown-derived-token-has-tag? token 'delimiter) 'punct]
+     [(markdown-derived-token-has-tag? token 'identifier) 'name]
+     [else 'plain])
+   txt))
+
+(define (markdown-heading-class level)
+  (case level
+    [(1) 'heading-1]
+    [(2) 'heading-2]
+    [(3) 'heading-3]
+    [(4) 'heading-4]
+    [(5) 'heading-5]
+    [else 'heading-6]))
+
+(define (tokenize-markdown s)
+  (let loop ([tokens (markdown-string->derived-tokens s)]
+             [acc null]
+             [current-heading-level #f])
+    (cond
+      [(null? tokens) (reverse acc)]
+      [else
+       (define token (car tokens))
+       (define piece0 (markdown-derived-token->piece token))
+       (define txt (cdr piece0))
+       (define piece
+         (cond
+           [(eq? (car piece0) 'heading-marker)
+            (cons (markdown-heading-class (min 6 (string-length (string-trim txt))))
+                  txt)]
+           [(and current-heading-level
+                 (eq? (car piece0) 'heading-text))
+            (cons (markdown-heading-class current-heading-level) txt)]
+           [else piece0]))
+       (define next-level
+         (cond
+           [(eq? (car piece0) 'heading-marker)
+            (min 6 (string-length (string-trim txt)))]
+           [(and current-heading-level
+                 (eq? (car piece0) 'plain)
+                 (regexp-match? #px"(?:\r\n|\r|\n)" txt))
+            #f]
+           [(eq? (car piece0) 'heading-text) current-heading-level]
+           [else current-heading-level]))
+       (loop (cdr tokens) (cons piece acc) next-level)])))
+
 (define (tokenize lang s)
   (case lang
     [(css) (tokenize-css s)]
@@ -3259,8 +3402,7 @@ JS
     [(json) (projected-tokens->scribble-tokens
              (json-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(latex) (tokenize-latex s)]
-    [(markdown) (projected-tokens->scribble-tokens
-                 (markdown-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(markdown) (tokenize-markdown s)]
     [(python) (tokenize-python s)]
     [(plist) (tokenize-plist s)]
     [(racket) (projected-tokens->scribble-tokens
@@ -5224,10 +5366,12 @@ JS
     (check-not-false (member 'operator cls)))
   (check-true (element? (csv-code "a,b")))
   (check-true (element? (go-code "func add(x int, y int) int { return x + y }")))
-  (let ([cls (classes 'go "package main\n\nfunc main() {\n    var s = `raw`\n    var r = 'x'\n    // note\n}\n")])
+  (let ([cls (classes 'go "package main\n\ntype Server struct {\n    ctx Context\n    buf Buffer\n}\n\nfunc add(x int, y int) int {\n    var s string = `raw`\n    var r rune = 'x'\n    return x + y\n}\n")])
     (check-not-false (member 'keyword cls))
+    (check-not-false (member 'type-name cls))
+    (check-true ((class-count 'type-name cls) . >= . 6))
     (check-not-false (member 'value cls))
-    (check-not-false (member 'comment cls)))
+    (check-not-false (member 'name cls)))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (java-code "class Example { void run() { System.out.println(\"hi\"); } }")))
   (let ([cls (classes 'java "@Override\nclass Example {\n  String s = \"hi\";\n  Object x = null;\n}\n")])
@@ -5237,6 +5381,9 @@ JS
   (check-true (element? (js-code "const x = 1;")))
   (check-true (element? (json-code "{ \"x\": 1 }")))
   (check-true (element? (markdown-code "# Hi")))
+  (let ([cls (classes 'markdown "# Title\n\n## Subhead\n\nParagraph.\n")])
+    (check-not-false (member 'heading-1 cls))
+    (check-not-false (member 'heading-2 cls)))
   (check-true (element? (python-code "def f(x): return x")))
   (let ([cls (classes 'python "def f(x):\n    path = rf\"{x}\\n\"\n    return path\n")])
     (check-not-false (member 'keyword cls))
@@ -5863,6 +6010,25 @@ JS
              (derived-stream-contiguous? tokens
                                         go-derived-token-start
                                         go-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "# Title\n\n## Subhead\n\n`code`\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+           (markdown-string->tokens src #:profile 'coloring #:source-positions #t))
+           (markdown-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer
+           normalize-render-class
+           #:new-token->piece markdown-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        markdown-derived-token-start
+                                        markdown-derived-token-end))
            #:new-eof? (lambda (_token) #f))])
     (check-true (hash-ref comparison 'source-match?))
     (check-true (hash-ref comparison 'new-contiguous?)))

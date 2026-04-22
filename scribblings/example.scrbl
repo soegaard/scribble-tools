@@ -452,13 +452,27 @@ raco test private/lang-code.rkt
 Go works well for compact CLI and service examples with explicit packages,
 imports, and simple control flow.
 
-@goblock[#:line-numbers 1 #:file "server.go"]{
+@goblock[#:line-numbers 1 #:file "quicksort.go"]{
 package main
 
-import "fmt"
+func quickSort(xs []int) []int {
+    if len(xs) < 2 {
+        return xs
+    }
 
-func greet(name string) string {
-	return fmt.Sprintf("Hello, %s", name)
+    pivot := xs[0]
+    var left, right []int
+    for _, x := range xs[1:] {
+        if x < pivot {
+            left = append(left, x)
+        } else {
+            right = append(right, x)
+        }
+    }
+
+    left = quickSort(left)
+    right = quickSort(right)
+    return append(append(left, pivot), right...)
 }
 }
 

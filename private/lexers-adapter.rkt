@@ -100,7 +100,10 @@
 
 (define (normalize-render-class cls)
   (case cls
-    [(wasm-form wasm-type wasm-instr keyword) 'keyword]
+    [(wasm-form wasm-type wasm-instr keyword
+                heading-1 heading-2 heading-3 heading-4 heading-5 heading-6
+                heading-marker heading-text)
+     'keyword]
     [(wasm-id name type-name decl-name prop-name method-name object-key param-name) 'name]
     [(value) 'value]
     [(comment) 'comment]
