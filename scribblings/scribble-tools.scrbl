@@ -346,6 +346,7 @@ By default, code output includes documentation links for common identifiers:
  @item{CSS properties (for example @css-code{display}, @css-code{grid}, @css-code{border-radius}).}
  @item{HTML elements (for example @html-code{<section>}, @html-code{<button>}, @html-code{<script>}).}
  @item{Common JavaScript classes, methods, and language keywords (for example @js-code{Array}, @js-code{querySelector}, @js-code{map}, @js-code{const}).}
+ @item{Common Go language keywords, predeclared identifiers, and selected standard-library identifiers (for example @go-code{func}, @go-code{nil}, and @go-code{Println}) are linked to the official Go spec and package documentation.}
  @item{Common Java language keywords and standard-library identifiers (for example @java-code{class}, @java-code{String}, @java-code{System}, and @tt["@Override"]) are linked to the official Oracle Java Language Specification and Java SE API docs.}
  @item{Common LaTeX commands and environments (for example @latex-code{\section}, @latex-code{\label}, @latex-code{\begin{itemize}}) are linked to the LaTeX2e reference manual at @hyperlink["https://latexref.xyz/Index.html"]{latexref.xyz}, while TikZ commands used inside LaTeX snippets (for example @latex-code{\draw}) are linked to @hyperlink["https://tikz.dev/"]{tikz.dev}.}
  @item{Common shell keywords and builtins (for example @shell-code[#:shell 'bash]{if}, @shell-code[#:shell 'zsh]{setopt}, @shell-code[#:shell 'powershell]{Get-ChildItem}), linked to GNU Bash, Zsh, or PowerShell documentation.}
@@ -680,6 +681,10 @@ Example: @csv-code["name,age"]
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
 Typesets the concatenated strings as inline Go code.
+
+Common Go language keywords, predeclared identifiers, and selected
+standard-library identifiers are linked to the official Go spec and
+package documentation.
 
 Example: @go-code{func add(x int, y int) int { return x + y }}
 }

@@ -30,6 +30,9 @@
 - Added Java docs links for common language keywords and selected
   standard-library identifiers using the official Oracle Java Language
   Specification and Java SE API docs.
+- Added Go docs links for common language keywords, predeclared
+  identifiers, and selected standard-library identifiers using the
+  official Go spec and package docs.
 - Migrated language tokenization to `lexers` incrementally:
   - Python via `lexers/python`
   - WebAssembly via `lexers/wat`
