@@ -48,6 +48,13 @@
                   javascript-derived-token-text
                   javascript-string->derived-tokens)
          (only-in lexers/json json-string->tokens)
+         (only-in lexers/java
+                  java-derived-token-has-tag?
+                  java-derived-token-text
+                  java-derived-token-start
+                  java-derived-token-end
+                  java-string->tokens
+                  java-string->derived-tokens)
          (only-in lexers/makefile
                   makefile-derived-token-has-tag?
                   makefile-derived-token-text
@@ -151,6 +158,7 @@
          csv-code
          go-code
          html-code
+         java-code
          js-code
          json-code
          markdown-code
@@ -177,6 +185,7 @@
          csvblock
          goblock
          htmlblock
+         javablock
          jsblock
          jsonblock
          markdownblock
@@ -203,6 +212,7 @@
          csvblock0
          goblock0
          htmlblock0
+         javablock0
          jsblock0
          jsonblock0
          markdownblock0
@@ -2945,6 +2955,40 @@ JS
   (for/list ([token (in-list (haskell-string->derived-tokens s))])
     (haskell-derived-token->piece token)))
 
+(define (java-derived-token->piece token)
+  (define txt (java-derived-token-text token))
+  (cons
+   (cond
+     [(or (java-derived-token-has-tag? token 'comment)
+          (java-derived-token-has-tag? token 'java-line-comment)
+          (java-derived-token-has-tag? token 'java-doc-comment))
+      'comment]
+     [(java-derived-token-has-tag? token 'whitespace) 'plain]
+     [(java-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (java-derived-token-has-tag? token 'keyword)
+          (java-derived-token-has-tag? token 'java-annotation-name))
+      'keyword]
+     [(or (java-derived-token-has-tag? token 'java-string-literal)
+          (java-derived-token-has-tag? token 'java-char-literal)
+          (java-derived-token-has-tag? token 'java-text-block)
+          (java-derived-token-has-tag? token 'java-numeric-literal)
+          (java-derived-token-has-tag? token 'java-true-literal)
+          (java-derived-token-has-tag? token 'java-false-literal)
+          (java-derived-token-has-tag? token 'java-null-literal)
+          (java-derived-token-has-tag? token 'literal))
+      'value]
+     [(java-derived-token-has-tag? token 'operator) 'operator]
+     [(java-derived-token-has-tag? token 'delimiter) 'punct]
+     [(or (java-derived-token-has-tag? token 'java-identifier)
+          (java-derived-token-has-tag? token 'identifier))
+      'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-java s)
+  (for/list ([token (in-list (java-string->derived-tokens s))])
+    (java-derived-token->piece token)))
+
 (define (tokenize-latex s)
   (for/list ([token (in-list (latex-string->derived-tokens s))])
     (define txt (latex-derived-token-text token))
@@ -3102,6 +3146,7 @@ JS
             (csv-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(go) (tokenize-go s)]
     [(html) (tokenize-html s)]
+    [(java) (tokenize-java s)]
     [(js) (tokenize-js s)]
     [(json) (projected-tokens->scribble-tokens
              (json-string->tokens s #:profile 'coloring #:source-positions #t))]
@@ -4761,6 +4806,7 @@ JS
 (define-syntax (plist-code stx) (do-simple-inline stx 'plist))
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
 (define-syntax (go-code stx) (do-simple-inline stx 'go))
+(define-syntax (java-code stx) (do-simple-inline stx 'java))
 (define-syntax (json-code stx) (do-simple-inline stx 'json))
 (define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
 (define-syntax (racket-code stx) (do-simple-inline stx 'racket))
@@ -4847,6 +4893,8 @@ JS
 (define-syntax (goblock stx) (do-simple-block stx 'go #t))
 (define-syntax (htmlblock0 stx) (do-block stx 'html #f))
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
+(define-syntax (javablock0 stx) (do-simple-block stx 'java #f))
+(define-syntax (javablock stx) (do-simple-block stx 'java #t))
 (define-syntax (jsblock0 stx) (do-js-block stx #f))
 (define-syntax (jsblock stx) (do-js-block stx #t))
 (define-syntax (jsonblock0 stx) (do-simple-block stx 'json #f))
@@ -4982,6 +5030,7 @@ JS
   (check-true (block? (csvblock "name,age\nAda,37\n")))
   (check-true (block? (goblock "package main\n\nfunc add(x int, y int) int {\n    return x + y\n}\n")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
+  (check-true (block? (javablock "class Example { void run() { System.out.println(\"hi\"); } }\n")))
   (check-true (block? (jsblock "const x = 1;")))
   (check-true (block? (jsonblock "{ \"name\": \"Ada\" }")))
   (check-true (block? (markdownblock "# Title\n\n* item\n")))
@@ -5063,6 +5112,11 @@ JS
     (check-not-false (member 'value cls))
     (check-not-false (member 'comment cls)))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
+  (check-true (element? (java-code "class Example { void run() { System.out.println(\"hi\"); } }")))
+  (let ([cls (classes 'java "@Override\nclass Example {\n  String s = \"hi\";\n  Object x = null;\n}\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'name cls)))
   (check-true (element? (js-code "const x = 1;")))
   (check-true (element? (json-code "{ \"x\": 1 }")))
   (check-true (element? (markdown-code "# Hi")))
@@ -5703,6 +5757,24 @@ JS
              (derived-stream-contiguous? tokens
                                         haskell-derived-token-start
                                         haskell-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "@Override\nclass Example {\n  String s = \"hi\";\n  Object x = null;\n}\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (java-string->tokens src #:profile 'coloring #:source-positions #t))
+           (java-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece java-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        java-derived-token-start
+                                        java-derived-token-end))
            #:new-eof? (lambda (_token) #f))])
     (check-true (hash-ref comparison 'source-match?))
     (check-true (hash-ref comparison 'new-contiguous?)))

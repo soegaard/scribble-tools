@@ -10,12 +10,12 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
+Java, JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
 (Bash/Zsh/PowerShell), Swift, TeX, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
-@racket[go-code], @racket[html-code], @racket[js-code], @racket[json-code],
+@racket[go-code], @racket[html-code], @racket[java-code], @racket[js-code], @racket[json-code],
 @racket[haskell-code], @racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
 @racket[rhombus-code], @racket[rust-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
@@ -23,7 +23,7 @@ produce content.
 
 The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
-        @racket[goblock], @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
+        @racket[goblock], @racket[javablock], @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
         @racket[haskellblock], @racket[latexblock], @racket[makefileblock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
         @racket[rustblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
@@ -48,6 +48,7 @@ Use inline forms when you want code inside running text:
   (list "CSV"         @scribble-code["@csv-code[\"name,age\"]"])
   (list "Go"          @scribble-code["@go-code{func add(x int, y int) int { return x + y }}"])
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
+  (list "Java"        @scribble-code["@java-code{class Example { void run() { System.out.println(\"hi\"); } }}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
   (list "JSON"        @scribble-code["@json-code[\"{\\\"name\\\": \\\"Ada\\\"}\"]"])
   (list "Haskell"     @scribble-code["@haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)}"])
@@ -79,6 +80,7 @@ Use inline forms when you want code inside running text:
   (list "CSV"           @csv-code["name,age"])
   (list "Go"            @go-code{func add(x int, y int) int { return x + y }})
   (list "HTML"          @html-code{<button class="primary">Save</button>})
+  (list "Java"          @java-code{class Example { void run() { System.out.println("hi"); } }})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
   (list "JSON"          @json-code["{\"name\": \"Ada\"}"])
   (list "Haskell"       @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)})
@@ -496,6 +498,14 @@ Typesets the concatenated strings as inline Haskell code.
 Example: @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)}
 }
 
+@defform/subs[(java-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Java code.
+
+Example: @java-code{class Example { void run() { System.out.println("hi"); } }}
+}
+
 @defform/subs[(pascal-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -887,6 +897,14 @@ Typesets Go code as a block inset.
 
 @defform[(goblock0 option ... str-expr ...+)]{
 Like @racket[goblock], but without the inset wrapper.
+}
+
+@defform[(javablock option ... str-expr ...+)]{
+Typesets Java code as a block inset.
+}
+
+@defform[(javablock0 option ... str-expr ...+)]{
+Like @racket[javablock], but without the inset wrapper.
 }
 
 @defform[(makefileblock option ... str-expr ...+)]{
@@ -1617,6 +1635,18 @@ import "fmt"
 
 func greet(name string) string {
 	return fmt.Sprintf("Hello, %s", name)
+}
+}
+
+@subsection{Java}
+
+@javablock[#:line-numbers 1
+           #:file "extended/Example.java"]{
+class Example {
+    static void run() {
+        var name = "Ada";
+        System.out.println("Hello, " + name);
+    }
 }
 }
 

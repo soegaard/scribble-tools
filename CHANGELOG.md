@@ -11,6 +11,7 @@
   - CSV: `csv-code`, `csvblock`, `csvblock0`
   - Go: `go-code`, `goblock`, `goblock0`
   - Haskell: `haskell-code`, `haskellblock`, `haskellblock0`
+  - Java: `java-code`, `javablock`, `javablock0`
   - JSON: `json-code`, `jsonblock`, `jsonblock0`
   - LaTeX: `latex-code`, `latexblock`, `latexblock0`
   - Makefile: `makefile-code`, `makefileblock`, `makefileblock0`
@@ -37,6 +38,7 @@
 - Added internal old-vs-new lexer comparison coverage to support one-language-at-a-time migration checks.
 - Kept JSX mode on the handwritten JavaScript lexer path for compatibility with the existing TSX-style generic-angle heuristic.
 - Added LaTeX identifier links via `latexref.xyz` for common LaTeX commands and environments.
+- Switched the main renderer to derived-token integration for the practical language set, improving visible structure for shell, Makefile, TeX/LaTeX, C-family languages, plist, Python, Swift, Pascal, YAML, Go, and Haskell.
 
 ## 0.2.0 - 2026-03-11
 

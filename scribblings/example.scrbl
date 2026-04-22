@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, Java, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -14,6 +14,7 @@ inline C++ with @cpp-code{std::vector<int> xs = {1, 2, 3};} and
 inline CSV with @csv-code["name,age"] and
 inline Go with @go-code{func add(x int, y int) int { return x + y }} and
 inline Haskell with @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)} and
+inline Java with @java-code{class Example { void run() { System.out.println("hi"); } }} and
 inline JSON with @json-code["{\"name\": \"Ada\"}"] and
 inline LaTeX with @latex-code{\section{Intro}} and
 inline Makefile with @makefile-code{all: build test} and
@@ -66,6 +67,8 @@ Inline CSV: @csv-code["name,age"]
 Inline Go: @go-code{func add(x int, y int) int { return x + y }}
 
 Inline Haskell: @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)}
+
+Inline Java: @java-code{class Example { void run() { System.out.println("hi"); } }}
 
 Inline JSON: @json-code["{\"name\": \"Ada\"}"]
 
@@ -448,6 +451,21 @@ func greet(name string) string {
 	return fmt.Sprintf("Hello, %s", name)
 }
 }
+
+@subsection{Java}
+
+Java works well for class- and API-oriented examples with annotations,
+methods, and string-heavy snippets.
+
+@javablock[#:line-numbers 1
+           #:file "Example.java"
+           "@Override\n"
+           "class Example {\n"
+           "    void run() {\n"
+           "        String name = \"Ada\";\n"
+           "        System.out.println(\"Hello, \" + name);\n"
+           "    }\n"
+           "}\n"]
 
 @subsection{Objective-C}
 

@@ -54,6 +54,13 @@
        (not (string=? t ""))
        (hash-ref cppreference-url-cache (list lang t) #f)))
 
+(define (normalize-header-token token)
+  (define t (string-trim token))
+  (cond
+    [(regexp-match #px"^<([^>]+)>$" t) => cadr]
+    [(regexp-match #px"^\"([^\"]+)\"$" t) => cadr]
+    [else #f]))
+
 (define (keyword-url lang token)
   (define t (string-trim token))
   (and (memq lang '(c cpp))
@@ -79,7 +86,11 @@
      (or (cppreference-doc-url-for-token 'cpp (string-append "std::" t))
          (cppreference-doc-url-for-token 'cpp t))]
     [else
-     (cppreference-doc-url-for-token lang t)]))
+     (or (cppreference-doc-url-for-token lang t)
+         (and (eq? lang 'cpp)
+              (let ([header (normalize-header-token t)])
+                (and header
+                     (cppreference-doc-url-for-token 'cpp header)))))]))
 
 (module+ test
   (require rackunit)
@@ -99,4 +110,6 @@
   (check-equal? (c/cpp-doc-url-for-token 'cpp 'identifier "vector" "::" "std")
                 "https://en.cppreference.com/w/cpp/container/vector")
   (check-equal? (c/cpp-doc-url-for-token 'cpp 'identifier "vector" #f #f)
+                "https://en.cppreference.com/w/cpp/header/vector")
+  (check-equal? (c/cpp-doc-url-for-token 'cpp 'value "<vector>" #f #f)
                 "https://en.cppreference.com/w/cpp/header/vector"))
