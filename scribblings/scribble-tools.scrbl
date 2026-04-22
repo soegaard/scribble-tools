@@ -1400,7 +1400,9 @@ This chapter provides longer rendered examples for each supported language.
 Each block uses line numbers and a file label to make lexer behavior and
 documentation links easier to inspect.
 
-@subsection{CSS}
+@subsection[#:tag "extended-web-languages"]{Web Languages}
+
+@subsubsection[#:tag "extended-css"]{CSS}
 
 @cssblock[#:line-numbers 1
           #:file "extended/styles.css"
@@ -1428,7 +1430,7 @@ documentation links easier to inspect.
 }
 }
 
-@subsection{HTML}
+@subsubsection[#:tag "extended-html"]{HTML}
 
 @htmlblock[#:line-numbers 1
            #:file "extended/index.html"]{
@@ -1455,7 +1457,7 @@ documentation links easier to inspect.
 </html>
 }
 
-@subsection{JavaScript}
+@subsubsection[#:tag "extended-javascript"]{JavaScript}
 
 @jsblock[#:line-numbers 1
          #:file "extended/app.js"]{
@@ -1504,31 +1506,9 @@ function boot() {
 boot();
 }
 
-@subsection{Python}
+@subsection[#:tag "extended-programming-languages"]{Programming Languages}
 
-@pythonblock[#:line-numbers 1
-             #:file "extended/report.py"
-             "from dataclasses import dataclass\n"
-             "\n"
-             "\n"
-             "@dataclass\n"
-             "class Entry:\n"
-             "    title: str\n"
-             "    score: int\n"
-             "\n"
-             "\n"
-             "def top_entries(rows, limit=3):\n"
-             "    ranked = sorted(rows, key=lambda row: row.score, reverse=True)\n"
-             "    return [entry.title for entry in ranked[:limit] if entry.score >= 0]\n"
-             "\n"
-             "\n"
-             "def format_report(rows):\n"
-             "    titles = top_entries(rows)\n"
-             "    if not titles:\n"
-             "        return \"no entries\"\n"
-             "    return \", \".join(titles)\n"]
-
-@subsection{C}
+@subsubsection[#:tag "extended-c"]{C}
 
 @cblock[#:line-numbers 1
         #:file "extended/cache.c"]{
@@ -1547,7 +1527,7 @@ static int lookup(const entry_t *entries, int count, const char *key) {
 }
 }
 
-@subsection{C++}
+@subsubsection[#:tag "extended-cpp"]{C++}
 
 @cppblock[#:line-numbers 1
           #:file "extended/cache.cpp"]{
@@ -1569,39 +1549,7 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
 }
 }
 
-@subsection{JSON}
-
-@jsonblock[#:line-numbers 1
-           #:file "extended/config.json"]{
-{
-  "name": "scribble-tools",
-  "features": {
-    "copyButton": true,
-    "lineNumbers": true,
-    "links": ["mdn", "shell-docs", "wasm-spec"]
-  },
-  "targets": ["html", "manual"]
-}
-}
-
-@subsection{LaTeX}
-
-@latexblock[#:line-numbers 1
-            #:file "extended/doc.tex"]{
-\section{Overview}
-\[
-  f(x) = x^2 + 2x + 1
-\]
-
-\usepackage{tikz}
-
-\begin{tikzpicture}
-  \draw (0,0) -- (2,1);
-  \node[right] at (2,1) {Endpoint};
-\end{tikzpicture}
-}
-
-@subsection{Makefile}
+@subsubsection[#:tag "extended-makefile"]{Makefile}
 
 @makefileblock[#:line-numbers 1
                #:file "extended/Makefile"
@@ -1620,56 +1568,39 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
                "build:\n"
                "\t${CC} -o $@ $<\n"]
 
-@subsection{Markdown}
+@subsubsection[#:tag "extended-objc"]{Objective-C}
 
-@markdownblock[#:line-numbers 1
-               #:file "extended/notes.md"]{
-# Release Notes
+@objcblock[#:line-numbers 1
+           #:file "extended/view.m"
+           "#import <Foundation/Foundation.h>\n"
+           "\n"
+           "@interface Greeter : NSObject\n"
+           "- (NSString *)messageFor:(NSString *)name;\n"
+           "@end\n"
+           "\n"
+           "@implementation Greeter\n"
+           "- (NSString *)messageFor:(NSString *)name {\n"
+           "  return [NSString stringWithFormat:@\"Hello, %@\", name];\n"
+           "}\n"
+           "@end\n"]
 
-## Highlights
+@subsubsection[#:tag "extended-haskell"]{Haskell}
 
-- Added Python support
-- Migrated lexers to the `lexers` package
-- Expanded rendered examples
+@haskellblock[#:line-numbers 1
+              #:file "extended/Stats.hs"]{
+module Stats where
 
-```bash
-raco test private/lang-code.rkt
-```
+sumSquares :: [Int] -> Int
+sumSquares xs = sum (map square xs)
+  where
+    square n = n * n
 
-```racket
-(define (build-docs)
-  (displayln "scribblings/scribble-tools.scrbl"))
-```
+describe :: [Int] -> String
+describe xs =
+  "count=" ++ show (length xs) ++ ", total=" ++ show (sum xs)
 }
 
-@subsection{Go}
-
-@goblock[#:line-numbers 1
-         #:file "extended/quicksort.go"]{
-package main
-
-func quickSort(xs []int) []int {
-    if len(xs) < 2 {
-        return xs
-    }
-
-    pivot := xs[0]
-    var left, right []int
-    for _, x := range xs[1:] {
-        if x < pivot {
-            left = append(left, x)
-        } else {
-            right = append(right, x)
-        }
-    }
-
-    left = quickSort(left)
-    right = quickSort(right)
-    return append(append(left, pivot), right...)
-}
-}
-
-@subsection{Java}
+@subsubsection[#:tag "extended-java"]{Java}
 
 @javablock[#:line-numbers 1
            #:file "extended/QuickSort.java"]{
@@ -1705,39 +1636,7 @@ class QuickSort {
 }
 }
 
-@subsection{Objective-C}
-
-@objcblock[#:line-numbers 1
-           #:file "extended/view.m"
-           "#import <Foundation/Foundation.h>\n"
-           "\n"
-           "@interface Greeter : NSObject\n"
-           "- (NSString *)messageFor:(NSString *)name;\n"
-           "@end\n"
-           "\n"
-           "@implementation Greeter\n"
-           "- (NSString *)messageFor:(NSString *)name {\n"
-           "  return [NSString stringWithFormat:@\"Hello, %@\", name];\n"
-           "}\n"
-           "@end\n"]
-
-@subsection{Haskell}
-
-@haskellblock[#:line-numbers 1
-              #:file "extended/Stats.hs"]{
-module Stats where
-
-sumSquares :: [Int] -> Int
-sumSquares xs = sum (map square xs)
-  where
-    square n = n * n
-
-describe :: [Int] -> String
-describe xs =
-  "count=" ++ show (length xs) ++ ", total=" ++ show (sum xs)
-}
-
-@subsection{Pascal}
+@subsubsection[#:tag "extended-pascal"]{Pascal}
 
 @pascalblock[#:line-numbers 1
              #:file "extended/helpers.pas"]{
@@ -1750,22 +1649,31 @@ begin
 end;
 }
 
-@subsection{plist}
+@subsubsection[#:tag "extended-python"]{Python}
 
-@plistblock[#:line-numbers 1
-            #:file "extended/Info.plist"]{
-<?xml version="1.0" encoding="UTF-8"?>
-<plist version="1.0">
-  <dict>
-    <key>CFBundleName</key>
-    <string>scribble-tools</string>
-    <key>CFBundleVersion</key>
-    <string>1.0</string>
-  </dict>
-</plist>
-}
+@pythonblock[#:line-numbers 1
+             #:file "extended/report.py"
+             "from dataclasses import dataclass\n"
+             "\n"
+             "\n"
+             "@dataclass\n"
+             "class Entry:\n"
+             "    title: str\n"
+             "    score: int\n"
+             "\n"
+             "\n"
+             "def top_entries(rows, limit=3):\n"
+             "    ranked = sorted(rows, key=lambda row: row.score, reverse=True)\n"
+             "    return [entry.title for entry in ranked[:limit] if entry.score >= 0]\n"
+             "\n"
+             "\n"
+             "def format_report(rows):\n"
+             "    titles = top_entries(rows)\n"
+             "    if not titles:\n"
+             "        return \"no entries\"\n"
+             "    return \", \".join(titles)\n"]
 
-@subsection{Racket}
+@subsubsection[#:tag "extended-racket"]{Racket}
 
 @racketblock[#:line-numbers 1
              #:file "extended/helpers.rkt"]{
@@ -1778,7 +1686,7 @@ end;
 (group-by-length '("css" "html" "scribble"))
 }
 
-@subsection{Rhombus}
+@subsubsection[#:tag "extended-rhombus"]{Rhombus}
 
 @rhombusblock[#:line-numbers 1
               #:file "extended/helpers.rhm"]{
@@ -1789,81 +1697,7 @@ fun summarize(name, count):
     "$name has $(count) items"
 }
 
-@subsection{Swift}
-
-@swiftblock[#:line-numbers 1
-            #:file "extended/helpers.swift"]{
-struct Entry {
-  let title: String
-  let score: Int
-}
-
-func topTitles(_ entries: [Entry], limit: Int = 3) -> [String] {
-  entries
-    .sorted { $0.score > $1.score }
-    .prefix(limit)
-    .map(\.title)
-}
-}
-
-@subsection{Rust}
-
-@rustblock[#:line-numbers 1
-           #:file "extended/helpers.rs"]{
-use std::collections::HashMap;
-
-fn histogram(words: &[&str]) -> HashMap<String, usize> {
-    let mut counts = HashMap::new();
-    for word in words {
-        *counts.entry((*word).to_string()).or_insert(0) += 1;
-    }
-    counts
-}
-}
-
-@subsection{TeX}
-
-@texblock[#:line-numbers 1
-          #:file "extended/doc.tex"]{
-\def\foo#1{$$#1^2$$ \verb|x+y|}
-\hbox{Hello}
-\vskip 1em
-\centerline{\foo{n}}
-}
-
-@subsection{CSV and TSV}
-
-@csvblock[#:line-numbers 1
-          #:file "extended/people.csv"]{
-name,role,active
-Ada,author,true
-Grace,editor,false
-Linus,reviewer,true
-}
-
-@tsvblock[#:line-numbers 1
-          #:file "extended/people.tsv"]{
-name	role	active
-Ada	author	true
-Grace	editor	false
-Linus	reviewer	true
-}
-
-@subsection{YAML}
-
-@yamlblock[#:line-numbers 1
-           #:file "extended/config.yaml"]{
-name: scribble-tools
-features:
-  copy_button: true
-  line_numbers: true
-  docs_links:
-    - mdn
-    - shell-docs
-    - wasm-spec
-}
-
-@subsection{Shell}
+@subsubsection[#:tag "extended-shell"]{Shell}
 
 This utility copies one directory tree to another and validates arguments
 before running the copy operation.
@@ -1902,7 +1736,39 @@ before running the copy operation.
             "\n"
             "main \"$@\"\n"]
 
-@subsection{WebAssembly}
+@subsubsection[#:tag "extended-swift"]{Swift}
+
+@swiftblock[#:line-numbers 1
+            #:file "extended/helpers.swift"]{
+struct Entry {
+  let title: String
+  let score: Int
+}
+
+func topTitles(_ entries: [Entry], limit: Int = 3) -> [String] {
+  entries
+    .sorted { $0.score > $1.score }
+    .prefix(limit)
+    .map(\.title)
+}
+}
+
+@subsubsection[#:tag "extended-rust"]{Rust}
+
+@rustblock[#:line-numbers 1
+           #:file "extended/helpers.rs"]{
+use std::collections::HashMap;
+
+fn histogram(words: &[&str]) -> HashMap<String, usize> {
+    let mut counts = HashMap::new();
+    for word in words {
+        *counts.entry((*word).to_string()).or_insert(0) += 1;
+    }
+    counts
+}
+}
+
+@subsubsection[#:tag "extended-wasm"]{WebAssembly}
 
 @wasmblock[#:line-numbers 1
            #:file "extended/module.wat"]{
@@ -1937,3 +1803,162 @@ before running the copy operation.
                "]\n"
                "@subsection{Details}\n"
                "See @secref[\"reference-inline-forms\"] for inline forms.\n"]
+
+@subsection[#:tag "extended-document-languages"]{Document Languages}
+
+@subsubsection[#:tag "extended-latex"]{LaTeX}
+
+@latexblock[#:line-numbers 1
+            #:file "extended/doc.tex"]{
+\section{Overview}
+\[
+  f(x) = x^2 + 2x + 1
+\]
+
+\usepackage{tikz}
+
+\begin{tikzpicture}
+  \draw (0,0) -- (2,1);
+  \node[right] at (2,1) {Endpoint};
+\end{tikzpicture}
+}
+
+@subsubsection[#:tag "extended-markdown"]{Markdown}
+
+@markdownblock[#:line-numbers 1
+               #:file "extended/notes.md"]{
+# Release Notes
+
+## Highlights
+
+- Added Python support
+- Migrated lexers to the `lexers` package
+- Expanded rendered examples
+
+```bash
+raco test private/lang-code.rkt
+```
+
+```racket
+(define (build-docs)
+  (displayln "scribblings/scribble-tools.scrbl"))
+```
+}
+
+@subsubsection[#:tag "extended-scribble"]{Scribble}
+
+@scribbleblock[#:line-numbers 1
+               #:file "extended/guide.scrbl"
+               #:context #'here
+               "@title{Extended Scribble Example}\n"
+               "@section{Overview}\n"
+               "This paragraph includes @bold{inline formatting},\n"
+               "@italic{emphasis}, and @racket[code] references.\n"
+               "@itemlist[\n"
+               "  @item{First point}\n"
+               "  @item{Second point}\n"
+               "  @item{Third point}\n"
+               "]\n"
+               "@subsection{Details}\n"
+               "See @secref[\"reference-inline-forms\"] for inline forms.\n"]
+
+@subsubsection[#:tag "extended-tex"]{TeX}
+
+@texblock[#:line-numbers 1
+          #:file "extended/doc.tex"]{
+\def\foo#1{$$#1^2$$ \verb|x+y|}
+\hbox{Hello}
+\vskip 1em
+\centerline{\foo{n}}
+}
+
+@subsection[#:tag "extended-data-formats"]{Data Formats}
+
+@subsubsection[#:tag "extended-csv-tsv"]{CSV and TSV}
+
+@csvblock[#:line-numbers 1
+          #:file "extended/people.csv"]{
+name,role,active
+Ada,author,true
+Grace,editor,false
+Linus,reviewer,true
+}
+
+@tsvblock[#:line-numbers 1
+          #:file "extended/people.tsv"]{
+name	role	active
+Ada	author	true
+Grace	editor	false
+Linus	reviewer	true
+}
+
+@subsubsection[#:tag "extended-go"]{Go}
+
+@goblock[#:line-numbers 1
+         #:file "extended/quicksort.go"]{
+package main
+
+func quickSort(xs []int) []int {
+    if len(xs) < 2 {
+        return xs
+    }
+
+    pivot := xs[0]
+    var left, right []int
+    for _, x := range xs[1:] {
+        if x < pivot {
+            left = append(left, x)
+        } else {
+            right = append(right, x)
+        }
+    }
+
+    left = quickSort(left)
+    right = quickSort(right)
+    return append(append(left, pivot), right...)
+}
+}
+
+@subsubsection[#:tag "extended-json"]{JSON}
+
+@jsonblock[#:line-numbers 1
+           #:file "extended/config.json"]{
+{
+  "name": "scribble-tools",
+  "features": {
+    "copyButton": true,
+    "lineNumbers": true,
+    "links": ["mdn", "shell-docs", "wasm-spec"]
+  },
+  "targets": ["html", "manual"]
+}
+}
+
+@subsubsection[#:tag "extended-plist"]{plist}
+
+@plistblock[#:line-numbers 1
+            #:file "extended/Info.plist"]{
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+  <dict>
+    <key>CFBundleName</key>
+    <string>scribble-tools</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+  </dict>
+</plist>
+}
+
+@subsubsection[#:tag "extended-yaml"]{YAML}
+
+@yamlblock[#:line-numbers 1
+           #:file "extended/config.yaml"]{
+name: scribble-tools
+features:
+  copy_button: true
+  line_numbers: true
+  docs_links:
+    - mdn
+    - shell-docs
+    - wasm-spec
+}
