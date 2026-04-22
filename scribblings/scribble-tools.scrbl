@@ -1672,11 +1672,35 @@ func quickSort(xs []int) []int {
 @subsection{Java}
 
 @javablock[#:line-numbers 1
-           #:file "extended/Example.java"]{
-class Example {
-    static void run() {
-        var name = "Ada";
-        System.out.println("Hello, " + name);
+           #:file "extended/QuickSort.java"]{
+class QuickSort {
+    static void quickSort(int[] xs, int lo, int hi) {
+        if (lo >= hi) {
+            return;
+        }
+
+        int pivot = xs[(lo + hi) / 2];
+        int i = lo;
+        int j = hi;
+
+        while (i <= j) {
+            while (xs[i] < pivot) {
+                i++;
+            }
+            while (xs[j] > pivot) {
+                j--;
+            }
+            if (i <= j) {
+                int tmp = xs[i];
+                xs[i] = xs[j];
+                xs[j] = tmp;
+                i++;
+                j--;
+            }
+        }
+
+        quickSort(xs, lo, j);
+        quickSort(xs, i, hi);
     }
 }
 }

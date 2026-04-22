@@ -392,6 +392,15 @@
      "WaitGroup" "Mutex" "RWMutex"
      "Scanner" "File" "URL")))
 
+(define pascal-builtin-type-names
+  (list->set
+   '("integer" "boolean" "string" "char" "real" "byte" "word"
+     "shortint" "smallint" "longint" "int64"
+     "cardinal" "longword" "qword"
+     "single" "double" "extended" "comp" "currency"
+     "ansistring" "widestring" "unicodestring"
+     "pchar" "pointer" "text" "textfile" "file")))
+
 (define css-spacing-properties
   (list->set
    '("margin" "margin-top" "margin-right" "margin-bottom" "margin-left"
@@ -1233,6 +1242,16 @@ JS
        [(punct) paren-color]
        [else no-color])]
     [(go)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(pascal)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -3039,8 +3058,35 @@ JS
    txt))
 
 (define (tokenize-pascal s)
-  (for/list ([token (in-list (pascal-string->derived-tokens s))])
-    (pascal-derived-token->piece token)))
+  (define (pascal-type-name? txt cls prev1 prev2)
+    (define t (string-downcase txt))
+    (or (set-member? pascal-builtin-type-names t)
+        (and prev1
+             (eq? (car prev1) 'keyword)
+             (member (string-downcase (cdr prev1)) '("type" "of") string=?)
+             (eq? cls 'name))
+        (and prev1
+             (eq? (car prev1) 'punct)
+             (or (string=? (cdr prev1) ":")
+                 (string=? (cdr prev1) "="))
+             (eq? cls 'name))
+        (and prev1 prev2
+             (eq? cls 'name)
+             (eq? (car prev1) 'punct)
+             (string=? (cdr prev1) ".")
+             (memq (car prev2) '(name type-name)))))
+  (let loop ([rest (pascal-string->derived-tokens s)] [acc null] [prev1 #f] [prev2 #f])
+    (cond
+      [(null? rest) (reverse acc)]
+      [else
+       (define piece0 (pascal-derived-token->piece (car rest)))
+       (define piece
+         (if (pascal-type-name? (cdr piece0) (car piece0) prev1 prev2)
+             (cons 'type-name (cdr piece0))
+             piece0))
+       (define next-prev1 (if (token-nonplain? piece) piece prev1))
+       (define next-prev2 (if (token-nonplain? piece) prev1 prev2))
+       (loop (cdr rest) (cons piece acc) next-prev1 next-prev2)])))
 
 (define (yaml-derived-token->piece token)
   (define txt (yaml-derived-token-text token))
@@ -5355,8 +5401,10 @@ JS
     (check-not-false (member 'value cls))
     (check-not-false (member 'comment cls)))
   (check-true (element? (pascal-code "var answer: Integer;")))
-  (let ([cls (classes 'pascal "{$mode objfpc}\nfunction Add(x, y: Integer): Integer;\nbegin\n  Add := x + y + $FF;\nend;\n")])
+  (let ([cls (classes 'pascal "type TPoint = record x, y: Integer; end;\nvar p: TPoint;\nfunction Add(x, y: Integer): Integer;\nbegin\n  Add := x + y + $FF;\nend;\n")])
     (check-not-false (member 'keyword cls))
+    (check-not-false (member 'type-name cls))
+    (check-true ((class-count 'type-name cls) . >= . 5))
     (check-not-false (member 'value cls)))
   (check-true (element? (plist-code "<plist/>")))
   (let ([cls (classes 'plist "<?xml version=\"1.0\"?>\n<plist><dict><key>Name</key><string>Ada &amp; Bob</string></dict></plist>\n")])
