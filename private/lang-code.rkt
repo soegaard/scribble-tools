@@ -269,6 +269,18 @@
   (make-style #f (list (attributes '((style . "color: #098658;"))))))
 (define makefile-variable-color
   (make-style #f (list (attributes '((style . "color: #6B2F8A;"))))))
+(define makefile-operator-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #A15C00;"))))))
+(define makefile-punct-color
+  (make-style #f (list (attributes '((style . "color: #7A6A4A;"))))))
+(define tex-command-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #7A1F5C;"))))))
+(define tex-name-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #0B62A3;"))))))
+(define tex-operator-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #A15C00;"))))))
+(define tex-value-color
+  (make-style #f (list (attributes '((style . "color: #2F6F3E; background-color: rgba(47,111,62,.08); border-radius: .18em;"))))))
 (define wasm-form-color
   (make-style #f (list (attributes '((style . "color: #0B62A3;"))))))
 (define wasm-type-color
@@ -1132,7 +1144,16 @@ JS
        [(name) js-name-color]
        [(punct) paren-color]
        [else no-color])]
-    [(c cpp json latex markdown objc plist racket rhombus swift tex yaml)
+    [(latex tex)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) tex-command-color]
+       [(value) tex-value-color]
+       [(name) tex-name-color]
+       [(operator) tex-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(c cpp json markdown objc plist racket rhombus swift yaml)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -1150,8 +1171,8 @@ JS
        [(make-variable) makefile-variable-color]
        [(value) value-color]
        [(name) js-name-color]
-       [(operator) js-operator-color]
-       [(punct) paren-color]
+       [(operator) makefile-operator-color]
+       [(punct) makefile-punct-color]
        [else no-color])]
     [(csv tsv)
      (case cls
