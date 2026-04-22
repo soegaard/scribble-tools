@@ -25,8 +25,20 @@
                   css-derived-token-text
                   css-string->derived-tokens)
          (only-in lexers/csv csv-string->tokens)
-         (only-in lexers/go go-string->tokens)
-         (only-in lexers/haskell haskell-string->tokens)
+         (only-in lexers/go
+                  go-derived-token-has-tag?
+                  go-derived-token-text
+                  go-derived-token-start
+                  go-derived-token-end
+                  go-string->tokens
+                  go-string->derived-tokens)
+         (only-in lexers/haskell
+                  haskell-derived-token-has-tag?
+                  haskell-derived-token-text
+                  haskell-derived-token-start
+                  haskell-derived-token-end
+                  haskell-string->tokens
+                  haskell-string->derived-tokens)
          (only-in lexers/html
                   html-derived-token-has-tag?
                   html-derived-token-text
@@ -41,6 +53,12 @@
                   makefile-derived-token-text
                   makefile-string->derived-tokens)
          (only-in lexers/markdown markdown-string->tokens)
+         (only-in lexers/python
+                  python-derived-token-has-tag?
+                  python-derived-token-text
+                  python-derived-token-start
+                  python-derived-token-end
+                  python-string->derived-tokens)
          (only-in lexers/objc
                   objc-derived-token-has-tag?
                   objc-derived-token-text
@@ -48,7 +66,13 @@
                   objc-derived-token-end
                   objc-string->tokens
                   objc-string->derived-tokens)
-         (only-in lexers/pascal pascal-string->tokens)
+         (only-in lexers/pascal
+                  pascal-derived-token-has-tag?
+                  pascal-derived-token-text
+                  pascal-derived-token-start
+                  pascal-derived-token-end
+                  pascal-string->tokens
+                  pascal-string->derived-tokens)
          (only-in lexers/plist
                   plist-derived-token-has-tag?
                   plist-derived-token-text
@@ -66,7 +90,13 @@
          (only-in lexers/rhombus rhombus-string->tokens)
          (only-in lexers/rust rust-string->tokens)
          lexers/shell
-         (only-in lexers/swift swift-string->tokens)
+         (only-in lexers/swift
+                  swift-derived-token-has-tag?
+                  swift-derived-token-text
+                  swift-derived-token-start
+                  swift-derived-token-end
+                  swift-string->tokens
+                  swift-string->derived-tokens)
          (only-in lexers/tex
                   tex-derived-token-has-tag?
                   tex-derived-token-text
@@ -85,7 +115,13 @@
          (only-in lexers/tsv tsv-string->tokens)
          lexers/token
          lexers/wat
-         (only-in lexers/yaml yaml-string->tokens)
+         (only-in lexers/yaml
+                  yaml-derived-token-has-tag?
+                  yaml-derived-token-text
+                  yaml-derived-token-start
+                  yaml-derived-token-end
+                  yaml-string->tokens
+                  yaml-string->derived-tokens)
          "mdn-map.rkt"
          "cppreference-docs-map.rkt"
          "latex-docs-map.rkt"
@@ -2733,6 +2769,182 @@ JS
   (for/list ([token (in-list (plist-string->derived-tokens s))])
     (plist-derived-token->piece token)))
 
+(define (python-derived-token->piece token)
+  (define txt (python-derived-token-text token))
+  (cons
+   (cond
+     [(python-derived-token-has-tag? token 'comment) 'comment]
+     [(python-derived-token-has-tag? token 'whitespace) 'plain]
+     [(python-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (python-derived-token-has-tag? token 'python-keyword)
+          (python-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(or (python-derived-token-has-tag? token 'python-string-literal)
+          (python-derived-token-has-tag? token 'python-f-string-literal)
+          (python-derived-token-has-tag? token 'python-bytes-literal)
+          (python-derived-token-has-tag? token 'python-t-string-literal)
+          (python-derived-token-has-tag? token 'python-raw-string-literal)
+          (python-derived-token-has-tag? token 'python-numeric-literal)
+          (python-derived-token-has-tag? token 'literal))
+      'value]
+     [(or (python-derived-token-has-tag? token 'python-indent)
+          (python-derived-token-has-tag? token 'python-dedent)
+          (python-derived-token-has-tag? token 'python-line-join))
+      'operator]
+     [(or (python-derived-token-has-tag? token 'delimiter)
+          (python-derived-token-has-tag? token 'python-nl))
+      'punct]
+     [(or (python-derived-token-has-tag? token 'python-identifier)
+          (python-derived-token-has-tag? token 'identifier))
+      'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-python s)
+  (for/list ([token (in-list (python-string->derived-tokens s))])
+    (python-derived-token->piece token)))
+
+(define (swift-derived-token->piece token)
+  (define txt (swift-derived-token-text token))
+  (cons
+   (cond
+     [(or (swift-derived-token-has-tag? token 'comment)
+          (swift-derived-token-has-tag? token 'swift-comment))
+      'comment]
+     [(swift-derived-token-has-tag? token 'whitespace) 'plain]
+     [(swift-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (swift-derived-token-has-tag? token 'swift-keyword)
+          (swift-derived-token-has-tag? token 'swift-attribute)
+          (swift-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(or (swift-derived-token-has-tag? token 'swift-string-literal)
+          (swift-derived-token-has-tag? token 'swift-raw-string-literal)
+          (swift-derived-token-has-tag? token 'literal))
+      'value]
+     [(or (swift-derived-token-has-tag? token 'swift-operator)
+          (swift-derived-token-has-tag? token 'operator))
+      'operator]
+     [(swift-derived-token-has-tag? token 'delimiter) 'punct]
+     [(swift-derived-token-has-tag? token 'identifier) 'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-swift s)
+  (for/list ([token (in-list (swift-string->derived-tokens s))])
+    (swift-derived-token->piece token)))
+
+(define (pascal-derived-token->piece token)
+  (define txt (pascal-derived-token-text token))
+  (cons
+   (cond
+     [(or (pascal-derived-token-has-tag? token 'comment)
+          (pascal-derived-token-has-tag? token 'pascal-comment))
+      'comment]
+     [(pascal-derived-token-has-tag? token 'whitespace) 'plain]
+     [(pascal-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (pascal-derived-token-has-tag? token 'pascal-keyword)
+          (pascal-derived-token-has-tag? token 'pascal-compiler-directive)
+          (pascal-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(or (pascal-derived-token-has-tag? token 'pascal-string-literal)
+          (pascal-derived-token-has-tag? token 'pascal-control-string)
+          (pascal-derived-token-has-tag? token 'pascal-numeric-literal)
+          (pascal-derived-token-has-tag? token 'literal))
+      'value]
+     [(pascal-derived-token-has-tag? token 'delimiter) 'punct]
+     [(or (pascal-derived-token-has-tag? token 'pascal-escaped-identifier)
+          (pascal-derived-token-has-tag? token 'identifier))
+      'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-pascal s)
+  (for/list ([token (in-list (pascal-string->derived-tokens s))])
+    (pascal-derived-token->piece token)))
+
+(define (yaml-derived-token->piece token)
+  (define txt (yaml-derived-token-text token))
+  (cons
+   (cond
+     [(yaml-derived-token-has-tag? token 'comment) 'comment]
+     [(yaml-derived-token-has-tag? token 'whitespace) 'plain]
+     [(yaml-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (yaml-derived-token-has-tag? token 'yaml-directive)
+          (yaml-derived-token-has-tag? token 'yaml-document-marker)
+          (yaml-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(yaml-derived-token-has-tag? token 'yaml-key-scalar) 'name]
+     [(or (yaml-derived-token-has-tag? token 'yaml-string-literal)
+          (yaml-derived-token-has-tag? token 'yaml-boolean)
+          (yaml-derived-token-has-tag? token 'yaml-block-scalar-content)
+          (yaml-derived-token-has-tag? token 'literal))
+      'value]
+     [(or (yaml-derived-token-has-tag? token 'yaml-sequence-indicator)
+          (yaml-derived-token-has-tag? token 'yaml-block-scalar-header)
+          (yaml-derived-token-has-tag? token 'operator))
+      'operator]
+     [(yaml-derived-token-has-tag? token 'delimiter) 'punct]
+     [else 'plain])
+   txt))
+
+(define (tokenize-yaml s)
+  (for/list ([token (in-list (yaml-string->derived-tokens s))])
+    (yaml-derived-token->piece token)))
+
+(define (go-derived-token->piece token)
+  (define txt (go-derived-token-text token))
+  (cons
+   (cond
+     [(or (go-derived-token-has-tag? token 'comment)
+          (go-derived-token-has-tag? token 'go-general-comment)
+          (go-derived-token-has-tag? token 'go-line-comment))
+      'comment]
+     [(go-derived-token-has-tag? token 'whitespace) 'plain]
+     [(go-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(go-derived-token-has-tag? token 'keyword) 'keyword]
+     [(or (go-derived-token-has-tag? token 'go-raw-string-literal)
+          (go-derived-token-has-tag? token 'go-rune-literal)
+          (go-derived-token-has-tag? token 'go-imaginary-literal)
+          (go-derived-token-has-tag? token 'literal))
+      'value]
+     [(go-derived-token-has-tag? token 'operator) 'operator]
+     [(go-derived-token-has-tag? token 'delimiter) 'punct]
+     [(go-derived-token-has-tag? token 'identifier) 'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-go s)
+  (for/list ([token (in-list (go-string->derived-tokens s))])
+    (go-derived-token->piece token)))
+
+(define (haskell-derived-token->piece token)
+  (define txt (haskell-derived-token-text token))
+  (cons
+   (cond
+     [(or (haskell-derived-token-has-tag? token 'comment)
+          (haskell-derived-token-has-tag? token 'haskell-line-comment))
+      'comment]
+     [(haskell-derived-token-has-tag? token 'whitespace) 'plain]
+     [(haskell-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (haskell-derived-token-has-tag? token 'haskell-keyword)
+          (haskell-derived-token-has-tag? token 'haskell-pragma)
+          (haskell-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(or (haskell-derived-token-has-tag? token 'haskell-string-literal)
+          (haskell-derived-token-has-tag? token 'haskell-char-literal)
+          (haskell-derived-token-has-tag? token 'haskell-numeric-literal)
+          (haskell-derived-token-has-tag? token 'literal))
+      'value]
+     [(haskell-derived-token-has-tag? token 'operator) 'operator]
+     [(haskell-derived-token-has-tag? token 'delimiter) 'punct]
+     [(haskell-derived-token-has-tag? token 'identifier) 'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-haskell s)
+  (for/list ([token (in-list (haskell-string->derived-tokens s))])
+    (haskell-derived-token->piece token)))
+
 (define (tokenize-latex s)
   (for/list ([token (in-list (latex-string->derived-tokens s))])
     (define txt (latex-derived-token-text token))
@@ -2884,14 +3096,11 @@ JS
     [(cpp) (tokenize-cpp s)]
     [(makefile) (tokenize-makefile s)]
     [(objc) (tokenize-objc s)]
-    [(haskell) (projected-tokens->scribble-tokens
-                (haskell-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(pascal) (projected-tokens->scribble-tokens
-               (pascal-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(haskell) (tokenize-haskell s)]
+    [(pascal) (tokenize-pascal s)]
     [(csv) (projected-tokens->scribble-tokens
             (csv-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(go) (projected-tokens->scribble-tokens
-           (go-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(go) (tokenize-go s)]
     [(html) (tokenize-html s)]
     [(js) (tokenize-js s)]
     [(json) (projected-tokens->scribble-tokens
@@ -2899,7 +3108,7 @@ JS
     [(latex) (tokenize-latex s)]
     [(markdown) (projected-tokens->scribble-tokens
                  (markdown-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(python) (python-string->scribble-tokens s)]
+    [(python) (tokenize-python s)]
     [(plist) (tokenize-plist s)]
     [(racket) (projected-tokens->scribble-tokens
                (racket-string->tokens s #:profile 'coloring #:source-positions #t))]
@@ -2909,8 +3118,7 @@ JS
         (rhombus-string->tokens s #:profile 'coloring #:source-positions #t)))]
     [(rust) (projected-tokens->scribble-tokens
              (rust-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(swift) (projected-tokens->scribble-tokens
-              (swift-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(swift) (tokenize-swift s)]
     [(tex) (tokenize-tex s)]
     [(wasm) (tokenize-wasm s)]
     [(bash) (tokenize-shell 'bash s)]
@@ -2919,8 +3127,7 @@ JS
     [(scribble) (tokenize-scribble s)]
     [(tsv) (projected-tokens->scribble-tokens
             (tsv-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(yaml) (projected-tokens->scribble-tokens
-             (yaml-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(yaml) (tokenize-yaml s)]
     [else (list (cons 'plain s))]))
 
 (define (split-lines style s)
@@ -4835,7 +5042,14 @@ JS
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'name cls)))
   (check-true (element? (haskell-code "map (+1) [1,2,3]")))
+  (let ([cls (classes 'haskell "{-# LANGUAGE OverloadedStrings #-}\nmain = do\n  putStrLn \"hi\" -- note\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'comment cls)))
   (check-true (element? (pascal-code "var answer: Integer;")))
+  (let ([cls (classes 'pascal "{$mode objfpc}\nfunction Add(x, y: Integer): Integer;\nbegin\n  Add := x + y + $FF;\nend;\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls)))
   (check-true (element? (plist-code "<plist/>")))
   (let ([cls (classes 'plist "<?xml version=\"1.0\"?>\n<plist><dict><key>Name</key><string>Ada &amp; Bob</string></dict></plist>\n")])
     (check-not-false (member 'keyword cls))
@@ -4844,15 +5058,27 @@ JS
     (check-not-false (member 'operator cls)))
   (check-true (element? (csv-code "a,b")))
   (check-true (element? (go-code "func add(x int, y int) int { return x + y }")))
+  (let ([cls (classes 'go "package main\n\nfunc main() {\n    var s = `raw`\n    var r = 'x'\n    // note\n}\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'comment cls)))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
   (check-true (element? (json-code "{ \"x\": 1 }")))
   (check-true (element? (markdown-code "# Hi")))
   (check-true (element? (python-code "def f(x): return x")))
+  (let ([cls (classes 'python "def f(x):\n    path = rf\"{x}\\n\"\n    return path\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'name cls)))
   (check-true (element? (racket-code "(+ 1 2)")))
   (check-true (element? (rhombus-code "fun add(x, y): x + y")))
   (check-true (element? (rust-code "let answer: i32 = 42;")))
   (check-true (element? (swift-code "let answer = 42")))
+  (let ([cls (classes 'swift "#if DEBUG\n@MainActor func show() { let s = ##\"raw\"## }\n#endif\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'operator cls)))
   (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (shell-code "echo $HOME")))
   (let ([cls (classes 'bash "cat <<EOF | grep hi && echo $'ok\\n' >out\n")])
@@ -4862,6 +5088,11 @@ JS
   (check-true (element? (scribble-code "@bold{Hi}")))
   (check-true (element? (tsv-code "a\tb")))
   (check-true (element? (yaml-code "x: 1")))
+  (let ([cls (classes 'yaml "---\nname: Ada\nactive: true\nitems:\n  - one\nnote: |\n  line\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'operator cls)))
   (check-true (parameter? current-scribble-shell))
   (check-true (parameter? current-shell-docs-source))
   (check-true (parameter? current-scribble-context))
@@ -5365,6 +5596,113 @@ JS
              (derived-stream-contiguous? tokens
                                         plist-derived-token-start
                                         plist-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "def f(x):\n    path = rf\"{x}\\n\"\n    return path\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (python-string->scribble-tokens src)
+           (python-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece python-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        python-derived-token-start
+                                        python-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "{$mode objfpc}\nfunction Add(x, y: Integer): Integer;\nbegin\n  Add := x + y;\nend;\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (pascal-string->tokens src #:profile 'coloring #:source-positions #t))
+           (pascal-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece pascal-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        pascal-derived-token-start
+                                        pascal-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "#if DEBUG\n@MainActor func show() { let s = ##\"raw\"## }\n#endif\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (swift-string->tokens src #:profile 'coloring #:source-positions #t))
+           (swift-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece swift-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        swift-derived-token-start
+                                        swift-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "---\nname: Ada\nactive: true\nitems:\n  - one\nnote: |\n  line\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (yaml-string->tokens src #:profile 'coloring #:source-positions #t))
+           (yaml-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece yaml-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        yaml-derived-token-start
+                                        yaml-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "package main\n\nfunc main() {\n    var s = `raw`\n    var r = 'x'\n    // note\n}\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (go-string->tokens src #:profile 'coloring #:source-positions #t))
+           (go-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece go-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        go-derived-token-start
+                                        go-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "{-# LANGUAGE OverloadedStrings #-}\nmain = putStrLn \"hi\" -- note\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (haskell-string->tokens src #:profile 'coloring #:source-positions #t))
+           (haskell-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece haskell-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        haskell-derived-token-start
+                                        haskell-derived-token-end))
            #:new-eof? (lambda (_token) #f))])
     (check-true (hash-ref comparison 'source-match?))
     (check-true (hash-ref comparison 'new-contiguous?)))
