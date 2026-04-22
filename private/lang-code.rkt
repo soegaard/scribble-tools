@@ -404,6 +404,27 @@
      "ansistring" "widestring" "unicodestring"
      "pchar" "pointer" "text" "textfile" "file")))
 
+(define swift-builtin-type-names
+  (list->set
+   '("String" "Substring" "Character"
+     "Int" "Int8" "Int16" "Int32" "Int64"
+     "UInt" "UInt8" "UInt16" "UInt32" "UInt64"
+     "Float" "Double" "CGFloat"
+     "Bool" "Void" "Any" "AnyObject" "Never"
+     "Array" "Dictionary" "Set" "Optional" "Result"
+     "URL" "Data" "Date" "UUID" "Error" "Self")))
+
+(define rust-builtin-type-names
+  (list->set
+   '("i8" "i16" "i32" "i64" "i128"
+     "u8" "u16" "u32" "u64" "u128"
+     "isize" "usize"
+     "f32" "f64"
+     "bool" "char" "str" "String"
+     "Vec" "Option" "Result"
+     "HashMap" "HashSet" "BTreeMap" "BTreeSet"
+     "Box" "Rc" "Arc" "Self")))
+
 (define css-spacing-properties
   (list->set
    '("margin" "margin-top" "margin-right" "margin-bottom" "margin-left"
@@ -1255,6 +1276,26 @@ JS
        [(punct) paren-color]
        [else no-color])]
     [(pascal)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(swift)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(rust)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -3042,8 +3083,34 @@ JS
    txt))
 
 (define (tokenize-swift s)
-  (for/list ([token (in-list (swift-string->derived-tokens s))])
-    (swift-derived-token->piece token)))
+  (define (swift-type-name? txt cls prev1 prev2)
+    (or (set-member? swift-builtin-type-names txt)
+        (and prev1
+             (eq? (car prev1) 'keyword)
+             (member (cdr prev1) '("struct" "class" "enum" "protocol" "typealias") string=?)
+             (eq? cls 'name))
+        (and prev1
+             (eq? (car prev1) 'punct)
+             (or (string=? (cdr prev1) ":")
+                 (string=? (cdr prev1) "->"))
+             (eq? cls 'name))
+        (and prev1 prev2
+             (eq? cls 'name)
+             (eq? (car prev1) 'punct)
+             (string=? (cdr prev1) ".")
+             (memq (car prev2) '(name type-name)))))
+  (let loop ([rest (swift-string->derived-tokens s)] [acc null] [prev1 #f] [prev2 #f])
+    (cond
+      [(null? rest) (reverse acc)]
+      [else
+       (define piece0 (swift-derived-token->piece (car rest)))
+       (define piece
+         (if (swift-type-name? (cdr piece0) (car piece0) prev1 prev2)
+             (cons 'type-name (cdr piece0))
+             piece0))
+       (define next-prev1 (if (token-nonplain? piece) piece prev1))
+       (define next-prev2 (if (token-nonplain? piece) prev1 prev2))
+       (loop (cdr rest) (cons piece acc) next-prev1 next-prev2)])))
 
 (define (pascal-derived-token->piece token)
   (define txt (pascal-derived-token-text token))
@@ -3103,7 +3170,7 @@ JS
 
 (define (tokenize-racket s)
   (for/list ([piece (in-list
-      (projected-tokens->scribble-tokens
+                     (projected-tokens->scribble-tokens
                       (racket-string->tokens s #:profile 'coloring #:source-positions #t)))])
     (cond
       [(and (eq? (car piece) 'name)
@@ -3113,6 +3180,40 @@ JS
             (racket-standard-builtin? (cdr piece)))
        (cons 'builtin-name (cdr piece))]
       [else piece])))
+
+(define (tokenize-rust s)
+  (define (rust-type-name? txt cls prev1 prev2)
+    (or (set-member? rust-builtin-type-names txt)
+        (and prev1
+             (eq? (car prev1) 'keyword)
+             (member (cdr prev1) '("struct" "enum" "trait" "type" "impl") string=?)
+             (eq? cls 'name))
+        (and prev1
+             (eq? (car prev1) 'punct)
+             (or (string=? (cdr prev1) ":")
+                 (string=? (cdr prev1) "->"))
+             (eq? cls 'name))
+        (and prev1 prev2
+             (eq? cls 'name)
+             (eq? (car prev1) 'punct)
+             (string=? (cdr prev1) "::")
+             (memq (car prev2) '(name type-name)))))
+  (let loop ([rest (projected-tokens->scribble-tokens
+                    (rust-string->tokens s #:profile 'coloring #:source-positions #t))]
+             [acc null]
+             [prev1 #f]
+             [prev2 #f])
+    (cond
+      [(null? rest) (reverse acc)]
+      [else
+       (define piece0 (car rest))
+       (define piece
+         (if (rust-type-name? (cdr piece0) (car piece0) prev1 prev2)
+             (cons 'type-name (cdr piece0))
+             piece0))
+       (define next-prev1 (if (token-nonplain? piece) piece prev1))
+       (define next-prev2 (if (token-nonplain? piece) prev1 prev2))
+       (loop (cdr rest) (cons piece acc) next-prev1 next-prev2)])))
 
 (define (yaml-derived-token->piece token)
   (define txt (yaml-derived-token-text token))
@@ -3482,8 +3583,7 @@ JS
      (with-handlers ([exn:fail? (lambda (_e) (list (cons 'plain s)))])
        (projected-tokens->scribble-tokens
         (rhombus-string->tokens s #:profile 'coloring #:source-positions #t)))]
-    [(rust) (projected-tokens->scribble-tokens
-             (rust-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(rust) (tokenize-rust s)]
     [(swift) (tokenize-swift s)]
     [(tex) (tokenize-tex s)]
     [(wasm) (tokenize-wasm s)]
@@ -5473,7 +5573,17 @@ JS
     (check-not-false (member 'builtin-name cls)))
   (check-true (element? (rhombus-code "fun add(x, y): x + y")))
   (check-true (element? (rust-code "let answer: i32 = 42;")))
+  (let ([cls (classes 'rust "use std::collections::HashMap;\n\nstruct User {\n    name: String,\n    score: i32,\n}\n\nfn histogram(words: &[&str]) -> HashMap<String, usize> {\n    let mut counts = HashMap::new();\n    counts\n}\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'type-name cls))
+    (check-true ((class-count 'type-name cls) . >= . 6))
+    (check-not-false (member 'name cls)))
   (check-true (element? (swift-code "let answer = 42")))
+  (let ([cls (classes 'swift "struct User {\n  let name: String\n  let score: Int\n}\n\nfunc topNames(_ users: [User]) -> [String] {\n  users.sorted { $0.score > $1.score }.map(\\.name)\n}\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'type-name cls))
+    (check-true ((class-count 'type-name cls) . >= . 5))
+    (check-not-false (member 'name cls)))
   (let ([cls (classes 'swift "#if DEBUG\n@MainActor func show() { let s = ##\"raw\"## }\n#endif\n")])
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'value cls))
