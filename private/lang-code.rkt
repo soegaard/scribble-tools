@@ -3649,32 +3649,28 @@ JS
         (max w (if cell (token-text-length cell) 0)))))
   (define gutter 2)
   (define display-tokens
-    (let loop-rows ([remaining rows] [acc null])
-      (cond
-        [(null? remaining) (reverse acc)]
-        [else
-         (define row (car remaining))
-         (define last-col (sub1 (length row)))
-         (define row-pieces
-          (let loop-cols ([cells row] [col 0] [pieces null])
-             (cond
-               [(null? cells) pieces]
-               [else
-                (define cell (car cells))
-                (define pieces*
-                  (append pieces cell))
-                (define pieces**
-                  (if (< col last-col)
-                      (let* ([pad (- (list-ref widths col) (token-text-length cell))]
-                             [spaces (make-string (+ gutter (max 0 pad)) #\space)])
-                        (append pieces* (list (cons 'plain spaces))))
-                      pieces*))
-                (loop-cols (cdr cells) (add1 col) pieces**)])))
-         (define acc*
-           (if (null? (cdr remaining))
-               (append row-pieces acc)
-               (append (list (cons 'plain "\n")) row-pieces acc)))
-         (loop-rows (cdr remaining) acc*)])))
+    (apply append
+           (for/list ([row (in-list rows)]
+                      [idx (in-naturals)])
+             (define last-col (sub1 (length row)))
+             (define row-pieces
+               (let loop-cols ([cells row] [col 0] [pieces null])
+                 (cond
+                   [(null? cells) pieces]
+                   [else
+                    (define cell (car cells))
+                    (define pieces*
+                      (append pieces cell))
+                    (define pieces**
+                      (if (< col last-col)
+                          (let* ([pad (- (list-ref widths col) (token-text-length cell))]
+                                 [spaces (make-string (+ gutter (max 0 pad)) #\space)])
+                            (append pieces* (list (cons 'plain spaces))))
+                          pieces*))
+                    (loop-cols (cdr cells) (add1 col) pieces**)])))
+             (if (= idx (sub1 (length rows)))
+                 row-pieces
+                 (append row-pieces (list (cons 'plain "\n")))))))
   display-tokens)
 
 (define (escape->element v)
