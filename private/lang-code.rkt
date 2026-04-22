@@ -141,6 +141,7 @@
          "go-docs-map.rkt"
          "java-docs-map.rkt"
          "pascal-docs-map.rkt"
+         "racket-standard-map.rkt"
          "rust-docs-map.rkt"
          "rustdoc-docs-map.rkt"
          "wasm-spec-map.rkt"
@@ -265,6 +266,8 @@
   (make-style #f (list (attributes '((style . "font-weight: 600; color: #07A;"))))))
 (define c-type-name-color
   (make-style #f (list (attributes '((style . "font-weight: 600; color: #2B5F8A;"))))))
+(define racket-builtin-color
+  (make-style #f (list (attributes '((style . "color: #795E26;"))))))
 (define css-keyword-color
   (make-style #f (list (attributes '((style . "color: #07A;"))))))
 (define css-name-color
@@ -1256,6 +1259,16 @@ JS
        [(comment) comment-color]
        [(keyword) js-keyword-color]
        [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(racket)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(builtin-name) racket-builtin-color]
        [(value) value-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
@@ -3088,6 +3101,19 @@ JS
        (define next-prev2 (if (token-nonplain? piece) prev1 prev2))
        (loop (cdr rest) (cons piece acc) next-prev1 next-prev2)])))
 
+(define (tokenize-racket s)
+  (for/list ([piece (in-list
+      (projected-tokens->scribble-tokens
+                      (racket-string->tokens s #:profile 'coloring #:source-positions #t)))])
+    (cond
+      [(and (eq? (car piece) 'name)
+            (racket-standard-formish? (cdr piece)))
+       (cons 'keyword (cdr piece))]
+      [(and (eq? (car piece) 'name)
+            (racket-standard-builtin? (cdr piece)))
+       (cons 'builtin-name (cdr piece))]
+      [else piece])))
+
 (define (yaml-derived-token->piece token)
   (define txt (yaml-derived-token-text token))
   (cons
@@ -3451,8 +3477,7 @@ JS
     [(markdown) (tokenize-markdown s)]
     [(python) (tokenize-python s)]
     [(plist) (tokenize-plist s)]
-    [(racket) (projected-tokens->scribble-tokens
-               (racket-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(racket) (tokenize-racket s)]
     [(rhombus)
      (with-handlers ([exn:fail? (lambda (_e) (list (cons 'plain s)))])
        (projected-tokens->scribble-tokens
@@ -5438,6 +5463,14 @@ JS
     (check-not-false (member 'value cls))
     (check-not-false (member 'name cls)))
   (check-true (element? (racket-code "(+ 1 2)")))
+  (let ([cls (classes 'racket "(define (group-by-length words)\n  (for/fold ([ht (hash)])\n            ([word (in-list words)])\n    (define len (string-length word))\n    (hash-update ht len (lambda (xs) (cons word xs)) '())))\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'builtin-name cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls)))
+  (let ([cls (classes 'racket "(define-flow x 1)\n(for/custom ([x xs]) x)\n(hash-update ht 'k values)\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'builtin-name cls)))
   (check-true (element? (rhombus-code "fun add(x, y): x + y")))
   (check-true (element? (rust-code "let answer: i32 = 42;")))
   (check-true (element? (swift-code "let answer = 42")))
