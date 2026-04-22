@@ -14,6 +14,7 @@
          pascal-code
          plist-code
          csv-code
+         go-code
          html-code
          js-code
          json-code
@@ -39,6 +40,7 @@
          pascalblock
          plistblock
          csvblock
+         goblock
          htmlblock
          jsblock
          jsonblock
@@ -64,6 +66,7 @@
          pascalblock0
          plistblock0
          csvblock0
+         goblock0
          htmlblock0
          jsblock0
          jsonblock0
@@ -100,6 +103,7 @@
 (define-syntax-rule (pascal-code . rest) (lang:pascal-code . rest))
 (define-syntax-rule (plist-code . rest) (lang:plist-code . rest))
 (define-syntax-rule (csv-code . rest) (lang:csv-code . rest))
+(define-syntax-rule (go-code . rest) (lang:go-code . rest))
 (define-syntax-rule (html-code . rest) (lang:html-code . rest))
 (define-syntax-rule (js-code . rest) (lang:js-code . rest))
 (define-syntax-rule (json-code . rest) (lang:json-code . rest))
@@ -125,6 +129,7 @@
 (define-syntax-rule (pascalblock . rest) (lang:pascalblock . rest))
 (define-syntax-rule (plistblock . rest) (lang:plistblock . rest))
 (define-syntax-rule (csvblock . rest) (lang:csvblock . rest))
+(define-syntax-rule (goblock . rest) (lang:goblock . rest))
 (define-syntax-rule (htmlblock . rest) (lang:htmlblock . rest))
 (define-syntax-rule (jsblock . rest) (lang:jsblock . rest))
 (define-syntax-rule (jsonblock . rest) (lang:jsonblock . rest))
@@ -150,6 +155,7 @@
 (define-syntax-rule (pascalblock0 . rest) (lang:pascalblock0 . rest))
 (define-syntax-rule (plistblock0 . rest) (lang:plistblock0 . rest))
 (define-syntax-rule (csvblock0 . rest) (lang:csvblock0 . rest))
+(define-syntax-rule (goblock0 . rest) (lang:goblock0 . rest))
 (define-syntax-rule (htmlblock0 . rest) (lang:htmlblock0 . rest))
 (define-syntax-rule (jsblock0 . rest) (lang:jsblock0 . rest))
 (define-syntax-rule (jsonblock0 . rest) (lang:jsonblock0 . rest))

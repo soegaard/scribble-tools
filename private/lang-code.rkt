@@ -13,6 +13,7 @@
                   css-derived-token-text
                   css-string->derived-tokens)
          (only-in lexers/csv csv-string->tokens)
+         (only-in lexers/go go-string->tokens)
          (only-in lexers/haskell haskell-string->tokens)
          (only-in lexers/html
                   html-derived-token-has-tag?
@@ -76,6 +77,7 @@
          pascal-code
          plist-code
          csv-code
+         go-code
          html-code
          js-code
          json-code
@@ -101,6 +103,7 @@
          pascalblock
          plistblock
          csvblock
+         goblock
          htmlblock
          jsblock
          jsonblock
@@ -126,6 +129,7 @@
          pascalblock0
          plistblock0
          csvblock0
+         goblock0
          htmlblock0
          jsblock0
          jsonblock0
@@ -2635,6 +2639,8 @@ JS
                (pascal-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(csv) (projected-tokens->scribble-tokens
             (csv-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(go) (projected-tokens->scribble-tokens
+           (go-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(html) (tokenize-html s)]
     [(js) (tokenize-js s)]
     [(json) (projected-tokens->scribble-tokens
@@ -4299,6 +4305,7 @@ JS
 (define-syntax (pascal-code stx) (do-simple-inline stx 'pascal))
 (define-syntax (plist-code stx) (do-simple-inline stx 'plist))
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
+(define-syntax (go-code stx) (do-simple-inline stx 'go))
 (define-syntax (json-code stx) (do-simple-inline stx 'json))
 (define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
 (define-syntax (racket-code stx) (do-simple-inline stx 'racket))
@@ -4381,6 +4388,8 @@ JS
 (define-syntax (plistblock stx) (do-simple-block stx 'plist #t))
 (define-syntax (csvblock0 stx) (do-simple-block stx 'csv #f))
 (define-syntax (csvblock stx) (do-simple-block stx 'csv #t))
+(define-syntax (goblock0 stx) (do-simple-block stx 'go #f))
+(define-syntax (goblock stx) (do-simple-block stx 'go #t))
 (define-syntax (htmlblock0 stx) (do-block stx 'html #f))
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
 (define-syntax (jsblock0 stx) (do-js-block stx #f))
@@ -4502,6 +4511,7 @@ JS
   (check-true (block? (pascalblock "function Add(x, y: Integer): Integer; begin Add := x + y; end;")))
   (check-true (block? (plistblock "<plist><dict><key>Name</key><string>Ada</string></dict></plist>")))
   (check-true (block? (csvblock "name,age\nAda,37\n")))
+  (check-true (block? (goblock "package main\n\nfunc add(x int, y int) int {\n    return x + y\n}\n")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (jsblock "const x = 1;")))
   (check-true (block? (jsonblock "{ \"name\": \"Ada\" }")))
@@ -4542,6 +4552,7 @@ JS
   (check-true (element? (pascal-code "var answer: Integer;")))
   (check-true (element? (plist-code "<plist/>")))
   (check-true (element? (csv-code "a,b")))
+  (check-true (element? (go-code "func add(x int, y int) int { return x + y }")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (js-code "const x = 1;")))
   (check-true (element? (json-code "{ \"x\": 1 }")))

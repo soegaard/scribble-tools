@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, HTML, Haskell, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -12,6 +12,7 @@ inline JS with @js-code{const n = 42;} and
 inline C with @c-code{int answer = 42;} and
 inline C++ with @cpp-code{std::vector<int> xs = {1, 2, 3};} and
 inline CSV with @csv-code["name,age"] and
+inline Go with @go-code{func add(x int, y int) int { return x + y }} and
 inline Haskell with @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)} and
 inline JSON with @json-code["{\"name\": \"Ada\"}"] and
 inline LaTeX with @latex-code{\section{Intro}} and
@@ -61,6 +62,8 @@ Inline C: @c-code{int answer = 42;}
 Inline C++: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 
 Inline CSV: @csv-code["name,age"]
+
+Inline Go: @go-code{func add(x int, y int) int { return x + y }}
 
 Inline Haskell: @haskell-code{sumSquares xs = sum (map (^ (2 :: Int)) xs)}
 
@@ -429,6 +432,21 @@ raco test private/lang-code.rkt
 ```json
 {"name": "scribble-tools", "ok": true}
 ```
+}
+
+@subsection{Go}
+
+Go works well for compact CLI and service examples with explicit packages,
+imports, and simple control flow.
+
+@goblock[#:line-numbers 1 #:file "server.go"]{
+package main
+
+import "fmt"
+
+func greet(name string) string {
+	return fmt.Sprintf("Hello, %s", name)
+}
 }
 
 @subsection{Objective-C}

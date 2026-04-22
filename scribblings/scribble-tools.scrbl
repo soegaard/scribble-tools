@@ -10,12 +10,12 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-JavaScript, JSON, Haskell, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
+JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
 (Bash/Zsh/PowerShell), Swift, TeX, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
-@racket[html-code], @racket[js-code], @racket[json-code],
+@racket[go-code], @racket[html-code], @racket[js-code], @racket[json-code],
 @racket[haskell-code], @racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
 @racket[rhombus-code], @racket[rust-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
@@ -23,7 +23,7 @@ produce content.
 
 The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
-        @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
+        @racket[goblock], @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
         @racket[haskellblock], @racket[latexblock], @racket[makefileblock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
         @racket[rustblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
@@ -46,6 +46,7 @@ Use inline forms when you want code inside running text:
   (list "C"           @scribble-code["@c-code{int answer = 42;}"])
   (list "C++"         @scribble-code["@cpp-code{std::vector<int> xs = {1, 2, 3};}"])
   (list "CSV"         @scribble-code["@csv-code[\"name,age\"]"])
+  (list "Go"          @scribble-code["@go-code{func add(x int, y int) int { return x + y }}"])
   (list "HTML"        @scribble-code["@html-code{<button class=\"primary\">Save</button>}"])
   (list "JavaScript"  @scribble-code["@js-code{const total = items.reduce((a, b) => a + b, 0);}"])
   (list "JSON"        @scribble-code["@json-code[\"{\\\"name\\\": \\\"Ada\\\"}\"]"])
@@ -76,6 +77,7 @@ Use inline forms when you want code inside running text:
   (list "C"             @c-code{int answer = 42;})
   (list "C++"           @cpp-code{std::vector<int> xs = {1, 2, 3};})
   (list "CSV"           @csv-code["name,age"])
+  (list "Go"            @go-code{func add(x int, y int) int { return x + y }})
   (list "HTML"          @html-code{<button class="primary">Save</button>})
   (list "JavaScript"    @js-code{const total = items.reduce((a, b) => a + b, 0);})
   (list "JSON"          @json-code["{\"name\": \"Ada\"}"])
@@ -659,6 +661,14 @@ Typesets the concatenated strings as inline CSV text.
 Example: @csv-code["name,age"]
 }
 
+@defform/subs[(go-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Go code.
+
+Example: @go-code{func add(x int, y int) int { return x + y }}
+}
+
 @defform/subs[(json-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -869,6 +879,14 @@ Typesets C++ as a block inset.
 
 @defform[(cppblock0 option ... str-expr ...+)]{
 Like @racket[cppblock], but without the inset wrapper.
+}
+
+@defform[(goblock option ... str-expr ...+)]{
+Typesets Go code as a block inset.
+}
+
+@defform[(goblock0 option ... str-expr ...+)]{
+Like @racket[goblock], but without the inset wrapper.
 }
 
 @defform[(makefileblock option ... str-expr ...+)]{
@@ -1587,6 +1605,19 @@ raco test private/lang-code.rkt
 (define (build-docs)
   (displayln "scribblings/scribble-tools.scrbl"))
 ```
+}
+
+@subsection{Go}
+
+@goblock[#:line-numbers 1
+         #:file "extended/server.go"]{
+package main
+
+import "fmt"
+
+func greet(name string) string {
+	return fmt.Sprintf("Hello, %s", name)
+}
 }
 
 @subsection{Objective-C}
