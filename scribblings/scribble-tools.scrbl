@@ -476,14 +476,6 @@ identifier map was generated in 2026.
 Example: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 }
 
-@defform/subs[(makefile-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline Makefile code.
-
-Example: @makefile-code{all: build test}
-}
-
 @defform/subs[(objc-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -665,6 +657,16 @@ Example: @scribble-code["@bold{Hi} there."]
 Typesets the concatenated strings as inline TeX code.
 
 Example: @tex-code{\hbox{Hello}}
+}
+
+@subsubsection[#:tag "reference-inline-tooling-config"]{Tooling and Config}
+
+@defform/subs[(makefile-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Makefile code.
+
+Example: @makefile-code{all: build test}
 }
 
 @subsubsection[#:tag "reference-inline-data-formats"]{Data Formats}
@@ -917,14 +919,6 @@ Typesets Java code as a block inset.
 Like @racket[javablock], but without the inset wrapper.
 }
 
-@defform[(makefileblock option ... str-expr ...+)]{
-Typesets Makefile code as a block inset.
-}
-
-@defform[(makefileblock0 option ... str-expr ...+)]{
-Like @racket[makefileblock], but without the inset wrapper.
-}
-
 @defform[(objcblock option ... str-expr ...+)]{
 Typesets Objective-C as a block inset.
 }
@@ -1140,6 +1134,16 @@ Typesets TeX as a block inset.
 
 @defform[(texblock0 option ... str-expr ...+)]{
 Like @racket[texblock], but without the inset wrapper.
+}
+
+@subsubsection[#:tag "reference-block-tooling-config"]{Tooling and Config}
+
+@defform[(makefileblock option ... str-expr ...+)]{
+Typesets Makefile code as a block inset.
+}
+
+@defform[(makefileblock0 option ... str-expr ...+)]{
+Like @racket[makefileblock], but without the inset wrapper.
 }
 
 @subsubsection[#:tag "reference-block-data-formats"]{Data Formats}
@@ -1549,25 +1553,6 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
 }
 }
 
-@subsubsection[#:tag "extended-makefile"]{Makefile}
-
-@makefileblock[#:line-numbers 1
-               #:file "extended/Makefile"
-               "APP = scribble-tools\n"
-               "\n"
-               ".PHONY: docs test\n"
-               "\n"
-               "all: docs test | html\n"
-               "\n"
-               "docs:\n"
-               "\traco scribble +m --html --dest html scribblings/scribble-tools.scrbl && printf '%s\\n' done\n"
-               "\n"
-               "test:\n"
-               "\traco test private/lang-code.rkt\n"
-               "\n"
-               "build:\n"
-               "\t${CC} -o $@ $<\n"]
-
 @subsubsection[#:tag "extended-objc"]{Objective-C}
 
 @objcblock[#:line-numbers 1
@@ -1787,23 +1772,6 @@ fn histogram(words: &[&str]) -> HashMap<String, usize> {
     (call $sum_to_acc (i32.const 0) (local.get $n) (i32.const 0))))
 }
 
-@subsection{Scribble}
-
-@scribbleblock[#:line-numbers 1
-               #:file "extended/guide.scrbl"
-               #:context #'here
-               "@title{Extended Scribble Example}\n"
-               "@section{Overview}\n"
-               "This paragraph includes @bold{inline formatting},\n"
-               "@italic{emphasis}, and @racket[code] references.\n"
-               "@itemlist[\n"
-               "  @item{First point}\n"
-               "  @item{Second point}\n"
-               "  @item{Third point}\n"
-               "]\n"
-               "@subsection{Details}\n"
-               "See @secref[\"reference-inline-forms\"] for inline forms.\n"]
-
 @subsection[#:tag "extended-document-languages"]{Document Languages}
 
 @subsubsection[#:tag "extended-latex"]{LaTeX}
@@ -1871,6 +1839,27 @@ raco test private/lang-code.rkt
 \vskip 1em
 \centerline{\foo{n}}
 }
+
+@subsection[#:tag "extended-tooling-config"]{Tooling and Config}
+
+@subsubsection[#:tag "extended-makefile"]{Makefile}
+
+@makefileblock[#:line-numbers 1
+               #:file "extended/Makefile"
+               "APP = scribble-tools\n"
+               "\n"
+               ".PHONY: docs test\n"
+               "\n"
+               "all: docs test | html\n"
+               "\n"
+               "docs:\n"
+               "\traco scribble +m --html --dest html scribblings/scribble-tools.scrbl && printf '%s\\n' done\n"
+               "\n"
+               "test:\n"
+               "\traco test private/lang-code.rkt\n"
+               "\n"
+               "build:\n"
+               "\t${CC} -o $@ $<\n"]
 
 @subsection[#:tag "extended-data-formats"]{Data Formats}
 
