@@ -132,6 +132,7 @@
          "mdn-map.rkt"
          "cppreference-docs-map.rkt"
          "latex-docs-map.rkt"
+         "java-docs-map.rkt"
          "pascal-docs-map.rkt"
          "rust-docs-map.rkt"
          "rustdoc-docs-map.rkt"
@@ -4033,6 +4034,8 @@ JS
                                                               (current-shell-docs-source))))]
               [(eq? lang 'latex)
                (latex-doc-url-for-token cls txt)]
+              [(eq? lang 'java)
+               (java-doc-url-for-token cls txt prev1 prev2 next1)]
               [(eq? lang 'pascal)
                (pascal-doc-url-for-token cls txt)]
               [(eq? lang 'rust)
@@ -5249,12 +5252,16 @@ JS
   (check-not-false (latex-doc-url-for-token 'keyword "\\section"))
   (check-not-false (latex-doc-url-for-token 'literal "itemize"))
   (check-not-false (latex-doc-url-for-token 'identifier "\\draw"))
+  (check-not-false (java-doc-url-for-token 'keyword "class" #f #f #f))
+  (check-not-false (java-doc-url-for-token 'name "String" #f #f #f))
+  (check-not-false (java-doc-url-for-token 'keyword "Override" "@" #f #f))
   (check-not-false (pascal-doc-url-for-token 'keyword "function"))
   (check-not-false (pascal-doc-url-for-token 'identifier "WriteLn"))
   (check-not-false (pascal-doc-url-for-token 'identifier "Format"))
   (check-not-false (pascal-doc-url-for-token 'identifier "SysUtils"))
   (check-true (contains-link? (c-code "int main(void) { return 0; }")))
   (check-true (contains-link? (cpp-code "std::vector<int> xs;")))
+  (check-true (contains-link? (java-code "@Override class Example { void run() { String s = null; System.out.println(\"hi\"); } }")))
   (check-true (contains-link? (rust-code "fn main() { let xs: Vec<i32> = vec![1, 2, 3]; }")))
   (check-true (contains-link? (pascal-code "function Add(x, y: Integer): Integer; begin WriteLn(Format('%d', [x])); end;")))
   (check-true (contains-link? (css-code "a{color:red;}")))

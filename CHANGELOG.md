@@ -27,6 +27,9 @@
   - TSV: `tsv-code`, `tsvblock`, `tsvblock0`
   - YAML: `yaml-code`, `yamlblock`, `yamlblock0`
 - Added the `lexers` package as the lexer backend dependency.
+- Added Java docs links for common language keywords and selected
+  standard-library identifiers using the official Oracle Java Language
+  Specification and Java SE API docs.
 - Migrated language tokenization to `lexers` incrementally:
   - Python via `lexers/python`
   - WebAssembly via `lexers/wat`
