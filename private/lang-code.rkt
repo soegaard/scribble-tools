@@ -324,6 +324,9 @@
 (define copy-source-style
   (make-style #f (list (attributes '((class . "scribble-copy-source")
                                      (style . "display: none; white-space: pre;"))))))
+(define code-inset-tab-style
+  (make-style 'code-inset
+              (list (attributes '((style . "tab-size: 2; -moz-tab-size: 2;"))))))
 (define inline-code-font-style
   ;; Ensure inline snippets inherit the same monospace face as Racket docs.
   ;; This keeps tokens with custom color-only styles in Fira Mono, too.
@@ -3612,6 +3615,68 @@ JS
      (define e (if (equal? s "") "" (element style s)))
      (if (equal? e "") null (list e))]))
 
+(define (token-text-length cell)
+  (for/sum ([piece (in-list cell)])
+    (string-length (cdr piece))))
+
+(define (normalize-tsv-display-tokens tokens)
+  (define (finish-cell row current-cell)
+    (append row (list (reverse current-cell))))
+  (define (finish-row rows row current-cell)
+    (append rows (list (finish-cell row current-cell))))
+  (define rows
+    (let loop ([rest tokens] [rows null] [row null] [cell null])
+      (cond
+        [(null? rest)
+         (finish-row rows row cell)]
+        [else
+         (define tok (car rest))
+         (define txt (cdr tok))
+         (cond
+           [(string=? txt "\t")
+            (loop (cdr rest) rows (finish-cell row cell) null)]
+           [(or (string=? txt "\n")
+                (string=? txt "\r")
+                (string=? txt "\r\n"))
+            (loop (cdr rest) (finish-row rows row cell) null null)]
+           [else
+            (loop (cdr rest) rows row (cons tok cell))])])))
+  (define max-cols (apply max 0 (map length rows)))
+  (define widths
+    (for/list ([col (in-range max-cols)])
+      (for/fold ([w 0]) ([row (in-list rows)])
+        (define cell (and (< col (length row)) (list-ref row col)))
+        (max w (if cell (token-text-length cell) 0)))))
+  (define gutter 2)
+  (define display-tokens
+    (let loop-rows ([remaining rows] [acc null])
+      (cond
+        [(null? remaining) (reverse acc)]
+        [else
+         (define row (car remaining))
+         (define last-col (sub1 (length row)))
+         (define row-pieces
+          (let loop-cols ([cells row] [col 0] [pieces null])
+             (cond
+               [(null? cells) pieces]
+               [else
+                (define cell (car cells))
+                (define pieces*
+                  (append pieces cell))
+                (define pieces**
+                  (if (< col last-col)
+                      (let* ([pad (- (list-ref widths col) (token-text-length cell))]
+                             [spaces (make-string (+ gutter (max 0 pad)) #\space)])
+                        (append pieces* (list (cons 'plain spaces))))
+                      pieces*))
+                (loop-cols (cdr cells) (add1 col) pieces**)])))
+         (define acc*
+           (if (null? (cdr remaining))
+               (append row-pieces acc)
+               (append (list (cons 'plain "\n")) row-pieces acc)))
+         (loop-rows (cdr remaining) acc*)])))
+  display-tokens)
+
 (define (escape->element v)
   (cond
     [(element? v) v]
@@ -4577,10 +4642,14 @@ JS
                    [current-html-style-dimension-preview? html-style-dim?]
                    [current-html-style-preview-mode html-style-mode])
       (tokens-from-chunks lang chunks)))
+  (define display-tokens
+    (if (eq? lang 'tsv)
+        (normalize-tsv-display-tokens tokens)
+        tokens))
   (define lines (list->lines indent
     (parameterize ([current-preview-css-url preview-css-url]
                    [current-preview-tooltips? preview-tooltips?])
-      (tokens->pieces lang tokens
+      (tokens->pieces lang display-tokens
                                               #:color-swatch? color-swatch?
                                               #:font-preview? font-preview?
                                               #:dimension-preview? dimension-preview?
@@ -4593,7 +4662,7 @@ JS
                              #:block? #t))
   (define tbl (table block-color lines))
   (define block (if inset?
-                    (nested #:style 'code-inset tbl)
+                    (nested #:style code-inset-tab-style tbl)
                     tbl))
   (define payload (if filename
                       (filebox filename block)
@@ -4719,7 +4788,7 @@ JS
                        #:line-number-sep line-number-sep
                        source*)])
                (if inset?
-                   (nested #:style 'code-inset v)
+                   (nested #:style code-inset-tab-style v)
                    v)))
         (typeset-lang-block/chunks 'scribble
                                    #:file #f

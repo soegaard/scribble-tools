@@ -544,32 +544,6 @@ Typesets the concatenated strings as inline Rhombus code.
 Example: @rhombus-code{fun add(x, y): x + y}
 }
 
-@defform/subs[(shell-code maybe-options str-expr ...+)
-              ([maybe-options code:blank
-                              (code:line #:shell shell-expr)
-                              (code:line #:docs-source docs-source-expr)
-                              (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline shell code.
-Newlines and surrounding whitespace are collapsed to single spaces.
-
-@racket[#:shell] selects shell flavor: @racket['bash], @racket['zsh], @racket['powershell], or @racket['pwsh].
-Default: @racket[(current-scribble-shell)].
-
-@racket[#:docs-source] selects where shell documentation links point:
-@racket['auto], @racket['bash], @racket['zsh], @racket['powershell], @racket['posix], or @racket['none].
-Default: @racket[(current-shell-docs-source)].
-When the effective value is @racket['auto], links follow the effective shell:
-@racket['bash] when @racket[#:shell] (or @racket[current-scribble-shell]) is
-@racket['bash], @racket['zsh] when it is @racket['zsh], and
-@racket['powershell] when it is @racket['powershell] or @racket['pwsh].
-
-An optional @racket[#:escape] identifier configures escapes of the
-form @racket[(escape-id expr)] to splice @racket[expr]-produced
-elements into the typeset output.
-
-Example: @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
-}
-
 @defform/subs[(swift-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -669,6 +643,64 @@ Typesets the concatenated strings as inline Makefile code.
 Example: @makefile-code{all: build test}
 }
 
+@defform/subs[(json-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline JSON.
+
+Example: @json-code["{\"name\": \"Ada\"}"]
+}
+
+@defform/subs[(plist-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline plist XML.
+
+Example: @plist-code{<plist/>}
+}
+
+@defform/subs[(shell-code maybe-options str-expr ...+)
+              ([maybe-options code:blank
+                              (code:line #:shell shell-expr)
+                              (code:line #:docs-source docs-source-expr)
+                              (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline shell code.
+Newlines and surrounding whitespace are collapsed to single spaces.
+
+@racket[#:shell] selects shell flavor: @racket['bash], @racket['zsh], @racket['powershell], or @racket['pwsh].
+Default: @racket[(current-scribble-shell)].
+
+@racket[#:docs-source] selects where shell documentation links point:
+@racket['auto], @racket['bash], @racket['zsh], @racket['powershell], @racket['posix], or @racket['none].
+Default: @racket[(current-shell-docs-source)].
+When the effective value is @racket['auto], links follow the effective shell:
+@racket['bash] when @racket[#:shell] (or @racket[current-scribble-shell]) is
+@racket['bash], @racket['zsh] when it is @racket['zsh], and
+@racket['powershell] when it is @racket['powershell] or @racket['pwsh].
+
+An optional @racket[#:escape] identifier configures escapes of the
+form @racket[(escape-id expr)] to splice @racket[expr]-produced
+elements into the typeset output.
+
+Example: @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
+}
+
+@defform/subs[(tsv-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline TSV text.
+
+Example: @tsv-code["name\tage"]
+}
+
+@defform/subs[(yaml-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline YAML.
+
+Example: @yaml-code["name: Ada"]
+}
+
 @subsubsection[#:tag "reference-inline-data-formats"]{Data Formats}
 
 @defform/subs[(csv-code maybe-escape str-expr ...+)
@@ -689,38 +721,6 @@ standard-library identifiers are linked to the official Go spec and
 package documentation.
 
 Example: @go-code{func add(x int, y int) int { return x + y }}
-}
-
-@defform/subs[(json-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline JSON.
-
-Example: @json-code["{\"name\": \"Ada\"}"]
-}
-
-@defform/subs[(plist-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline plist XML.
-
-Example: @plist-code{<plist/>}
-}
-
-@defform/subs[(tsv-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline TSV text.
-
-Example: @tsv-code["name\tage"]
-}
-
-@defform/subs[(yaml-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline YAML.
-
-Example: @yaml-code["name: Ada"]
 }
 
 @subsection{Block Forms}
@@ -1001,54 +1001,6 @@ Typesets Rhombus code as a block inset.
 Like @racket[rhombusblock], but without the inset wrapper.
 }
 
-@defform/subs[(shellblock option ... str-expr ...+)
-              ([option (code:line #:shell shell-expr)
-                       (code:line #:docs-source docs-source-expr)
-                       (code:line #:indent indent-expr)
-                       (code:line #:line-numbers line-number-expr)
-                       (code:line #:line-number-sep line-number-sep-expr)
-                       (code:line #:copy-button? copy-button?-expr)
-                       (code:line #:file filename-expr)
-                       (code:line #:escape escape-id)])
-              #:contracts ([indent-expr exact-nonnegative-integer?]
-                           [line-number-expr (or/c #f exact-nonnegative-integer?)]
-                           [line-number-sep-expr exact-nonnegative-integer?])]{
-Typesets shell source as a block inset using @racket['code-inset].
-Options:
-
-@itemlist[
- @item{@racket[#:shell] selects shell flavor: @racket['bash], @racket['zsh], @racket['powershell], or @racket['pwsh]. Default: @racket[(current-scribble-shell)].}
- @item{@racket[#:docs-source] selects link targets: @racket['auto], @racket['bash], @racket['zsh], @racket['powershell], @racket['posix], or @racket['none]. Default: @racket[(current-shell-docs-source)]. With @racket['auto], links follow the effective shell selected by @racket[#:shell] (or @racket[current-scribble-shell]).}
- @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
- @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
- @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
- @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
- @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
- @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
-]
-
-Example:
-
-@shellblock[#:shell 'bash #:line-numbers 1]{
-# build step
-if [ -f ./configure ]; then
-  ./configure && make
-fi
-}
-}
-
-@defform[(shellblock0 option ... str-expr ...+)]{
-Like @racket[shellblock], but without the inset wrapper.
-
-Example:
-
-@shellblock0[#:shell 'zsh #:indent 2]{
-setopt prompt_subst
-autoload -Uz compinit
-compinit
-}
-}
-
 @defform[(swiftblock option ... str-expr ...+)]{
 Typesets Swift code as a block inset.
 }
@@ -1146,16 +1098,6 @@ Typesets Makefile code as a block inset.
 Like @racket[makefileblock], but without the inset wrapper.
 }
 
-@subsubsection[#:tag "reference-block-data-formats"]{Data Formats}
-
-@defform[(csvblock option ... str-expr ...+)]{
-Typesets CSV as a block inset.
-}
-
-@defform[(csvblock0 option ... str-expr ...+)]{
-Like @racket[csvblock], but without the inset wrapper.
-}
-
 @defform[(jsonblock option ... str-expr ...+)]{
 Typesets JSON as a block inset.
 
@@ -1181,12 +1123,52 @@ Typesets plist XML as a block inset.
 Like @racket[plistblock], but without the inset wrapper.
 }
 
-@defform[(tsvblock option ... str-expr ...+)]{
-Typesets TSV as a block inset.
+@defform/subs[(shellblock option ... str-expr ...+)
+              ([option (code:line #:shell shell-expr)
+                       (code:line #:docs-source docs-source-expr)
+                       (code:line #:indent indent-expr)
+                       (code:line #:line-numbers line-number-expr)
+                       (code:line #:line-number-sep line-number-sep-expr)
+                       (code:line #:copy-button? copy-button?-expr)
+                       (code:line #:file filename-expr)
+                       (code:line #:escape escape-id)])
+              #:contracts ([indent-expr exact-nonnegative-integer?]
+                           [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [line-number-sep-expr exact-nonnegative-integer?])]{
+Typesets shell source as a block inset using @racket['code-inset].
+Options:
+
+@itemlist[
+ @item{@racket[#:shell] selects shell flavor: @racket['bash], @racket['zsh], @racket['powershell], or @racket['pwsh]. Default: @racket[(current-scribble-shell)].}
+ @item{@racket[#:docs-source] selects link targets: @racket['auto], @racket['bash], @racket['zsh], @racket['powershell], @racket['posix], or @racket['none]. Default: @racket[(current-shell-docs-source)]. With @racket['auto], links follow the effective shell selected by @racket[#:shell] (or @racket[current-scribble-shell]).}
+ @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
+ @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
+ @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
+ @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
+ @item{@racket[#:escape] changes the escape identifier; subforms of the shape @racket[(escape-id expr)] splice @racket[expr] as content (default escape id: @racket[unsyntax]).}
+]
+
+Example:
+
+@shellblock[#:shell 'bash #:line-numbers 1]{
+# build step
+if [ -f ./configure ]; then
+  ./configure && make
+fi
+}
 }
 
-@defform[(tsvblock0 option ... str-expr ...+)]{
-Like @racket[tsvblock], but without the inset wrapper.
+@defform[(shellblock0 option ... str-expr ...+)]{
+Like @racket[shellblock], but without the inset wrapper.
+
+Example:
+
+@shellblock0[#:shell 'zsh #:indent 2]{
+setopt prompt_subst
+autoload -Uz compinit
+compinit
+}
 }
 
 @defform[(yamlblock option ... str-expr ...+)]{
@@ -1202,6 +1184,24 @@ Example:
 name: Ada
 active: true
 }
+}
+
+@subsubsection[#:tag "reference-block-data-formats"]{Data Formats}
+
+@defform[(csvblock option ... str-expr ...+)]{
+Typesets CSV as a block inset.
+}
+
+@defform[(csvblock0 option ... str-expr ...+)]{
+Like @racket[csvblock], but without the inset wrapper.
+}
+
+@defform[(tsvblock option ... str-expr ...+)]{
+Typesets TSV as a block inset.
+}
+
+@defform[(tsvblock0 option ... str-expr ...+)]{
+Like @racket[tsvblock], but without the inset wrapper.
 }
 
 @defparam[current-wasm-docs-source src (or/c 'wasm-spec-3.0 'mdn 'none)]{
@@ -1682,45 +1682,6 @@ fun summarize(name, count):
     "$name has $(count) items"
 }
 
-@subsubsection[#:tag "extended-shell"]{Shell}
-
-This utility copies one directory tree to another and validates arguments
-before running the copy operation.
-
-@shellblock[#:line-numbers 1
-            #:file "extended/copy-tree.sh"
-            #:shell 'bash
-            "#!/usr/bin/env bash\n"
-            "set -euo pipefail\n"
-            "\n"
-            "usage() {\n"
-            "  echo \"usage: $0 <source-dir> [dest-dir]\"\n"
-            "}\n"
-            "\n"
-            "copy_tree() {\n"
-            "  local src=\"$1\"\n"
-            "  local dst=\"$2\"\n"
-            "  mkdir -p \"$dst\"\n"
-            "  cp -R \"$src\"/. \"$dst\"/\n"
-            "}\n"
-            "\n"
-            "main() {\n"
-            "  if [ \"$#\" -lt 1 ] || [ \"$#\" -gt 2 ]; then\n"
-            "    usage\n"
-            "    return 2\n"
-            "  fi\n"
-            "  local src=\"$1\"\n"
-            "  local dst=\"${2:-./out}\"\n"
-            "  if [ ! -d \"$src\" ]; then\n"
-            "    echo \"error: source directory not found: $src\" >&2\n"
-            "    return 1\n"
-            "  fi\n"
-            "  copy_tree \"$src\" \"$dst\"\n"
-            "  echo \"copied $src -> $dst\"\n"
-            "}\n"
-            "\n"
-            "main \"$@\"\n"]
-
 @subsubsection[#:tag "extended-swift"]{Swift}
 
 @swiftblock[#:line-numbers 1
@@ -1861,6 +1822,89 @@ raco test private/lang-code.rkt
                "build:\n"
                "\t${CC} -o $@ $<\n"]
 
+@subsubsection[#:tag "extended-json"]{JSON}
+
+@jsonblock[#:line-numbers 1
+           #:file "extended/config.json"]{
+{
+  "name": "scribble-tools",
+  "features": {
+    "copyButton": true,
+    "lineNumbers": true,
+    "links": ["mdn", "shell-docs", "wasm-spec"]
+  },
+  "targets": ["html", "manual"]
+}
+}
+
+@subsubsection[#:tag "extended-plist"]{plist}
+
+@plistblock[#:line-numbers 1
+            #:file "extended/Info.plist"]{
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+  <dict>
+    <key>CFBundleName</key>
+    <string>scribble-tools</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+  </dict>
+</plist>
+}
+
+@subsubsection[#:tag "extended-shell"]{Shell}
+
+This utility copies one directory tree to another and validates arguments
+before running the copy operation.
+
+@shellblock[#:line-numbers 1
+            #:file "extended/copy-tree.sh"
+            #:shell 'bash
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            "\n"
+            "usage() {\n"
+            "  echo \"usage: $0 <source-dir> [dest-dir]\"\n"
+            "}\n"
+            "\n"
+            "copy_tree() {\n"
+            "  local src=\"$1\"\n"
+            "  local dst=\"$2\"\n"
+            "  mkdir -p \"$dst\"\n"
+            "  cp -R \"$src\"/. \"$dst\"/\n"
+            "}\n"
+            "\n"
+            "main() {\n"
+            "  if [ \"$#\" -lt 1 ] || [ \"$#\" -gt 2 ]; then\n"
+            "    usage\n"
+            "    return 2\n"
+            "  fi\n"
+            "  local src=\"$1\"\n"
+            "  local dst=\"${2:-./out}\"\n"
+            "  if [ ! -d \"$src\" ]; then\n"
+            "    echo \"error: source directory not found: $src\" >&2\n"
+            "    return 1\n"
+            "  fi\n"
+            "  copy_tree \"$src\" \"$dst\"\n"
+            "  echo \"copied $src -> $dst\"\n"
+            "}\n"
+            "\n"
+            "main \"$@\"\n"]
+
+@subsubsection[#:tag "extended-yaml"]{YAML}
+
+@yamlblock[#:line-numbers 1
+           #:file "extended/config.yaml"]{
+name: scribble-tools
+features:
+  copy_button: true
+  line_numbers: true
+  docs_links:
+    - mdn
+    - shell-docs
+    - wasm-spec
+}
+
 @subsection[#:tag "extended-data-formats"]{Data Formats}
 
 @subsubsection[#:tag "extended-csv-tsv"]{CSV and TSV}
@@ -1906,48 +1950,4 @@ func quickSort(xs []int) []int {
     right = quickSort(right)
     return append(append(left, pivot), right...)
 }
-}
-
-@subsubsection[#:tag "extended-json"]{JSON}
-
-@jsonblock[#:line-numbers 1
-           #:file "extended/config.json"]{
-{
-  "name": "scribble-tools",
-  "features": {
-    "copyButton": true,
-    "lineNumbers": true,
-    "links": ["mdn", "shell-docs", "wasm-spec"]
-  },
-  "targets": ["html", "manual"]
-}
-}
-
-@subsubsection[#:tag "extended-plist"]{plist}
-
-@plistblock[#:line-numbers 1
-            #:file "extended/Info.plist"]{
-<?xml version="1.0" encoding="UTF-8"?>
-<plist version="1.0">
-  <dict>
-    <key>CFBundleName</key>
-    <string>scribble-tools</string>
-    <key>CFBundleVersion</key>
-    <string>1.0</string>
-  </dict>
-</plist>
-}
-
-@subsubsection[#:tag "extended-yaml"]{YAML}
-
-@yamlblock[#:line-numbers 1
-           #:file "extended/config.yaml"]{
-name: scribble-tools
-features:
-  copy_button: true
-  line_numbers: true
-  docs_links:
-    - mdn
-    - shell-docs
-    - wasm-spec
 }
