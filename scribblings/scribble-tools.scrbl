@@ -1589,6 +1589,9 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
 @latexblock[#:line-numbers 1
             #:file "extended/doc.tex"]{
 \section{Overview}
+\[
+  f(x) = x^2 + 2x + 1
+\]
 
 \usepackage{tikz}
 
@@ -1601,17 +1604,21 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
 @subsection{Makefile}
 
 @makefileblock[#:line-numbers 1
-               #:file "extended/Makefile"]{
-APP = scribble-tools
-
-.PHONY: docs test
-
-docs:
-	raco scribble +m --html --dest html scribblings/scribble-tools.scrbl
-
-test:
-	raco test private/lang-code.rkt
-}
+               #:file "extended/Makefile"
+               "APP = scribble-tools\n"
+               "\n"
+               ".PHONY: docs test\n"
+               "\n"
+               "all: docs test | html\n"
+               "\n"
+               "docs:\n"
+               "\traco scribble +m --html --dest html scribblings/scribble-tools.scrbl && printf '%s\\n' done\n"
+               "\n"
+               "test:\n"
+               "\traco test private/lang-code.rkt\n"
+               "\n"
+               "build:\n"
+               "\t${CC} -o $@ $<\n"]
 
 @subsection{Markdown}
 
@@ -1780,9 +1787,10 @@ fn histogram(words: &[&str]) -> HashMap<String, usize> {
 
 @texblock[#:line-numbers 1
           #:file "extended/doc.tex"]{
+\def\foo#1{$$#1^2$$ \verb|x+y|}
 \hbox{Hello}
 \vskip 1em
-\centerline{Sample}
+\centerline{\foo{n}}
 }
 
 @subsection{CSV and TSV}

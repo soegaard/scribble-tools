@@ -396,6 +396,9 @@ LaTeX snippets are useful for math-heavy, document-structure, or TikZ drawing ex
 
 @latexblock[#:line-numbers 1 #:file "doc.tex"]{
 \section{Intro}
+\[
+  f(x) = x^2 + 2x + 1
+\]
 \usepackage{tikz}
 
 \begin{tikzpicture}
@@ -408,15 +411,22 @@ LaTeX snippets are useful for math-heavy, document-structure, or TikZ drawing ex
 
 Makefile snippets are useful for small automation and build examples.
 
-@makefileblock[#:line-numbers 1 #:file "Makefile"]{
-all: docs test
-
-docs:
-	raco scribble +m --html --dest html scribblings/example.scrbl
-
-test:
-	raco test private/lang-code.rkt
-}
+@makefileblock[#:line-numbers 1
+               #:file "Makefile"
+               "APP = scribble-tools\n"
+               "\n"
+               ".PHONY: docs test\n"
+               "\n"
+               "all: docs test | html\n"
+               "\n"
+               "docs:\n"
+               "\traco scribble +m --html --dest html scribblings/example.scrbl && printf '%s\\n' done\n"
+               "\n"
+               "test:\n"
+               "\traco test private/lang-code.rkt\n"
+               "\n"
+               "build:\n"
+               "\t${CC} -o $@ $<\n"]
 
 @subsection{Markdown}
 
@@ -578,9 +588,10 @@ fn histogram(words: &[&str]) -> HashMap<String, usize> {
 TeX snippets are useful for lower-level typesetting examples.
 
 @texblock[#:line-numbers 1 #:file "doc.tex"]{
+\def\foo#1{$$#1^2$$ \verb|x+y|}
 \hbox{Hello}
 \vskip 1em
-\centerline{Sample}
+\centerline{\foo{n}}
 }
 
 @subsection{TSV}
