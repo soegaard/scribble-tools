@@ -257,6 +257,8 @@
   (make-style #f (list (attributes '((style . "color: #AF00DB;"))))))
 (define js-static-keyword-color
   (make-style #f (list (attributes '((style . "font-weight: 600; color: #07A;"))))))
+(define c-type-name-color
+  (make-style #f (list (attributes '((style . "font-weight: 600; color: #2B5F8A;"))))))
 (define css-keyword-color
   (make-style #f (list (attributes '((style . "color: #07A;"))))))
 (define css-name-color
@@ -322,6 +324,36 @@
   (list->set
    '("linear-gradient" "radial-gradient" "conic-gradient"
      "repeating-linear-gradient" "repeating-radial-gradient" "repeating-conic-gradient")))
+
+(define c-family-builtin-type-names
+  (list->set
+   '("void" "char" "short" "int" "long" "float" "double" "signed" "unsigned"
+     "_Bool" "_Complex" "_Imaginary" "bool" "wchar_t" "char8_t" "char16_t"
+     "char32_t" "auto")))
+
+(define c-family-common-type-names
+  (list->set
+   '("FILE" "size_t" "ptrdiff_t" "wint_t" "fpos_t" "va_list" "tm" "clock_t"
+     "time_t" "max_align_t" "mbstate_t" "div_t" "ldiv_t" "lldiv_t"
+     "intptr_t" "uintptr_t" "intmax_t" "uintmax_t"
+     "int8_t" "int16_t" "int32_t" "int64_t"
+     "uint8_t" "uint16_t" "uint32_t" "uint64_t"
+     "int_least8_t" "int_least16_t" "int_least32_t" "int_least64_t"
+     "uint_least8_t" "uint_least16_t" "uint_least32_t" "uint_least64_t"
+     "int_fast8_t" "int_fast16_t" "int_fast32_t" "int_fast64_t"
+     "uint_fast8_t" "uint_fast16_t" "uint_fast32_t" "uint_fast64_t")))
+
+(define cpp-common-type-names
+  (list->set
+   '("string" "wstring" "u8string" "u16string" "u32string" "string_view"
+     "vector" "array" "deque" "list" "forward_list" "map" "multimap"
+     "unordered_map" "unordered_multimap" "set" "multiset"
+     "unordered_set" "unordered_multiset" "optional" "variant" "tuple"
+     "pair" "span" "unique_ptr" "shared_ptr" "weak_ptr" "function"
+     "any" "expected" "queue" "stack" "priority_queue")))
+
+(define c-family-type-introducers
+  (list->set '("struct" "union" "enum" "class" "typename" "@interface" "@protocol")))
 
 (define css-spacing-properties
   (list->set
@@ -1151,6 +1183,16 @@ JS
        [(value) tex-value-color]
        [(name) tex-name-color]
        [(operator) tex-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(c cpp objc)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
        [(punct) paren-color]
        [else no-color])]
     [(c cpp go haskell java json markdown objc pascal plist racket rhombus rust swift yaml)
@@ -2696,25 +2738,68 @@ JS
      [else 'plain])
    txt))
 
+(define (c-family-type-name? lang txt cls prev1 prev2)
+  (define t txt)
+  (or (set-member? c-family-builtin-type-names t)
+      (set-member? c-family-common-type-names t)
+      (and (eq? lang 'cpp)
+           (set-member? cpp-common-type-names t))
+      (and prev1
+           (eq? (car prev1) 'keyword)
+           (set-member? c-family-type-introducers (cdr prev1))
+           (memq cls '(name keyword)))
+      (and (eq? lang 'cpp)
+           prev1 prev2
+           (eq? (car prev1) 'punct)
+           (string=? (cdr prev1) "::")
+           (memq (car prev2) '(name type-name))
+           (or (string=? (cdr prev2) "std")
+               (string=? (cdr prev2) "pmr"))
+           (set-member? cpp-common-type-names t))))
+
+(define (tokenize-c-family tokens
+                           token-has-tag?
+                           token-text
+                           #:lang lang
+                           #:preprocessor-class [preprocessor-class 'name]
+                           #:objc? [objc? #f])
+  (let loop ([rest tokens] [acc null] [prev1 #f] [prev2 #f])
+    (cond
+      [(null? rest) (reverse acc)]
+      [else
+       (define piece0
+         (c-family-derived-token->piece (car rest)
+                                        token-has-tag?
+                                        token-text
+                                        #:preprocessor-class preprocessor-class
+                                        #:objc? objc?))
+       (define piece
+         (if (c-family-type-name? lang (cdr piece0) (car piece0) prev1 prev2)
+             (cons 'type-name (cdr piece0))
+             piece0))
+       (define next-prev1 (if (token-nonplain? piece) piece prev1))
+       (define next-prev2 (if (token-nonplain? piece) prev1 prev2))
+       (loop (cdr rest) (cons piece acc) next-prev1 next-prev2)])))
+
 (define (tokenize-c s)
-  (for/list ([token (in-list (c-string->derived-tokens s))])
-    (c-family-derived-token->piece token
-                                   c-derived-token-has-tag?
-                                   c-derived-token-text)))
+  (tokenize-c-family (c-string->derived-tokens s)
+                     c-derived-token-has-tag?
+                     c-derived-token-text
+                     #:lang 'c))
 
 (define (tokenize-cpp s)
-  (for/list ([token (in-list (cpp-string->derived-tokens s))])
-    (c-family-derived-token->piece token
-                                   cpp-derived-token-has-tag?
-                                   cpp-derived-token-text)))
+  (tokenize-c-family (cpp-string->derived-tokens s)
+                     cpp-derived-token-has-tag?
+                     cpp-derived-token-text
+                     #:lang 'cpp))
 
 (define (tokenize-objc s)
-  (for/list ([token (in-list (objc-string->derived-tokens s))])
-    (c-family-derived-token->piece token
-                                   objc-derived-token-has-tag?
-                                   objc-derived-token-text
-                                   #:preprocessor-class 'keyword
-                                   #:objc? #t)))
+  (tokenize-c-family (objc-string->derived-tokens s)
+                     objc-derived-token-has-tag?
+                     objc-derived-token-text
+                     #:lang 'objc
+                     #:preprocessor-class 'keyword
+                     #:objc? #t))
 
 (define (tex-derived-token->piece token)
   (define txt (tex-derived-token-text token))
@@ -5080,12 +5165,17 @@ JS
   (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (c-code "int x = 1;")))
-  (let ([cls (classes 'c "#include <stdio.h>\nchar *s = \"ok\";\nchar bad = '\\q';\n")])
+  (let ([cls (classes 'c "#include <stdio.h>\ntypedef struct Node { int value; } Node;\nstatic int count;\nFILE *out;\nsize_t n = 0;\nchar *s = \"ok\";\nchar bad = '\\q';\n")])
+    (check-not-false (member 'type-name cls))
+    (check-true ((class-count 'type-name cls) . >= . 5))
+    (check-not-false (member 'keyword cls))
     (check-not-false (member 'name cls))
     (check-not-false (member 'value cls))
     (check-not-false (member 'plain cls)))
   (check-true (element? (cpp-code "std::vector<int> xs;")))
-  (let ([cls (classes 'cpp "#include <vector>\nstd::string s = R\"(ok)\";\nauto d = 12_km;\n")])
+  (let ([cls (classes 'cpp "#include <vector>\nstd::vector<int> xs;\nstd::string s = R\"(ok)\";\nauto d = 12_km;\n")])
+    (check-not-false (member 'type-name cls))
+    (check-true ((class-count 'type-name cls) . >= . 4))
     (check-not-false (member 'name cls))
     (check-not-false (member 'value cls))
     (check-not-false (member 'punct cls)))
