@@ -6,8 +6,20 @@
          racket/file
          racket/runtime-path
          "lexers-adapter.rkt"
-         (only-in lexers/c c-string->tokens)
-         (only-in lexers/cpp cpp-string->tokens)
+         (only-in lexers/c
+                  c-derived-token-has-tag?
+                  c-derived-token-text
+                  c-derived-token-start
+                  c-derived-token-end
+                  c-string->tokens
+                  c-string->derived-tokens)
+         (only-in lexers/cpp
+                  cpp-derived-token-has-tag?
+                  cpp-derived-token-text
+                  cpp-derived-token-start
+                  cpp-derived-token-end
+                  cpp-string->tokens
+                  cpp-string->derived-tokens)
          (only-in lexers/css
                   css-derived-token-has-tag?
                   css-derived-token-text
@@ -29,9 +41,21 @@
                   makefile-derived-token-text
                   makefile-string->derived-tokens)
          (only-in lexers/markdown markdown-string->tokens)
-         (only-in lexers/objc objc-string->tokens)
+         (only-in lexers/objc
+                  objc-derived-token-has-tag?
+                  objc-derived-token-text
+                  objc-derived-token-start
+                  objc-derived-token-end
+                  objc-string->tokens
+                  objc-string->derived-tokens)
          (only-in lexers/pascal pascal-string->tokens)
-         (only-in lexers/plist plist-string->tokens)
+         (only-in lexers/plist
+                  plist-derived-token-has-tag?
+                  plist-derived-token-text
+                  plist-derived-token-start
+                  plist-derived-token-end
+                  plist-string->tokens
+                  plist-string->derived-tokens)
          (only-in lexers/scribble
                   scribble-derived-token-has-tag?
                   scribble-derived-token-start
@@ -43,7 +67,13 @@
          (only-in lexers/rust rust-string->tokens)
          lexers/shell
          (only-in lexers/swift swift-string->tokens)
-         (only-in lexers/tex tex-string->tokens)
+         (only-in lexers/tex
+                  tex-derived-token-has-tag?
+                  tex-derived-token-text
+                  tex-derived-token-start
+                  tex-derived-token-end
+                  tex-string->tokens
+                  tex-string->derived-tokens)
          (only-in lexers/latex latex-string->tokens)
          (only-in lexers/latex
                   latex-derived-token-has-tag?
@@ -2553,6 +2583,156 @@ JS
              #:unless (lexer-token-eof? token))
     (wat-projected-token->scribble-token token #:class-map class-map)))
 
+(define (c-family-derived-token->piece token
+                                       token-has-tag?
+                                       token-text
+                                       #:preprocessor-class [preprocessor-class 'name]
+                                       #:objc? [objc? #f])
+  (define txt (token-text token))
+  (cons
+   (cond
+     [(token-has-tag? token 'comment) 'comment]
+     [(token-has-tag? token 'whitespace) 'plain]
+     [(token-has-tag? token 'malformed-token) 'plain]
+     [(or (token-has-tag? token 'c-preprocessor-directive)
+          (token-has-tag? token 'cpp-preprocessor-directive)
+          (token-has-tag? token 'objc-preprocessor-directive))
+      preprocessor-class]
+     [(or (token-has-tag? token 'objc-at-keyword)
+          (token-has-tag? token 'keyword))
+      'keyword]
+     [(token-has-tag? token 'objc-literal-introducer) 'operator]
+     [(or (token-has-tag? token 'c-string-literal)
+          (token-has-tag? token 'c-char-literal)
+          (token-has-tag? token 'c-header-name)
+          (token-has-tag? token 'cpp-string-literal)
+          (token-has-tag? token 'cpp-char-literal)
+          (token-has-tag? token 'cpp-numeric-literal)
+          (token-has-tag? token 'cpp-header-name)
+          (token-has-tag? token 'objc-string-literal)
+          (token-has-tag? token 'objc-char-literal)
+          (token-has-tag? token 'literal))
+      'value]
+     [(or (token-has-tag? token 'c-line-splice)
+          (token-has-tag? token 'cpp-line-splice)
+          (token-has-tag? token 'operator))
+      'operator]
+     [(or (token-has-tag? token 'cpp-delimiter)
+          (token-has-tag? token 'delimiter))
+      'punct]
+     [(or (token-has-tag? token 'c-identifier)
+          (and objc? (string-prefix? txt "@")))
+      'name]
+     [(token-has-tag? token 'identifier) 'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-c s)
+  (for/list ([token (in-list (c-string->derived-tokens s))])
+    (c-family-derived-token->piece token
+                                   c-derived-token-has-tag?
+                                   c-derived-token-text)))
+
+(define (tokenize-cpp s)
+  (for/list ([token (in-list (cpp-string->derived-tokens s))])
+    (c-family-derived-token->piece token
+                                   cpp-derived-token-has-tag?
+                                   cpp-derived-token-text)))
+
+(define (tokenize-objc s)
+  (for/list ([token (in-list (objc-string->derived-tokens s))])
+    (c-family-derived-token->piece token
+                                   objc-derived-token-has-tag?
+                                   objc-derived-token-text
+                                   #:preprocessor-class 'keyword
+                                   #:objc? #t)))
+
+(define (tex-derived-token->piece token)
+  (define txt (tex-derived-token-text token))
+  (cons
+   (cond
+     [(tex-derived-token-has-tag? token 'comment) 'comment]
+     [(tex-derived-token-has-tag? token 'whitespace) 'plain]
+     [(tex-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(tex-derived-token-has-tag? token 'tex-verbatim-literal) 'value]
+     [(or (tex-derived-token-has-tag? token 'tex-math-shift)
+          (tex-derived-token-has-tag? token 'tex-display-math-shift)
+          (tex-derived-token-has-tag? token 'tex-inline-math-shift)
+          (tex-derived-token-has-tag? token 'tex-line-break-command)
+          (tex-derived-token-has-tag? token 'tex-alignment-tab)
+          (tex-derived-token-has-tag? token 'tex-subscript-mark)
+          (tex-derived-token-has-tag? token 'tex-superscript-mark)
+          (tex-derived-token-has-tag? token 'tex-unbreakable-space)
+          (tex-derived-token-has-tag? token 'tex-special-char)
+          (tex-derived-token-has-tag? token 'tex-special-character)
+          (tex-derived-token-has-tag? token 'tex-parameter-marker)
+          (tex-derived-token-has-tag? token 'tex-parameter-reference)
+          (tex-derived-token-has-tag? token 'tex-parameter-escape))
+      'operator]
+     [(or (tex-derived-token-has-tag? token 'tex-open-group-delimiter)
+          (tex-derived-token-has-tag? token 'tex-close-group-delimiter)
+          (tex-derived-token-has-tag? token 'tex-open-optional-delimiter)
+          (tex-derived-token-has-tag? token 'tex-close-optional-delimiter)
+          (tex-derived-token-has-tag? token 'tex-group-delimiter)
+          (tex-derived-token-has-tag? token 'tex-optional-delimiter)
+          (tex-derived-token-has-tag? token 'delimiter))
+      'punct]
+     [(tex-derived-token-has-tag? token 'tex-environment-name) 'name]
+     [(or (tex-derived-token-has-tag? token 'tex-command)
+          (tex-derived-token-has-tag? token 'tex-control-word)
+          (tex-derived-token-has-tag? token 'tex-control-symbol)
+          (tex-derived-token-has-tag? token 'tex-accent-command)
+          (tex-derived-token-has-tag? token 'tex-spacing-command)
+          (tex-derived-token-has-tag? token 'tex-control-space)
+          (tex-derived-token-has-tag? token 'tex-italic-correction)
+          (tex-derived-token-has-tag? token 'tex-paragraph-command)
+          (tex-derived-token-has-tag? token 'tex-environment-command)
+          (tex-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(or (tex-derived-token-has-tag? token 'literal)
+          (tex-derived-token-has-tag? token 'tex-parameter))
+      'value]
+     [else 'plain])
+   txt))
+
+(define (tokenize-tex s)
+  (for/list ([token (in-list (tex-string->derived-tokens s))])
+    (tex-derived-token->piece token)))
+
+(define (plist-derived-token->piece token)
+  (define txt (plist-derived-token-text token))
+  (cons
+   (cond
+     [(plist-derived-token-has-tag? token 'comment) 'comment]
+     [(plist-derived-token-has-tag? token 'whitespace) 'plain]
+     [(plist-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (plist-derived-token-has-tag? token 'plist-processing-instruction)
+          (plist-derived-token-has-tag? token 'plist-doctype))
+      'keyword]
+     [(or (plist-derived-token-has-tag? token 'plist-tag-name)
+          (plist-derived-token-has-tag? token 'plist-closing-tag-name)
+          (plist-derived-token-has-tag? token 'plist-attribute-name)
+          (plist-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(plist-derived-token-has-tag? token 'plist-key-text) 'name]
+     [(plist-derived-token-has-tag? token 'plist-entity) 'operator]
+     [(or (plist-derived-token-has-tag? token 'plist-string-text)
+          (plist-derived-token-has-tag? token 'plist-integer-text)
+          (plist-derived-token-has-tag? token 'plist-real-text)
+          (plist-derived-token-has-tag? token 'plist-date-text)
+          (plist-derived-token-has-tag? token 'plist-data-text)
+          (plist-derived-token-has-tag? token 'plist-attribute-value)
+          (plist-derived-token-has-tag? token 'literal))
+      'value]
+     [(plist-derived-token-has-tag? token 'operator) 'operator]
+     [(plist-derived-token-has-tag? token 'delimiter) 'punct]
+     [else 'plain])
+   txt))
+
+(define (tokenize-plist s)
+  (for/list ([token (in-list (plist-string->derived-tokens s))])
+    (plist-derived-token->piece token)))
+
 (define (tokenize-latex s)
   (for/list ([token (in-list (latex-string->derived-tokens s))])
     (define txt (latex-derived-token-text token))
@@ -2700,13 +2880,10 @@ JS
 (define (tokenize lang s)
   (case lang
     [(css) (tokenize-css s)]
-    [(c) (projected-tokens->scribble-tokens
-          (c-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(cpp) (projected-tokens->scribble-tokens
-            (cpp-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(c) (tokenize-c s)]
+    [(cpp) (tokenize-cpp s)]
     [(makefile) (tokenize-makefile s)]
-    [(objc) (projected-tokens->scribble-tokens
-             (objc-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(objc) (tokenize-objc s)]
     [(haskell) (projected-tokens->scribble-tokens
                 (haskell-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(pascal) (projected-tokens->scribble-tokens
@@ -2723,8 +2900,7 @@ JS
     [(markdown) (projected-tokens->scribble-tokens
                  (markdown-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(python) (python-string->scribble-tokens s)]
-    [(plist) (projected-tokens->scribble-tokens
-              (plist-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(plist) (tokenize-plist s)]
     [(racket) (projected-tokens->scribble-tokens
                (racket-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(rhombus)
@@ -2735,8 +2911,7 @@ JS
              (rust-string->tokens s #:profile 'coloring #:source-positions #t))]
     [(swift) (projected-tokens->scribble-tokens
               (swift-string->tokens s #:profile 'coloring #:source-positions #t))]
-    [(tex) (projected-tokens->scribble-tokens
-            (tex-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(tex) (tokenize-tex s)]
     [(wasm) (tokenize-wasm s)]
     [(bash) (tokenize-shell 'bash s)]
     [(zsh) (tokenize-shell 'zsh s)]
@@ -4573,18 +4748,20 @@ JS
   (define (has-class? v class-name)
     (string-contains? (format "~s" v)
                       (format "(class . \"~a\")" class-name)))
+  (define (derived-stream-contiguous? tokens token-start token-end)
+    (or (null? tokens)
+        (for/and ([left (in-list tokens)]
+                  [right (in-list (cdr tokens))])
+          (= (position-offset (token-end left))
+             (position-offset (token-start right))))))
   (define (shell-derived-stream-contiguous? tokens)
-    (or (null? tokens)
-        (for/and ([left (in-list tokens)]
-                  [right (in-list (cdr tokens))])
-          (= (position-offset (shell-derived-token-end left))
-             (position-offset (shell-derived-token-start right))))))
+    (derived-stream-contiguous? tokens
+                               shell-derived-token-start
+                               shell-derived-token-end))
   (define (latex-derived-stream-contiguous? tokens)
-    (or (null? tokens)
-        (for/and ([left (in-list tokens)]
-                  [right (in-list (cdr tokens))])
-          (= (position-offset (latex-derived-token-end left))
-             (position-offset (latex-derived-token-start right))))))
+    (derived-stream-contiguous? tokens
+                               latex-derived-token-start
+                               latex-derived-token-end))
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (cblock "int main(void) { return 0; }")))
   (check-true (block? (cppblock "int main() { return 0; }")))
@@ -4620,7 +4797,15 @@ JS
   (check-true (block? (jsblock #:jsx? #t "const el = <A x={1}/>;")))
   (check-true (element? (css-code "h1 { color: red; }")))
   (check-true (element? (c-code "int x = 1;")))
+  (let ([cls (classes 'c "#include <stdio.h>\nchar *s = \"ok\";\nchar bad = '\\q';\n")])
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'plain cls)))
   (check-true (element? (cpp-code "std::vector<int> xs;")))
+  (let ([cls (classes 'cpp "#include <vector>\nstd::string s = R\"(ok)\";\nauto d = 12_km;\n")])
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'punct cls)))
   (check-true (element? (makefile-code "all: build test")))
   (let ([cls (classes 'makefile ".PHONY: docs\ndocs:\n\traco scribble +m --html --dest html scribblings/scribble-tools.scrbl\n\ttest -f private/lang-code.rkt\nCC = cc\nall:\n\t$(CC) -o $@ $<\n")])
     (check-not-false (member 'make-target cls))
@@ -4633,6 +4818,11 @@ JS
     (check-not-false (member 'operator cls))
     (check-not-false (member 'make-variable cls)))
   (check-true (element? (tex-code "\\hbox{Hello}")))
+  (let ([cls (classes 'tex "\\def\\foo#1{$$#1^2$$ \\verb|x+y| \\~n}\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'operator cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'punct cls)))
   (check-true (element? (latex-code "\\section{Hi}")))
   (let ([cls (classes 'latex "\\begin{itemize}\n\\item One\\\\\n\\verb|x+y|\n\\end{itemize}\n")])
     (check-not-false (member 'keyword cls))
@@ -4641,9 +4831,17 @@ JS
     (check-not-false (member 'value cls))
     (check-not-false (member 'punct cls)))
   (check-true (element? (objc-code "@\"hello\"")))
+  (let ([cls (classes 'objc "@interface Box : NSObject\n@property NSString *name;\n@end\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls)))
   (check-true (element? (haskell-code "map (+1) [1,2,3]")))
   (check-true (element? (pascal-code "var answer: Integer;")))
   (check-true (element? (plist-code "<plist/>")))
+  (let ([cls (classes 'plist "<?xml version=\"1.0\"?>\n<plist><dict><key>Name</key><string>Ada &amp; Bob</string></dict></plist>\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'operator cls)))
   (check-true (element? (csv-code "a,b")))
   (check-true (element? (go-code "func add(x int, y int) int { return x + y }")))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
@@ -5060,6 +5258,113 @@ JS
                 [else 'plain])
               txt))
            #:new-contiguous? latex-derived-stream-contiguous?
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "int main(void) { char c = '\\x41'; return 0; }\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (c-string->tokens src #:profile 'coloring #:source-positions #t))
+           (c-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece
+           (lambda (token)
+             (c-family-derived-token->piece token
+                                            c-derived-token-has-tag?
+                                            c-derived-token-text))
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        c-derived-token-start
+                                        c-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?))
+    (check-true (hash-ref comparison 'class-match?)))
+  (let* ([src "std::string s = R\"(ok)\";\nauto d = 12_km;\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (cpp-string->tokens src #:profile 'coloring #:source-positions #t))
+           (cpp-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece
+           (lambda (token)
+             (c-family-derived-token->piece token
+                                            cpp-derived-token-has-tag?
+                                            cpp-derived-token-text))
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        cpp-derived-token-start
+                                        cpp-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?))
+    (check-true (hash-ref comparison 'class-match?)))
+  (let* ([src "@interface Box : NSObject\n@property NSString *name;\n@end\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (objc-string->tokens src #:profile 'coloring #:source-positions #t))
+           (objc-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece
+           (lambda (token)
+             (c-family-derived-token->piece token
+                                            objc-derived-token-has-tag?
+                                            objc-derived-token-text
+                                            #:preprocessor-class 'keyword
+                                            #:objc? #t))
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        objc-derived-token-start
+                                        objc-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?))
+    (check-true (hash-ref comparison 'class-match?)))
+  (let* ([src "\\def\\foo#1{$$#1^2$$ \\verb|x+y| \\~n}\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (tex-string->tokens src #:profile 'coloring #:source-positions #t))
+           (tex-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece tex-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        tex-derived-token-start
+                                        tex-derived-token-end))
+           #:new-eof? (lambda (_token) #f))])
+    (check-true (hash-ref comparison 'source-match?))
+    (check-true (hash-ref comparison 'new-contiguous?)))
+  (let* ([src "<?xml version=\"1.0\"?>\n<plist><dict><key>Name</key><string>Ada &amp; Bob</string></dict></plist>\n"]
+         [comparison
+          (compare-token-streams
+           src
+           (projected-tokens->scribble-tokens
+            (plist-string->tokens src #:profile 'coloring #:source-positions #t))
+           (plist-string->derived-tokens src)
+           #:old-class-normalizer normalize-render-class
+           #:new-class-normalizer normalize-render-class
+           #:new-token->piece plist-derived-token->piece
+           #:new-contiguous?
+           (lambda (tokens)
+             (derived-stream-contiguous? tokens
+                                        plist-derived-token-start
+                                        plist-derived-token-end))
            #:new-eof? (lambda (_token) #f))])
     (check-true (hash-ref comparison 'source-match?))
     (check-true (hash-ref comparison 'new-contiguous?)))
