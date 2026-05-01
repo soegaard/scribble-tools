@@ -16,6 +16,7 @@
          go-code
          html-code
          java-code
+         mathematica-code
          js-code
          json-code
          markdown-code
@@ -43,6 +44,7 @@
          goblock
          htmlblock
          javablock
+         mathematicablock
          jsblock
          jsonblock
          markdownblock
@@ -70,6 +72,7 @@
          goblock0
          htmlblock0
          javablock0
+         mathematicablock0
          jsblock0
          jsonblock0
          markdownblock0
@@ -108,6 +111,7 @@
 (define-syntax-rule (go-code . rest) (api:go-code . rest))
 (define-syntax-rule (html-code . rest) (api:html-code . rest))
 (define-syntax-rule (java-code . rest) (api:java-code . rest))
+(define-syntax-rule (mathematica-code . rest) (api:mathematica-code . rest))
 (define-syntax-rule (js-code . rest) (api:js-code . rest))
 (define-syntax-rule (json-code . rest) (api:json-code . rest))
 (define-syntax-rule (markdown-code . rest) (api:markdown-code . rest))
@@ -135,6 +139,7 @@
 (define-syntax-rule (goblock . rest) (api:goblock . rest))
 (define-syntax-rule (htmlblock . rest) (api:htmlblock . rest))
 (define-syntax-rule (javablock . rest) (api:javablock . rest))
+(define-syntax-rule (mathematicablock . rest) (api:mathematicablock . rest))
 (define-syntax-rule (jsblock . rest) (api:jsblock . rest))
 (define-syntax-rule (jsonblock . rest) (api:jsonblock . rest))
 (define-syntax-rule (markdownblock . rest) (api:markdownblock . rest))
@@ -162,6 +167,7 @@
 (define-syntax-rule (goblock0 . rest) (api:goblock0 . rest))
 (define-syntax-rule (htmlblock0 . rest) (api:htmlblock0 . rest))
 (define-syntax-rule (javablock0 . rest) (api:javablock0 . rest))
+(define-syntax-rule (mathematicablock0 . rest) (api:mathematicablock0 . rest))
 (define-syntax-rule (jsblock0 . rest) (api:jsblock0 . rest))
 (define-syntax-rule (jsonblock0 . rest) (api:jsonblock0 . rest))
 (define-syntax-rule (markdownblock0 . rest) (api:markdownblock0 . rest))

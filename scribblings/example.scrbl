@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, Java, JavaScript, JSON, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, Java, JavaScript, JSON, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -19,6 +19,7 @@ inline JSON with @json-code["{\"name\": \"Ada\"}"] and
 inline LaTeX with @latex-code{\section{Intro}} and
 inline Makefile with @makefile-code{all: build test} and
 inline Markdown with @markdown-code["# Hello"] and
+inline Mathematica with @mathematica-code{f[x_] := Module[{y = x^2}, y + 1]} and
 inline Objective-C with @objc-code[@"Hello"] and
 inline Pascal with @pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;} and
 inline plist with @plist-code{<plist/>} and
@@ -77,6 +78,8 @@ Inline LaTeX: @latex-code{\section{Intro}}
 Inline Makefile: @makefile-code{all: build test}
 
 Inline Markdown: @markdown-code["# Hello"]
+
+Inline Mathematica: @mathematica-code{f[x_] := Module[{y = x^2}, y + 1]}
 
 Inline Objective-C: @objc-code[@"Hello"]
 
@@ -512,7 +515,27 @@ methods, and string-heavy snippets.
            "        quickSort(xs, lo, j);\n"
            "        quickSort(xs, i, hi);\n"
            "    }\n"
-           "}\n"]
+"}\n"]
+
+@subsection{Mathematica}
+
+Mathematica works well for symbolic transformation examples, list processing,
+and compact notebook-oriented helpers.
+
+@mathematicablock[#:line-numbers 1
+                  #:file "helpers.wl"]{
+ClearAll[quickStats];
+
+quickStats[xs_List] := Module[
+    {sorted = Sort[xs], total = Total[xs]},
+    <|
+        "count" -> Length[xs],
+        "min" -> First[sorted],
+        "max" -> Last[sorted],
+        "mean" -> N[total/Length[xs], 4]
+    |>
+]
+}
 
 @subsection{Objective-C}
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Future languages/formats to add:
+  - SVG
+
 - Added Python support:
   - `python-code`
   - `pythonblock`, `pythonblock0`
@@ -16,6 +19,7 @@
   - LaTeX: `latex-code`, `latexblock`, `latexblock0`
   - Makefile: `makefile-code`, `makefileblock`, `makefileblock0`
   - Markdown: `markdown-code`, `markdownblock`, `markdownblock0`
+  - Mathematica: `mathematica-code`, `mathematicablock`, `mathematicablock0`
   - Objective-C: `objc-code`, `objcblock`, `objcblock0`
   - Pascal: `pascal-code`, `pascalblock`, `pascalblock0`
   - plist: `plist-code`, `plistblock`, `plistblock0`

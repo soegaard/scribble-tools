@@ -59,6 +59,11 @@
                   makefile-derived-token-has-tag?
                   makefile-derived-token-text
                   makefile-string->derived-tokens)
+         (only-in lexers/mathematica
+                  mathematica-derived-token-has-tag?
+                  mathematica-derived-token-text
+                  mathematica-string->tokens
+                  mathematica-string->derived-tokens)
          (only-in lexers/markdown
                   markdown-string->tokens
                   markdown-string->derived-tokens
@@ -168,6 +173,7 @@
          go-code
          html-code
          java-code
+         mathematica-code
          js-code
          json-code
          markdown-code
@@ -195,6 +201,7 @@
          goblock
          htmlblock
          javablock
+         mathematicablock
          jsblock
          jsonblock
          markdownblock
@@ -222,6 +229,7 @@
          goblock0
          htmlblock0
          javablock0
+         mathematicablock0
          jsblock0
          jsonblock0
          markdownblock0
@@ -1303,6 +1311,15 @@ JS
        [(comment) comment-color]
        [(keyword) js-keyword-color]
        [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(mathematica)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
        [(value) value-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
@@ -3560,6 +3577,47 @@ JS
            [else current-heading-level]))
        (loop (cdr tokens) (cons piece acc) next-level)])))
 
+(define (mathematica-derived-token->piece token)
+  (define txt (mathematica-derived-token-text token))
+  (cons
+   (cond
+     [(mathematica-derived-token-has-tag? token 'comment) 'comment]
+     [(mathematica-derived-token-has-tag? token 'whitespace) 'plain]
+     [(mathematica-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (mathematica-derived-token-has-tag? token 'mathematica-package-form)
+          (mathematica-derived-token-has-tag? token 'mathematica-scoping-form))
+      'keyword]
+     [(or (mathematica-derived-token-has-tag? token 'mathematica-string-literal)
+          (mathematica-derived-token-has-tag? token 'mathematica-number)
+          (mathematica-derived-token-has-tag? token 'mathematica-named-character)
+          (mathematica-derived-token-has-tag? token 'mathematica-character-escape)
+          (mathematica-derived-token-has-tag? token 'literal))
+      'value]
+     [(or (mathematica-derived-token-has-tag? token 'mathematica-assignment-operator)
+          (mathematica-derived-token-has-tag? token 'mathematica-rewrite-operator)
+          (mathematica-derived-token-has-tag? token 'mathematica-pattern-condition-operator)
+          (mathematica-derived-token-has-tag? token 'mathematica-composition-operator)
+          (mathematica-derived-token-has-tag? token 'mathematica-string-pattern-operator)
+          (mathematica-derived-token-has-tag? token 'mathematica-function-arrow-operator)
+          (mathematica-derived-token-has-tag? token 'operator))
+      'operator]
+     [(or (mathematica-derived-token-has-tag? token 'mathematica-association-delimiter)
+          (mathematica-derived-token-has-tag? token 'mathematica-part-delimiter)
+          (mathematica-derived-token-has-tag? token 'delimiter))
+      'punct]
+     [(or (mathematica-derived-token-has-tag? token 'mathematica-symbol)
+          (mathematica-derived-token-has-tag? token 'mathematica-long-name)
+          (mathematica-derived-token-has-tag? token 'mathematica-pattern)
+          (mathematica-derived-token-has-tag? token 'mathematica-slot)
+          (mathematica-derived-token-has-tag? token 'identifier))
+      'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-mathematica s)
+  (for/list ([token (in-list (mathematica-string->derived-tokens s))])
+    (mathematica-derived-token->piece token)))
+
 (define (tokenize lang s)
   (case lang
     [(css) (tokenize-css s)]
@@ -3577,6 +3635,7 @@ JS
     [(js) (tokenize-js s)]
     [(json) (projected-tokens->scribble-tokens
              (json-string->tokens s #:profile 'coloring #:source-positions #t))]
+    [(mathematica) (tokenize-mathematica s)]
     [(latex) (tokenize-latex s)]
     [(markdown) (tokenize-markdown s)]
     [(python) (tokenize-python s)]
@@ -5297,6 +5356,7 @@ JS
 (define-syntax (csv-code stx) (do-simple-inline stx 'csv))
 (define-syntax (go-code stx) (do-simple-inline stx 'go))
 (define-syntax (java-code stx) (do-simple-inline stx 'java))
+(define-syntax (mathematica-code stx) (do-simple-inline stx 'mathematica))
 (define-syntax (json-code stx) (do-simple-inline stx 'json))
 (define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
 (define-syntax (racket-code stx) (do-simple-inline stx 'racket))
@@ -5385,6 +5445,8 @@ JS
 (define-syntax (htmlblock stx) (do-block stx 'html #t))
 (define-syntax (javablock0 stx) (do-simple-block stx 'java #f))
 (define-syntax (javablock stx) (do-simple-block stx 'java #t))
+(define-syntax (mathematicablock0 stx) (do-simple-block stx 'mathematica #f))
+(define-syntax (mathematicablock stx) (do-simple-block stx 'mathematica #t))
 (define-syntax (jsblock0 stx) (do-js-block stx #f))
 (define-syntax (jsblock stx) (do-js-block stx #t))
 (define-syntax (jsonblock0 stx) (do-simple-block stx 'json #f))
@@ -5521,6 +5583,7 @@ JS
   (check-true (block? (goblock "package main\n\nfunc add(x int, y int) int {\n    return x + y\n}\n")))
   (check-true (block? (htmlblock "<h1 class=\"x\">Hi</h1>")))
   (check-true (block? (javablock "class Example { void run() { System.out.println(\"hi\"); } }\n")))
+  (check-true (block? (mathematicablock "f[x_] := Module[{y = x^2}, y + 1]\n")))
   (check-true (block? (jsblock "const x = 1;")))
   (check-true (block? (jsonblock "{ \"name\": \"Ada\" }")))
   (check-true (block? (markdownblock "# Title\n\n* item\n")))
@@ -5612,6 +5675,13 @@ JS
     (check-not-false (member 'name cls)))
   (check-true (element? (html-code "<h1 class=\"x\">Hi</h1>")))
   (check-true (element? (java-code "class Example { void run() { System.out.println(\"hi\"); } }")))
+  (check-true (element? (mathematica-code "f[x_] := Module[{y = x^2}, y + 1]")))
+  (let ([cls (classes 'mathematica "BeginPackage[\"Demo`\"]\nf[x_] := Module[{y = x^2}, x /. a_ :> #name &]\nassoc = <|\"a\" -> 1|>;\nexpr[[1]]\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'operator cls))
+    (check-not-false (member 'punct cls)))
   (let ([cls (classes 'java "@Override\nclass Example {\n  String s = \"hi\";\n  Object x = null;\n}\n")])
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'value cls))

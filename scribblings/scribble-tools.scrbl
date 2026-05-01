@@ -10,13 +10,13 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-Java, JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
+Java, JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
 (Bash/Zsh/PowerShell), Swift, TeX, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[go-code], @racket[html-code], @racket[java-code], @racket[js-code], @racket[json-code],
-@racket[haskell-code], @racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
+@racket[haskell-code], @racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[mathematica-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
 @racket[rhombus-code], @racket[rust-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
@@ -24,7 +24,7 @@ produce content.
 The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[goblock], @racket[javablock], @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
-        @racket[haskellblock], @racket[latexblock], @racket[makefileblock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
+        @racket[haskellblock], @racket[latexblock], @racket[makefileblock], @racket[mathematicablock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
         @racket[rustblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
@@ -55,6 +55,7 @@ Use inline forms when you want code inside running text:
   (list "LaTeX"       @scribble-code["@latex-code{\\section{Intro}}"])
   (list "Makefile"    @scribble-code["@makefile-code{all: build test}"])
   (list "Markdown"    @scribble-code["@markdown-code[\"# Hello\"]"])
+  (list "Mathematica" @scribble-code["@mathematica-code{f[x_] := Module[{y = x^2}, y + 1]}"])
   (list "Objective-C" @scribble-code["@objc-code{@\"Hello\"}"])
   (list "Pascal"      @scribble-code["@pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;}"])
   (list "plist"       @scribble-code["@plist-code{<plist/>}"])
@@ -87,6 +88,7 @@ Use inline forms when you want code inside running text:
   (list "LaTeX"         @latex-code{\section{Intro}})
   (list "Makefile"      @makefile-code{all: build test})
   (list "Markdown"      @markdown-code["# Hello"])
+  (list "Mathematica"   @mathematica-code{f[x_] := Module[{y = x^2}, y + 1]})
   (list "Objective-C"   @objc-code[@"Hello"])
   (list "Pascal"        @pascal-code{function Add(x, y: Integer): Integer; begin Add := x + y; end;})
   (list "plist"         @plist-code{<plist/>})
@@ -516,6 +518,14 @@ SE API documentation.
 Example: @java-code{class Example { void run() { System.out.println("hi"); } }}
 }
 
+@defform/subs[(mathematica-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Mathematica / Wolfram Language code.
+
+Example: @mathematica-code{f[x_] := Module[{y = x^2}, y + 1]}
+}
+
 @defform/subs[(pascal-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -917,6 +927,14 @@ Typesets Java code as a block inset.
 
 @defform[(javablock0 option ... str-expr ...+)]{
 Like @racket[javablock], but without the inset wrapper.
+}
+
+@defform[(mathematicablock option ... str-expr ...+)]{
+Typesets Mathematica / Wolfram Language code as a block inset.
+}
+
+@defform[(mathematicablock0 option ... str-expr ...+)]{
+Like @racket[mathematicablock], but without the inset wrapper.
 }
 
 @defform[(objcblock option ... str-expr ...+)]{
@@ -1646,6 +1664,23 @@ class QuickSort {
         quickSort(xs, i, hi);
     }
 }
+}
+
+@subsubsection[#:tag "extended-mathematica"]{Mathematica}
+
+@mathematicablock[#:line-numbers 1
+                  #:file "extended/helpers.wl"]{
+ClearAll[quickStats];
+
+quickStats[xs_List] := Module[
+    {sorted = Sort[xs], total = Total[xs]},
+    <|
+        "count" -> Length[xs],
+        "min" -> First[sorted],
+        "max" -> Last[sorted],
+        "mean" -> N[total/Length[xs], 4]
+    |>
+]
 }
 
 @subsubsection[#:tag "extended-pascal"]{Pascal}
