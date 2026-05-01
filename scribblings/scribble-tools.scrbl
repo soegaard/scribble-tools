@@ -476,6 +476,18 @@ identifier map was generated in 2026.
 Example: @cpp-code{std::vector<int> xs = {1, 2, 3};}
 }
 
+@defform/subs[(go-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Go code.
+
+Common Go language keywords, predeclared identifiers, and selected
+standard-library identifiers are linked to the official Go spec and
+package documentation.
+
+Example: @go-code{func add(x int, y int) int { return x + y }}
+}
+
 @defform/subs[(objc-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -709,18 +721,6 @@ Example: @yaml-code["name: Ada"]
 Typesets the concatenated strings as inline CSV text.
 
 Example: @csv-code["name,age"]
-}
-
-@defform/subs[(go-code maybe-escape str-expr ...+)
-              ([maybe-escape code:blank
-                             (code:line #:escape escape-id)])]{
-Typesets the concatenated strings as inline Go code.
-
-Common Go language keywords, predeclared identifiers, and selected
-standard-library identifiers are linked to the official Go spec and
-package documentation.
-
-Example: @go-code{func add(x int, y int) int { return x + y }}
 }
 
 @subsection{Block Forms}
@@ -1553,6 +1553,33 @@ std::vector<std::string> top_titles(std::vector<Entry> entries) {
 }
 }
 
+@subsubsection[#:tag "extended-go"]{Go}
+
+@goblock[#:line-numbers 1
+         #:file "extended/quicksort.go"]{
+package main
+
+func quickSort(xs []int) []int {
+    if len(xs) < 2 {
+        return xs
+    }
+
+    pivot := xs[0]
+    var left, right []int
+    for _, x := range xs[1:] {
+        if x < pivot {
+            left = append(left, x)
+        } else {
+            right = append(right, x)
+        }
+    }
+
+    left = quickSort(left)
+    right = quickSort(right)
+    return append(append(left, pivot), right...)
+}
+}
+
 @subsubsection[#:tag "extended-objc"]{Objective-C}
 
 @objcblock[#:line-numbers 1
@@ -1923,31 +1950,4 @@ name	role	active
 Ada	author	true
 Grace	editor	false
 Linus	reviewer	true
-}
-
-@subsubsection[#:tag "extended-go"]{Go}
-
-@goblock[#:line-numbers 1
-         #:file "extended/quicksort.go"]{
-package main
-
-func quickSort(xs []int) []int {
-    if len(xs) < 2 {
-        return xs
-    }
-
-    pivot := xs[0]
-    var left, right []int
-    for _, x := range xs[1:] {
-        if x < pivot {
-            left = append(left, x)
-        } else {
-            right = append(right, x)
-        }
-    }
-
-    left = quickSort(left)
-    right = quickSort(right)
-    return append(append(left, pivot), right...)
-}
 }
