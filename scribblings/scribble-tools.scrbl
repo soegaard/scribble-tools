@@ -1,9 +1,42 @@
 #lang scribble/manual
 
-@(require scribble-tools
+@(require (except-in scribble-tools
+                     code->sxml
+                     code-block->sxml
+                     code->html
+                     code-block->html
+                     code->scribble
+                     code-block->scribble
+                     code->scribble/legacy
+                     code-block->scribble/legacy
+                     code-html-support-sxml
+                     code-html-support
+                     raw-sxml
+                     raw-sxml?
+                     raw-sxml-value
+                     raw-html
+                     raw-html?
+                     raw-html-value)
           (for-label racket/base
                      (except-in scribble/manual racketblock racketblock0)
-                     scribble-tools))
+                     (except-in scribble-tools
+                                code->sxml
+                                code-block->sxml
+                                code->html
+                                code-block->html
+                                code->scribble
+                                code-block->scribble
+                                code->scribble/legacy
+                                code-block->scribble/legacy
+                                code-html-support-sxml
+                                code-html-support
+                                raw-sxml
+                                raw-sxml?
+                                raw-sxml-value
+                                raw-html
+                                raw-html?
+                                raw-html-value)
+                     scribble-tools/html))
 
 @title{scribble-tools}
 @author+email["Jens Axel Søgaard" "jensaxel@soegaard.net"]
@@ -33,42 +66,6 @@ blocks with optional line numbers, file labels, and escapes.
 
 This section gives a practical introduction to the forms and the most
 useful options.
-
-@subsection[#:tag "plain-html"]{Plain HTML and SXML}
-
-The Scribble forms remain the primary interface for manuals, but the same
-tokenization and linking pipeline can also generate ordinary HTML or SXML
-for use in a normal web page.
-
-@defmodule[scribble-tools/html]
-
-Use @racket[code->html] for inline code and @racket[code-block->html] for
-block snippets:
-
-@scribbleblock[
-"(require scribble-tools/html)\n"
-"\n"
-"(define snippet\n"
-"  (code-block->html 'js\n"
-"                    #:line-numbers 1\n"
-"                    \"const n = 42;\\nconsole.log(n);\\n\"))\n"
-"\n"
-"(define page\n"
-"  (string-append\n"
-"   \"<!doctype html><html><head>\"\n"
-"   (code-html-support)\n"
-"   \"</head><body>\"\n"
-"   snippet\n"
-"   \"</body></html>\"))"]
-
-Use @racket[code->sxml] and @racket[code-block->sxml] when you want to
-compose the generated markup before serializing it.  The convenience HTML
-functions serialize that SXML output.
-
-Escapes in the HTML/SXML API are explicit: pass strings for ordinary source,
-@racket[raw-sxml] to splice SXML, or @racket[raw-html] to splice trusted raw
-HTML during serialization.  Arbitrary Scribble elements are still supported
-by the Scribble forms, but are rejected by the HTML/SXML renderer.
 
 @subsection[#:tag "reference-inline-forms"]{Inline Forms}
 
@@ -140,9 +137,10 @@ Use inline forms when you want code inside running text:
   (list "YAML"          @yaml-code["name: Ada"])
   (list "Scribble"      @scribble-code["@bold{Hello} world."]))]
 
-If you want @racket[scribble-code] to link identifiers to their documentation,
-you need to provide a context. Either add @racket{#:context #'here} when
-calling @racket[scribble-code], or set the context using a parameter:
+The @racket[#:context] option and @racket[current-scribble-context] parameter
+are accepted for compatibility. Scribble snippets are tokenized directly by
+@racketmodname[scribble-tools] instead of by Scribble's
+@racket[typeset-code] context.
 
 @scribbleblock[
 "@current-scribble-context[#'here]\n"
@@ -390,6 +388,77 @@ By default, code output includes documentation links for common identifiers:
  @item{Common shell keywords and builtins (for example @shell-code[#:shell 'bash]{if}, @shell-code[#:shell 'zsh]{setopt}, @shell-code[#:shell 'powershell]{Get-ChildItem}), linked to GNU Bash, Zsh, or PowerShell documentation.}
  @item{Common WebAssembly instructions and declarations (for example @wasm-code{module}, @wasm-code{func}, @wasm-code{local.get}, @wasm-code{i32.add}), linked to the WebAssembly Core Spec site by default.}
 ]
+
+@subsection[#:tag "plain-html"]{Plain HTML and SXML}
+
+The Scribble forms are the primary interface for manuals, but the same
+tokenization and linking pipeline can also generate ordinary HTML or SXML
+for use in a normal web page.
+
+@subsubsection[#:tag "html-format"]{HTML strings}
+
+Use @racket[code->html] for inline snippets and
+@racket[code-block->html] for block snippets. These functions return strings,
+so they fit directly into ordinary HTML page generation.
+
+@racketmod[
+racket/base
+(require scribble-tools/html)
+
+(define snippet
+  (code-block->html 'js
+                    #:line-numbers 1
+                    "const n = 42;\nconsole.log(n);\n"))
+
+(define page
+  (string-append
+   "<!doctype html><html><head>"
+   (code-html-support)
+   "</head><body>"
+   snippet
+   "</body></html>"))]
+
+When a page uses block snippets, copy buttons, CSS previews, font previews,
+or other interactive decorations, include @racket[code-html-support] once in
+the page's @tt{head}.  The support string contains the styles and JavaScript
+used by the generated markup.
+
+@subsubsection[#:tag "sxml-format"]{SXML values}
+
+Use @racket[code->sxml] and @racket[code-block->sxml] when you want to compose
+the generated markup as data before serializing it. These functions return
+SXML-shaped values:
+
+@racketmod[
+racket/base
+(require scribble-tools/html)
+
+(define body
+  `(main
+    (h1 "Renderer demo")
+    (p "Inline: " ,(code->sxml 'racket "(add1 n)"))
+    ,(code-block->sxml 'python
+                       #:line-numbers 1
+                       "def total(xs):\n    return sum(xs)\n")))
+
+(define head
+  `(head
+    (meta ((charset "utf-8")))
+    ,@(code-html-support-sxml)))]
+
+The convenience HTML functions are equivalent to rendering through this SXML
+format and serializing the result.
+
+Use @racket[code->scribble] and @racket[code-block->scribble] when a program
+needs Scribble values from computed source text instead of using forms such as
+@racket[css-code] and @racket[cssblock].
+
+Escapes in the HTML/SXML API are explicit: pass strings for ordinary source,
+@racket[raw-sxml] to splice SXML, or @racket[raw-html] to splice trusted raw
+HTML during serialization. Use @racket[raw-sxml] with the SXML API and
+@racket[raw-html] when a pre-rendered HTML fragment must pass through the HTML
+serializer unchanged. Arbitrary Scribble elements are still supported by the
+Scribble forms, but are rejected by the HTML/SXML renderer.
 
 @section{Reference}
 
@@ -1386,6 +1455,207 @@ Rendered legend example:
  @item{Radius chip: detected @racket[border-radius] values, where the chip corner radius mirrors the declaration.}
  @item{Font @tt{Aa}: preview of @racket[font-family], including fallback resolution tooltip and missing-font warning.}
 ]
+
+@subsection{HTML, SXML, and Scribble Renderers}
+
+@defmodule[scribble-tools/html]
+
+Use this module when you want the same code-snippet rendering outside the
+language-specific Scribble forms. It provides three output families:
+
+@itemlist[
+ @item{HTML strings, via @racket[code->html] and @racket[code-block->html], for ordinary web pages;}
+ @item{SXML values, via @racket[code->sxml] and @racket[code-block->sxml], for composing markup as data;}
+ @item{Scribble values, via @racket[code->scribble] and @racket[code-block->scribble], for callers that need a renderer procedure instead of a form.}
+]
+
+All six rendering procedures take a @racket[lang] symbol followed by one or
+more source values. Recognized language symbols are @racket['css],
+@racket['c], @racket['cpp], @racket['csv], @racket['go], @racket['html],
+@racket['java], @racket['js], @racket['json], @racket['haskell],
+@racket['latex], @racket['makefile], @racket['markdown],
+@racket['mathematica], @racket['objc], @racket['pascal], @racket['plist],
+@racket['python], @racket['racket], @racket['rhombus], @racket['rust],
+@racket['swift], @racket['tex], @racket['tsv], @racket['wasm],
+@racket['yaml], @racket['scribble], @racket['bash], @racket['zsh], and
+@racket['powershell]. The symbol @racket['pwsh] is accepted as an alias for
+@racket['powershell], and @racket['shell] selects
+@racket[(current-scribble-shell)]. Other symbols are accepted, but render as
+plain text without language-specific coloring or documentation links.
+
+For the HTML and SXML procedures, each @racket[value] must be one of:
+
+@itemlist[
+ @item{a string, which contributes source text;}
+ @item{@racket[(raw-sxml v)], which splices @racket[v] as SXML;}
+ @item{@racket[(raw-html s)], which carries trusted pre-rendered HTML through serialization.}
+]
+
+For the Scribble procedures, string values contribute source text and
+non-string values are spliced as Scribble content.
+
+@defproc[(code->html [lang symbol?]
+                     [#:color-swatch? color-swatch? boolean? #t]
+                     [#:font-preview? font-preview? boolean? #t]
+                     [#:dimension-preview? dimension-preview? boolean? #t]
+                     [#:mdn-links? mdn-links? boolean? #t]
+                     [#:docs-source docs-source any/c #f]
+                     [#:preview-tooltips? preview-tooltips? boolean? #t]
+                     [#:preview-mode preview-mode symbol? 'always]
+                     [#:preview-css-url preview-css-url (or/c #f string?) #f]
+                     [#:jsx? jsx? boolean? #f]
+                     [value (or/c string? raw-sxml? raw-html?)] ...)
+         string?]{
+Renders an inline code snippet as an HTML string. Include
+@racket[code-html-support] in the page when the snippet may contain previews
+or other generated support markup.
+
+The optional keyword arguments control inline rendering:
+
+@itemlist[
+ @item{@racket[#:color-swatch?] enables CSS color and gradient previews when supported by the language.}
+ @item{@racket[#:font-preview?] enables CSS font-family previews when supported by the language.}
+ @item{@racket[#:dimension-preview?] enables compact spacing, radius, and similar numeric-value previews.}
+ @item{@racket[#:mdn-links?] controls documentation links for recognized identifiers.}
+ @item{@racket[#:docs-source] selects the documentation source for languages with more than one link map, such as shell and WebAssembly snippets.}
+ @item{@racket[#:preview-tooltips?] controls tooltip attributes on generated preview elements.}
+ @item{@racket[#:preview-mode] selects when previews are emitted; @racket['always] emits them in the generated markup.}
+ @item{@racket[#:preview-css-url] supplies an optional stylesheet URL used by previews that need page CSS context.}
+ @item{@racket[#:jsx?] treats JavaScript snippets as JSX when @racket[lang] is @racket['js].}
+]}
+
+@defproc[(code-block->html [lang symbol?]
+                           [#:file filename (or/c #f string?) #f]
+                           [#:indent indent exact-nonnegative-integer? 0]
+                           [#:line-numbers line-numbers (or/c #f exact-integer?) #f]
+                           [#:line-number-sep line-number-sep exact-nonnegative-integer? 1]
+                           [#:copy-button? copy-button? boolean? #t]
+                           [#:color-swatch? color-swatch? boolean? #t]
+                           [#:font-preview? font-preview? boolean? #t]
+                           [#:dimension-preview? dimension-preview? boolean? #t]
+                           [#:mdn-links? mdn-links? boolean? #t]
+                           [#:docs-source docs-source any/c #f]
+                           [#:preview-tooltips? preview-tooltips? boolean? #t]
+                           [#:preview-mode preview-mode symbol? 'always]
+                           [#:preview-css-url preview-css-url (or/c #f string?) #f]
+                           [#:jsx? jsx? boolean? #f]
+                           [#:inset? inset? boolean? #t]
+                           [value (or/c string? raw-sxml? raw-html?)] ...)
+         string?]{
+Renders a block code snippet as an HTML string.
+
+The block-specific keyword arguments control the surrounding block:
+
+@itemlist[
+ @item{@racket[#:file] adds a file label when given a string; @racket[#f] disables the label.}
+ @item{@racket[#:indent] adds leading indentation to the displayed block.}
+ @item{@racket[#:line-numbers] starts line numbering at the given integer; @racket[#f] disables line numbers.}
+ @item{@racket[#:line-number-sep] controls the space between line numbers and source text.}
+ @item{@racket[#:copy-button?] controls whether generated markup includes copy-button support for the block source.}
+ @item{@racket[#:inset?] controls whether the block is visually wrapped like a Scribble code block.}
+]
+
+The remaining keyword arguments have the same meanings as in
+@racket[code->html].}
+
+@defproc[(code->sxml [lang symbol?]
+                     [#:color-swatch? color-swatch? boolean? #t]
+                     [#:font-preview? font-preview? boolean? #t]
+                     [#:dimension-preview? dimension-preview? boolean? #t]
+                     [#:mdn-links? mdn-links? boolean? #t]
+                     [#:docs-source docs-source any/c #f]
+                     [#:preview-tooltips? preview-tooltips? boolean? #t]
+                     [#:preview-mode preview-mode symbol? 'always]
+                     [#:preview-css-url preview-css-url (or/c #f string?) #f]
+                     [#:jsx? jsx? boolean? #f]
+                     [value (or/c string? raw-sxml? raw-html?)] ...)
+         any/c]{
+Renders an inline code snippet as an SXML value. The result may contain
+@racket[raw-html] values when the input includes trusted raw HTML escapes;
+serialize it with the same serializer used by @racket[code->html]. The
+keyword arguments have the same meanings as in @racket[code->html].}
+
+@defproc[(code-block->sxml [lang symbol?]
+                           [#:file filename (or/c #f string?) #f]
+                           [#:indent indent exact-nonnegative-integer? 0]
+                           [#:line-numbers line-numbers (or/c #f exact-integer?) #f]
+                           [#:line-number-sep line-number-sep exact-nonnegative-integer? 1]
+                           [#:copy-button? copy-button? boolean? #t]
+                           [#:color-swatch? color-swatch? boolean? #t]
+                           [#:font-preview? font-preview? boolean? #t]
+                           [#:dimension-preview? dimension-preview? boolean? #t]
+                           [#:mdn-links? mdn-links? boolean? #t]
+                           [#:docs-source docs-source any/c #f]
+                           [#:preview-tooltips? preview-tooltips? boolean? #t]
+                           [#:preview-mode preview-mode symbol? 'always]
+                           [#:preview-css-url preview-css-url (or/c #f string?) #f]
+                           [#:jsx? jsx? boolean? #f]
+                           [#:inset? inset? boolean? #t]
+                           [value (or/c string? raw-sxml? raw-html?)] ...)
+         any/c]{
+Renders a block code snippet as an SXML value. It accepts the same block and
+language-specific keyword options as @racket[code-block->html], with the same
+meanings.}
+
+@defproc[(code-html-support) string?]{
+Returns the CSS and JavaScript support string used by the generated HTML
+renderer output. Include it once in the page's @tt{head}.}
+
+@defproc[(code-html-support-sxml) list?]{
+Returns the CSS and JavaScript support nodes as SXML.}
+
+@defproc[(code->scribble [lang symbol?]
+                         [#:color-swatch? color-swatch? boolean? #t]
+                         [#:font-preview? font-preview? boolean? #t]
+                         [#:dimension-preview? dimension-preview? boolean? #t]
+                         [#:mdn-links? mdn-links? boolean? #t]
+                         [#:docs-source docs-source any/c #f]
+                         [#:preview-tooltips? preview-tooltips? boolean? #t]
+                         [#:preview-mode preview-mode symbol? 'always]
+                         [#:preview-css-url preview-css-url (or/c #f string?) #f]
+                         [#:jsx? jsx? boolean? #f]
+                         [value any/c] ...)
+         any/c]{
+Renders an inline code snippet as a Scribble value. String values are tokenized
+as source text; non-string values are spliced into the resulting Scribble
+content. The keyword arguments have the same meanings as in
+@racket[code->html], except that Scribble values are produced instead of HTML
+strings.}
+
+@defproc[(code-block->scribble [lang symbol?]
+                               [#:file filename (or/c #f string?) #f]
+                               [#:indent indent exact-nonnegative-integer? 0]
+                               [#:line-numbers line-numbers (or/c #f exact-integer?) #f]
+                               [#:line-number-sep line-number-sep exact-nonnegative-integer? 1]
+                               [#:copy-button? copy-button? boolean? #t]
+                               [#:color-swatch? color-swatch? boolean? #t]
+                               [#:font-preview? font-preview? boolean? #t]
+                               [#:dimension-preview? dimension-preview? boolean? #t]
+                               [#:mdn-links? mdn-links? boolean? #t]
+                               [#:docs-source docs-source any/c #f]
+                               [#:preview-tooltips? preview-tooltips? boolean? #t]
+                               [#:preview-mode preview-mode symbol? 'always]
+                               [#:preview-css-url preview-css-url (or/c #f string?) #f]
+                               [#:jsx? jsx? boolean? #f]
+                               [#:inset? inset? boolean? #t]
+                               [value any/c] ...)
+         any/c]{
+Renders a block code snippet as a Scribble value. It accepts the same block
+and language-specific keyword options as @racket[code-block->html]. String
+values are tokenized as source text; non-string values are spliced into the
+resulting Scribble content.}
+
+@defproc[(raw-sxml [value any/c]) raw-sxml?]{
+Wraps @racket[value] so the SXML renderer splices it as markup.}
+
+@defproc[(raw-sxml? [value any/c]) boolean?]{
+Recognizes values produced by @racket[raw-sxml].}
+
+@defproc[(raw-html [value string?]) raw-html?]{
+Wraps trusted HTML so the HTML serializer emits it without escaping.}
+
+@defproc[(raw-html? [value any/c]) boolean?]{
+Recognizes values produced by @racket[raw-html].}
 
 @subsection{MDN Maps}
 

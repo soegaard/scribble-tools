@@ -30,6 +30,13 @@ Plain HTML example:
 ```
 
 Use `code->sxml` and `code-block->sxml` when you want to compose the output
-before serializing it.
+before serializing it. Use `code->scribble` and `code-block->scribble` to
+produce Scribble values from computed source text.
+
+To generate a standalone demo page for all supported languages:
+
+```sh
+racket -l scribble-tools/html-demo -- --output html/renderer-demo.html
+```
 
 For full usage and reference, see `scribblings/scribble-tools.scrbl`.

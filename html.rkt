@@ -6,6 +6,10 @@
          code-block->sxml
          code->html
          code-block->html
+         code->scribble
+         code-block->scribble
+         code->scribble/legacy
+         code-block->scribble/legacy
          code-html-support-sxml
          code-html-support
          raw-sxml

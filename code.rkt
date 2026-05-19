@@ -91,6 +91,10 @@
          code-block->sxml
          code->html
          code-block->html
+         code->scribble
+         code-block->scribble
+         code->scribble/legacy
+         code-block->scribble/legacy
          code-html-support-sxml
          code-html-support
          raw-sxml
@@ -199,6 +203,10 @@
 (define code-block->sxml lang:code-block->sxml)
 (define code->html lang:code->html)
 (define code-block->html lang:code-block->html)
+(define code->scribble lang:code->scribble)
+(define code-block->scribble lang:code-block->scribble)
+(define code->scribble/legacy lang:code->scribble/legacy)
+(define code-block->scribble/legacy lang:code-block->scribble/legacy)
 (define code-html-support-sxml lang:code-html-support-sxml)
 (define code-html-support lang:code-html-support)
 (define raw-sxml lang:raw-sxml)
