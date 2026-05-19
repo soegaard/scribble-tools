@@ -351,6 +351,11 @@
 (define code-inset-tab-style
   (make-style 'code-inset
               (list (attributes '((style . "tab-size: 2; -moz-tab-size: 2;"))))))
+(define highlighted-line-style
+  (make-style #f
+              (list 'omitable
+                    (attributes '((class . "stx-line-highlight")
+                                  (style . "background-color: rgba(255, 214, 102, .22);"))))))
 (define inline-code-font-style
   ;; Ensure inline snippets inherit the same monospace face as Racket docs.
   ;; This keeps tokens with custom color-only styles in Fira Mono, too.
@@ -4691,7 +4696,7 @@ JS
 (struct code-runtime () #:transparent)
 (struct code-escape (value) #:transparent)
 (struct code-inline-doc (lang parts) #:transparent)
-(struct code-line (number parts) #:transparent)
+(struct code-line (number parts highlighted?) #:transparent)
 (struct code-block-doc (lang file lines copy-text inset? line-number-sep) #:transparent)
 (struct raw-sxml (value) #:transparent)
 (struct raw-html (value) #:transparent)
@@ -4970,7 +4975,49 @@ JS
              [(code-link? p) (parts->copy-text (code-link-parts p))]
              [else ""]))))
 
-(define (parts->code-lines parts #:line-numbers [line-numbers #f])
+(define (highlight-line-set who specs)
+  (define (positive-line-number? v)
+    (and (exact-integer? v) (positive? v)))
+  (define (add-range spec start end acc)
+    (unless (and (positive-line-number? start)
+                 (positive-line-number? end)
+                 (<= start end))
+      (raise-argument-error
+       who
+       "(listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?)))"
+       spec))
+    (for/fold ([acc acc]) ([i (in-range start (add1 end))])
+      (set-add acc i)))
+  (cond
+    [(or (not specs) (null? specs)) (set)]
+    [(not (list? specs))
+     (raise-argument-error
+      who
+      "(or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))))"
+      specs)]
+    [else
+     (for/fold ([acc (set)]) ([spec (in-list specs)])
+       (cond
+         [(positive-line-number? spec) (set-add acc spec)]
+         [(and (pair? spec)
+               (positive-line-number? (car spec))
+               (positive-line-number? (cdr spec)))
+          (add-range spec (car spec) (cdr spec) acc)]
+         [(and (list? spec)
+               (= (length spec) 2)
+               (positive-line-number? (first spec))
+               (positive-line-number? (second spec)))
+          (add-range spec (first spec) (second spec) acc)]
+         [else
+          (raise-argument-error
+           who
+           "(or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))"
+           spec)]))]))
+
+(define (parts->code-lines parts
+                           #:line-numbers [line-numbers #f]
+                           #:highlight-lines [highlight-lines #f])
+  (define highlighted-lines (highlight-line-set 'highlight-lines highlight-lines))
   (define (trim-final-empty-line lines)
     (cond
       [(and (pair? lines)
@@ -4987,8 +5034,11 @@ JS
           (loop (cdr rest) (cons (reverse line) lines) null)]
          [else (loop (cdr rest) lines (cons (car rest) line))]))))
   (for/list ([line (in-list raw-lines)]
-             [i (in-naturals (or line-numbers 1))])
-    (code-line (and line-numbers i) line)))
+             [source-i (in-naturals 1)]
+             [display-i (in-naturals (or line-numbers 1))])
+    (code-line (and line-numbers display-i)
+               line
+               (set-member? highlighted-lines source-i))))
 
 (define (make-code-parts lang chunks
                          #:inline? [inline? #f]
@@ -5081,7 +5131,10 @@ JS
                                                           (hspace sep)))))])
           (cons number-node parts))
         parts))
-  (list (paragraph omitable numbered-parts)))
+  (list (paragraph (if (code-line-highlighted? line)
+                       highlighted-line-style
+                       omitable)
+                   numbered-parts)))
 
 (define (code-block-doc->scribble doc #:copy-button? [copy-button? #t])
   (define lang (code-block-doc-lang doc))
@@ -5170,13 +5223,20 @@ JS
                 (list (format "~a " n))))
 
 (define (code-line->sxml line sep last?)
+  (define line-content
+    (append
+     (if (code-line-number line)
+         (list (line-number-sxml (format "~a~a"
+                                          (code-line-number line)
+                                          (make-string sep #\space))))
+         null)
+     (code-parts->sxml-list (code-line-parts line))))
   (append
-   (if (code-line-number line)
-       (list (line-number-sxml (format "~a~a"
-                                        (code-line-number line)
-                                        (make-string sep #\space))))
-       null)
-   (code-parts->sxml-list (code-line-parts line))
+   (if (code-line-highlighted? line)
+       (list (sxml-element 'span
+                           '((class . "stx-line-highlight"))
+                           line-content))
+       line-content)
    (if last? null (list "\n"))))
 
 (define (code-block-doc->sxml doc #:copy-button? [copy-button? #t])
@@ -5219,7 +5279,7 @@ JS
   #<<CSS
 .scribble-tools-code,.scribble-tools-block{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;}
 .scribble-tools-block{tab-size:2;-moz-tab-size:2;overflow:auto;padding:.75rem .9rem;border:1px solid rgba(120,120,120,.25);background:rgba(248,248,248,.92);}
-.stx-comment{color:#6A9955}.stx-keyword,.stx-static-keyword,.stx-wasm-form{color:#07A}.stx-value,.stx-wasm-type{color:#A31515}.stx-name{color:#262680}.stx-decl-name{color:#795E26}.stx-prop-name,.stx-method-name,.stx-private-name{color:#5A3E8E}.stx-object-key,.stx-param-name{color:#1F5F8B}.stx-operator{color:#8A4F00}.stx-punct{color:#7A6A4A}.stx-type-name,.stx-builtin-name{font-weight:600;color:#2B5F8A}.stx-make-target,.stx-recipe-command{font-weight:600;color:#07A}.stx-make-variable{color:#6B2F8A}.stx-line-number{display:inline-block;min-width:2.5em;padding-right:.75em;color:rgba(90,90,90,.72);text-align:right;user-select:none}.stx-link{color:inherit;text-decoration:none}.stx-link:hover{text-decoration:underline}
+.stx-comment{color:#6A9955}.stx-keyword,.stx-static-keyword,.stx-wasm-form{color:#07A}.stx-value,.stx-wasm-type{color:#A31515}.stx-name{color:#262680}.stx-decl-name{color:#795E26}.stx-prop-name,.stx-method-name,.stx-private-name{color:#5A3E8E}.stx-object-key,.stx-param-name{color:#1F5F8B}.stx-operator{color:#8A4F00}.stx-punct{color:#7A6A4A}.stx-type-name,.stx-builtin-name{font-weight:600;color:#2B5F8A}.stx-make-target,.stx-recipe-command{font-weight:600;color:#07A}.stx-make-variable{color:#6B2F8A}.stx-line-number{display:inline-block;min-width:2.5em;padding-right:.75em;color:rgba(90,90,90,.72);text-align:right;user-select:none}.stx-line-highlight{background:rgba(255,214,102,.22)}.stx-link{color:inherit;text-decoration:none}.stx-link:hover{text-decoration:underline}
 CSS
   )
 
@@ -5314,6 +5374,7 @@ CSS
                           #:indent [indent 0]
                           #:line-numbers [line-numbers #f]
                           #:line-number-sep [line-number-sep 1]
+                          #:highlight-lines [highlight-lines #f]
                           #:copy-button? [copy-button? #t]
                           #:color-swatch? [color-swatch? #t]
                           #:font-preview? [font-preview? #t]
@@ -5347,7 +5408,9 @@ CSS
   (define doc
     (code-block-doc lang*
                     filename
-                    (parts->code-lines parts #:line-numbers line-numbers)
+                    (parts->code-lines parts
+                                       #:line-numbers line-numbers
+                                       #:highlight-lines highlight-lines)
                     (parts->copy-text parts0)
                     inset?
                     line-number-sep))
@@ -5386,6 +5449,7 @@ CSS
                               #:indent [indent 0]
                               #:line-numbers [line-numbers #f]
                               #:line-number-sep [line-number-sep 1]
+                              #:highlight-lines [highlight-lines #f]
                               #:copy-button? [copy-button? #t]
                               #:color-swatch? [color-swatch? #t]
                               #:font-preview? [font-preview? #t]
@@ -5419,7 +5483,9 @@ CSS
   (define doc
     (code-block-doc lang*
                     filename
-                    (parts->code-lines parts #:line-numbers line-numbers)
+                    (parts->code-lines parts
+                                       #:line-numbers line-numbers
+                                       #:highlight-lines highlight-lines)
                     (parts->copy-text parts0)
                     inset?
                     line-number-sep))
@@ -5464,6 +5530,7 @@ CSS
                           #:indent [indent 0]
                           #:line-numbers [line-numbers #f]
                           #:line-number-sep [line-number-sep 1]
+                          #:highlight-lines [highlight-lines #f]
                           #:copy-button? [copy-button? #t]
                           #:color-swatch? [color-swatch? #t]
                           #:font-preview? [font-preview? #t]
@@ -5484,6 +5551,7 @@ CSS
                     #:docs-source
                     #:file
                     #:font-preview?
+                    #:highlight-lines
                     #:indent
                     #:inset?
                     #:jsx?
@@ -5499,6 +5567,7 @@ CSS
                         docs-source
                         filename
                         font-preview?
+                        highlight-lines
                         indent
                         inset?
                         jsx?
@@ -5853,6 +5922,9 @@ CSS
                    (~optional (~seq #:line-numbers line-numbers-expr:expr)
                               #:defaults ([line-numbers-expr #'#f])
                               #:name "#:line-numbers keyword")
+                   (~optional (~seq #:highlight-lines highlight-lines-expr:expr)
+                              #:defaults ([highlight-lines-expr #'#f])
+                              #:name "#:highlight-lines keyword")
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
@@ -5879,6 +5951,7 @@ CSS
                               #:file filename-expr
                               #:indent indent-expr
                               #:line-numbers line-numbers-expr
+                              #:highlight-lines highlight-lines-expr
                               #:line-number-sep line-number-sep-expr
                               #:copy-button? copy-button-expr
                               #:mdn-links? mdn-links-expr
@@ -5893,6 +5966,9 @@ CSS
                    (~optional (~seq #:line-numbers line-numbers-expr:expr)
                               #:defaults ([line-numbers-expr #'#f])
                               #:name "#:line-numbers keyword")
+                   (~optional (~seq #:highlight-lines highlight-lines-expr:expr)
+                              #:defaults ([highlight-lines-expr #'#f])
+                              #:name "#:highlight-lines keyword")
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
@@ -5918,6 +5994,7 @@ CSS
                               #:file filename-expr
                               #:indent indent-expr
                               #:line-numbers line-numbers-expr
+                              #:highlight-lines highlight-lines-expr
                               #:line-number-sep line-number-sep-expr
                               #:copy-button? copy-button-expr
                               #:inset? #,inset?
@@ -5931,6 +6008,9 @@ CSS
                    (~optional (~seq #:line-numbers line-numbers-expr:expr)
                               #:defaults ([line-numbers-expr #'#f])
                               #:name "#:line-numbers keyword")
+                   (~optional (~seq #:highlight-lines highlight-lines-expr:expr)
+                              #:defaults ([highlight-lines-expr #'#f])
+                              #:name "#:highlight-lines keyword")
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
@@ -5972,6 +6052,7 @@ CSS
                               #:file filename-expr
                               #:indent indent-expr
                               #:line-numbers line-numbers-expr
+                              #:highlight-lines highlight-lines-expr
                               #:line-number-sep line-number-sep-expr
                               #:copy-button? copy-button-expr
                               #:color-swatch? color-swatch-expr
@@ -5992,6 +6073,9 @@ CSS
                    (~optional (~seq #:line-numbers line-numbers-expr:expr)
                               #:defaults ([line-numbers-expr #'#f])
                               #:name "#:line-numbers keyword")
+                   (~optional (~seq #:highlight-lines highlight-lines-expr:expr)
+                              #:defaults ([highlight-lines-expr #'#f])
+                              #:name "#:highlight-lines keyword")
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
@@ -6018,6 +6102,7 @@ CSS
                               #:file filename-expr
                               #:indent indent-expr
                               #:line-numbers line-numbers-expr
+                              #:highlight-lines highlight-lines-expr
                               #:line-number-sep line-number-sep-expr
                               #:copy-button? copy-button-expr
                               #:mdn-links? mdn-links-expr
@@ -6033,6 +6118,9 @@ CSS
                    (~optional (~seq #:line-numbers line-numbers-expr:expr)
                               #:defaults ([line-numbers-expr #'#f])
                               #:name "#:line-numbers keyword")
+                   (~optional (~seq #:highlight-lines highlight-lines-expr:expr)
+                              #:defaults ([highlight-lines-expr #'#f])
+                              #:name "#:highlight-lines keyword")
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
@@ -6053,6 +6141,7 @@ CSS
                               #:file filename-expr
                               #:indent indent-expr
                               #:line-numbers line-numbers-expr
+                              #:highlight-lines highlight-lines-expr
                               #:line-number-sep line-number-sep-expr
                               #:copy-button? copy-button-expr
                               #:inset? #,inset?
@@ -6066,6 +6155,9 @@ CSS
                    (~optional (~seq #:line-numbers line-numbers-expr:expr)
                               #:defaults ([line-numbers-expr #'#f])
                               #:name "#:line-numbers keyword")
+                   (~optional (~seq #:highlight-lines highlight-lines-expr:expr)
+                              #:defaults ([highlight-lines-expr #'#f])
+                              #:name "#:highlight-lines keyword")
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
@@ -6086,6 +6178,7 @@ CSS
                               #:file filename-expr
                               #:indent indent-expr
                               #:line-numbers line-numbers-expr
+                              #:highlight-lines highlight-lines-expr
                               #:line-number-sep line-number-sep-expr
                               #:copy-button? copy-button-expr
                               #:inset? #,inset?
@@ -6099,6 +6192,9 @@ CSS
                    (~optional (~seq #:line-numbers line-numbers-expr:expr)
                               #:defaults ([line-numbers-expr #'#f])
                               #:name "#:line-numbers keyword")
+                   (~optional (~seq #:highlight-lines highlight-lines-expr:expr)
+                              #:defaults ([highlight-lines-expr #'#f])
+                              #:name "#:highlight-lines keyword")
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
@@ -6122,6 +6218,7 @@ CSS
                               #:file filename-expr
                               #:indent indent-expr
                               #:line-numbers line-numbers-expr
+                              #:highlight-lines highlight-lines-expr
                               #:line-number-sep line-number-sep-expr
                               #:copy-button? copy-button-expr
                               #:docs-source docs-source-expr
@@ -6142,6 +6239,9 @@ CSS
                    (~optional (~seq #:line-numbers line-numbers-expr:expr)
                               #:defaults ([line-numbers-expr #'#f])
                               #:name "#:line-numbers keyword")
+                   (~optional (~seq #:highlight-lines highlight-lines-expr:expr)
+                              #:defaults ([highlight-lines-expr #'#f])
+                              #:name "#:highlight-lines keyword")
                    (~optional (~seq #:line-number-sep line-number-sep-expr:expr)
                               #:defaults ([line-number-sep-expr #'1])
                               #:name "#:line-number-sep keyword")
@@ -6163,6 +6263,7 @@ CSS
                                #:file filename-expr
                                #:indent indent-expr
                                #:line-numbers line-numbers-expr
+                               #:highlight-lines highlight-lines-expr
                                #:line-number-sep line-number-sep-expr
                                #:copy-button? copy-button-expr
                                #:docs-source docs-source-expr
@@ -7620,6 +7721,28 @@ CSS
                                  #:line-numbers 1
                                  "one\n\n")])
     (check-equal? (length (regexp-match* #rx"stx-line-number" html)) 2))
+  (let ([html (code-block->html 'js
+                                 #:line-numbers 10
+                                 #:highlight-lines '(2 (4 . 5))
+                                 "a\nb\nc\nd\ne\n")])
+    (check-equal? (length (regexp-match* #rx"stx-line-highlight" html)) 3)
+    (check-true (string-contains? html ">11  </span>")))
+  (let ([html (sxml->html
+               (code-block->sxml 'python
+                                 #:highlight-lines '(1 (3 4))
+                                 "a\nb\nc\nd\n"))])
+    (check-equal? (length (regexp-match* #rx"stx-line-highlight" html)) 3))
+  (check-true
+   (has-class? (code-block->scribble 'js
+                                     #:highlight-lines '(2)
+                                     "a\nb\n")
+               "stx-line-highlight"))
+  (check-true
+   (has-class? (cssblock #:highlight-lines '(1) ".x { color: red; }")
+               "stx-line-highlight"))
+  (check-exn exn:fail?
+             (lambda ()
+               (code-block->html 'js #:highlight-lines '(0) "x")))
   (check-true (string-contains? (code-html-support) "scribble-copy-btn"))
   (let ([new-inline (code->scribble 'js "const x = 1;")]
         [old-inline (js-code "const x = 1;")])

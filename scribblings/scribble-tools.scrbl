@@ -336,6 +336,21 @@ Use these options to add decorations to block output:
            .card {
              color: #c33;
            }
+           }})
+  (list
+   @nested{@bold{Highlighted lines}
+
+           @scribbleblock[
+             "@cssblock[#:line-numbers 1 #:highlight-lines '(2)]{\n"
+             ".card {\n"
+             "  color: #c33;\n"
+             "}\n"
+             "}\n"]}
+   @nested{@italic{Rendered result}
+           @cssblock[#:line-numbers 1 #:highlight-lines '(2)]{
+           .card {
+             color: #c33;
+           }
            }}))]
 
 @subsection{Preview Visualizations}
@@ -840,11 +855,16 @@ Example: @csv-code["name,age"]
 
 @subsection{Block Forms}
 
+All block forms accept @racket[#:highlight-lines]. The value is @racket[#f]
+or a list of one-based source line numbers and inclusive ranges such as
+@racket[(2 . 4)] or @racket[(list 2 4)].
+
 @subsubsection[#:tag "reference-block-web-languages"]{Web Languages}
 
 @defform/subs[(cssblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
+                       (code:line #:highlight-lines highlight-lines-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
                        (code:line #:copy-button? copy-button?-expr)
                        (code:line #:color-swatch? color-swatch?-expr)
@@ -858,6 +878,7 @@ Example: @csv-code["name,age"]
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
                            [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [highlight-lines-expr (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))))]
                            [line-number-sep-expr exact-nonnegative-integer?])]{
 Typesets CSS as a block inset using @racket['code-inset].
 Options:
@@ -865,6 +886,7 @@ Options:
 @itemlist[
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:highlight-lines] highlights one-based source lines. Use integers for individual lines or inclusive ranges such as @racket[(2 . 4)] or @racket[(list 2 4)] (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:color-swatch?] controls whether detected CSS color literals are followed by a small swatch; gradient literals are shown as a small bar (default: @racket[#t]).}
@@ -902,6 +924,7 @@ Example:
 @defform/subs[(htmlblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
+                       (code:line #:highlight-lines highlight-lines-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
                        (code:line #:copy-button? copy-button?-expr)
                        (code:line #:mdn-links? mdn-links?-expr)
@@ -909,6 +932,7 @@ Example:
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
                            [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [highlight-lines-expr (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))))]
                            [line-number-sep-expr exact-nonnegative-integer?])]{
 Typesets HTML as a block inset using @racket['code-inset].
 Options:
@@ -916,6 +940,7 @@ Options:
 @itemlist[
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:highlight-lines] highlights one-based source lines. Use integers for individual lines or inclusive ranges such as @racket[(2 . 4)] or @racket[(list 2 4)] (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:mdn-links?] controls whether common HTML tokens are wrapped as hyperlinks to MDN documentation, including CSS and JavaScript tokens that appear inside @tt{<style>} and @tt{<script>} sections (default: @racket[#t]).}
@@ -948,6 +973,7 @@ Example:
 @defform/subs[(jsblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
+                       (code:line #:highlight-lines highlight-lines-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
                        (code:line #:copy-button? copy-button?-expr)
                        (code:line #:jsx? jsx?-expr)
@@ -956,6 +982,7 @@ Example:
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
                            [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [highlight-lines-expr (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))))]
                            [line-number-sep-expr exact-nonnegative-integer?])]{
 Typesets JavaScript as a block inset using @racket['code-inset].
 Options:
@@ -963,6 +990,7 @@ Options:
 @itemlist[
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:highlight-lines] highlights one-based source lines. Use integers for individual lines or inclusive ranges such as @racket[(2 . 4)] or @racket[(list 2 4)] (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:jsx?] enables JSX-aware tokenization for snippets containing embedded tags (default: @racket[#f]).}
@@ -1069,12 +1097,14 @@ Like @racket[pascalblock], but without the inset wrapper.
 @defform/subs[(pythonblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
+                       (code:line #:highlight-lines highlight-lines-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
                        (code:line #:copy-button? copy-button?-expr)
                        (code:line #:file filename-expr)
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
                            [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [highlight-lines-expr (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))))]
                            [line-number-sep-expr exact-nonnegative-integer?])]{
 Typesets Python as a block inset using @racket['code-inset].
 Options:
@@ -1082,6 +1112,7 @@ Options:
 @itemlist[
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:highlight-lines] highlights one-based source lines. Use integers for individual lines or inclusive ranges such as @racket[(2 . 4)] or @racket[(list 2 4)] (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
@@ -1143,6 +1174,7 @@ Like @racket[rustblock], but without the inset wrapper.
 @defform/subs[(wasmblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
+                       (code:line #:highlight-lines highlight-lines-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
                        (code:line #:copy-button? copy-button?-expr)
                        (code:line #:docs-source docs-source-expr)
@@ -1150,6 +1182,7 @@ Like @racket[rustblock], but without the inset wrapper.
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
                            [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [highlight-lines-expr (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))))]
                            [line-number-sep-expr exact-nonnegative-integer?])]{
 Typesets WebAssembly text (WAT) as a block inset using @racket['code-inset].
 Options:
@@ -1157,6 +1190,7 @@ Options:
 @itemlist[
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:highlight-lines] highlights one-based source lines. Use integers for individual lines or inclusive ranges such as @racket[(2 . 4)] or @racket[(list 2 4)] (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:docs-source] selects WebAssembly link targets: @racket['wasm-spec-3.0], @racket['mdn], or @racket['none]. Default: @racket[(current-wasm-docs-source)].}
@@ -1251,12 +1285,14 @@ Like @racket[plistblock], but without the inset wrapper.
                        (code:line #:docs-source docs-source-expr)
                        (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
+                       (code:line #:highlight-lines highlight-lines-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
                        (code:line #:copy-button? copy-button?-expr)
                        (code:line #:file filename-expr)
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
                            [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [highlight-lines-expr (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))))]
                            [line-number-sep-expr exact-nonnegative-integer?])]{
 Typesets shell source as a block inset using @racket['code-inset].
 Options:
@@ -1266,6 +1302,7 @@ Options:
  @item{@racket[#:docs-source] selects link targets: @racket['auto], @racket['bash], @racket['zsh], @racket['powershell], @racket['posix], or @racket['none]. Default: @racket[(current-shell-docs-source)]. With @racket['auto], links follow the effective shell selected by @racket[#:shell] (or @racket[current-scribble-shell]).}
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:highlight-lines] highlights one-based source lines. Use integers for individual lines or inclusive ranges such as @racket[(2 . 4)] or @racket[(list 2 4)] (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:copy-button?] controls whether a copy icon appears on hover/focus to copy the block text to the clipboard (default: @racket[#t]).}
  @item{@racket[#:file] wraps the result in @racket[filebox] with @racket[filename-expr] as label (default: @racket[#f], i.e. no file label).}
@@ -1364,6 +1401,7 @@ The default value is @racket[#f].
 @defform/subs[(scribbleblock option ... str-expr ...+)
               ([option (code:line #:indent indent-expr)
                        (code:line #:line-numbers line-number-expr)
+                       (code:line #:highlight-lines highlight-lines-expr)
                        (code:line #:line-number-sep line-number-sep-expr)
                        (code:line #:lang lang-expr)
                        (code:line #:context context-expr)
@@ -1372,6 +1410,7 @@ The default value is @racket[#f].
                        (code:line #:escape escape-id)])
               #:contracts ([indent-expr exact-nonnegative-integer?]
                            [line-number-expr (or/c #f exact-nonnegative-integer?)]
+                           [highlight-lines-expr (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?))))]
                            [line-number-sep-expr exact-nonnegative-integer?]
                            [lang-expr string?]
                            [context-expr (or/c #f syntax?)])]{
@@ -1388,6 +1427,7 @@ Options:
 @itemlist[
  @item{@racket[#:indent] controls left indentation in spaces (default: @racket[0]).}
  @item{@racket[#:line-numbers] enables line numbers when not @racket[#f], using the given start number (default: @racket[#f]).}
+ @item{@racket[#:highlight-lines] highlights one-based source lines. Use integers for individual lines or inclusive ranges such as @racket[(2 . 4)] or @racket[(list 2 4)] (default: @racket[#f]).}
  @item{@racket[#:line-number-sep] controls the spacing between the line number and code (default: @racket[1]).}
  @item{@racket[#:lang] chooses the language line used for parsing/linking when the snippet itself does not start with @tt{#lang}
        (default: @racket["scribble/manual"]).}
@@ -1529,6 +1569,7 @@ The optional keyword arguments control inline rendering:
                            [#:indent indent exact-nonnegative-integer? 0]
                            [#:line-numbers line-numbers (or/c #f exact-integer?) #f]
                            [#:line-number-sep line-number-sep exact-nonnegative-integer? 1]
+                           [#:highlight-lines highlight-lines (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?)))) #f]
                            [#:copy-button? copy-button? boolean? #t]
                            [#:color-swatch? color-swatch? boolean? #t]
                            [#:font-preview? font-preview? boolean? #t]
@@ -1551,6 +1592,7 @@ The block-specific keyword arguments control the surrounding block:
  @item{@racket[#:indent] adds leading indentation to the displayed block.}
  @item{@racket[#:line-numbers] starts line numbering at the given integer; @racket[#f] disables line numbers.}
  @item{@racket[#:line-number-sep] controls the space between line numbers and source text.}
+ @item{@racket[#:highlight-lines] highlights one-based source lines. The list may contain individual line numbers, inclusive dotted-pair ranges such as @racket[(2 . 4)], and inclusive two-element ranges such as @racket[(list 2 4)]. Highlighting is independent of the number passed to @racket[#:line-numbers].}
  @item{@racket[#:copy-button?] controls whether generated markup includes copy-button support for the block source.}
  @item{@racket[#:inset?] controls whether the block is visually wrapped like a Scribble code block.}
 ]
@@ -1580,6 +1622,7 @@ keyword arguments have the same meanings as in @racket[code->html].}
                            [#:indent indent exact-nonnegative-integer? 0]
                            [#:line-numbers line-numbers (or/c #f exact-integer?) #f]
                            [#:line-number-sep line-number-sep exact-nonnegative-integer? 1]
+                           [#:highlight-lines highlight-lines (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?)))) #f]
                            [#:copy-button? copy-button? boolean? #t]
                            [#:color-swatch? color-swatch? boolean? #t]
                            [#:font-preview? font-preview? boolean? #t]
@@ -1627,6 +1670,7 @@ strings.}
                                [#:indent indent exact-nonnegative-integer? 0]
                                [#:line-numbers line-numbers (or/c #f exact-integer?) #f]
                                [#:line-number-sep line-number-sep exact-nonnegative-integer? 1]
+                               [#:highlight-lines highlight-lines (or/c #f (listof (or/c exact-positive-integer? (cons/c exact-positive-integer? exact-positive-integer?) (list/c exact-positive-integer? exact-positive-integer?)))) #f]
                                [#:copy-button? copy-button? boolean? #t]
                                [#:color-swatch? color-swatch? boolean? #t]
                                [#:font-preview? font-preview? boolean? #t]
