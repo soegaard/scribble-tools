@@ -243,6 +243,18 @@
          scribbleblock0
          tsvblock0
          yamlblock0
+         code->sxml
+         code-block->sxml
+         code->html
+         code-block->html
+         code-html-support-sxml
+         code-html-support
+         raw-sxml
+         raw-sxml?
+         raw-sxml-value
+         raw-html
+         raw-html?
+         raw-html-value
          current-wasm-docs-source
          current-scribble-context
          current-scribble-shell
@@ -4667,6 +4679,675 @@ JS
             (raise-argument-error 'typeset-lang-code "string?" txt))
           (loop (cdr rest) (string-append pending txt) acc)])])))
 
+(struct code-text (class text) #:transparent)
+(struct code-link (url parts) #:transparent)
+(struct code-space (count) #:transparent)
+(struct code-newline () #:transparent)
+(struct code-preview (kind attrs text) #:transparent)
+(struct code-runtime () #:transparent)
+(struct code-escape (value) #:transparent)
+(struct code-inline-doc (lang parts) #:transparent)
+(struct code-line (number parts) #:transparent)
+(struct code-block-doc (lang file lines copy-text inset?) #:transparent)
+(struct raw-sxml (value) #:transparent)
+(struct raw-html (value) #:transparent)
+
+(define (values->chunks who values)
+  (for/list ([v (in-list values)])
+    (cond
+      [(string? v) (cons 'text v)]
+      [(or (raw-sxml? v) (raw-html? v)) (cons 'escape v)]
+      [else (raise-argument-error who "(or/c string? raw-sxml? raw-html?)" v)])))
+
+(define (normalize-html-output-lang who lang)
+  (case lang
+    [(shell) (normalize-scribble-shell who (current-scribble-shell))]
+    [(pwsh) 'powershell]
+    [else lang]))
+
+(define (prepare-code-tokens lang chunks
+                             #:inline? [inline? #f]
+                             #:color-swatch? [color-swatch? #f]
+                             #:font-preview? [font-preview? #f]
+                             #:dimension-preview? [dimension-preview? #t]
+                             #:preview-tooltips? [preview-tooltips? #t]
+                             #:preview-mode [preview-mode 'always]
+                             #:preview-css-url [preview-css-url #f]
+                             #:jsx? [jsx? #f])
+  (define html-style-color? (if (eq? lang 'html) #t color-swatch?))
+  (define html-style-font? (if (eq? lang 'html) #t font-preview?))
+  (define html-style-dim? (if (eq? lang 'html) #t dimension-preview?))
+  (define html-style-mode (if (eq? lang 'html) 'always preview-mode))
+  (define tokens
+    (parameterize ([current-preview-css-url preview-css-url]
+                   [current-preview-tooltips? preview-tooltips?]
+                   [current-jsx? (and (eq? lang 'js) jsx?)]
+                   [current-html-style-color-swatch? html-style-color?]
+                   [current-html-style-font-preview? html-style-font?]
+                   [current-html-style-dimension-preview? html-style-dim?]
+                   [current-html-style-preview-mode html-style-mode])
+      (tokens-from-chunks lang chunks #:inline? inline?)))
+  (if (eq? lang 'tsv)
+      (normalize-tsv-display-tokens tokens)
+      tokens))
+
+(define (token-doc-url lang cls txt prev1 prev2 next1 object-aliases method-aliases
+                       #:mdn-links? mdn-links?
+                       #:docs-source docs-source)
+  (define mdn-cls (mdn-class-for-token lang cls))
+  (cond
+    [(regexp-match? #px"[[:space:]]" txt) #f]
+    [(eq? lang 'wasm)
+     (case (normalize-wasm-docs-source 'tokens->code-parts
+                                       (or docs-source (current-wasm-docs-source)))
+       [(none) #f]
+       [(mdn)
+        (js-contextual-mdn-url lang mdn-cls txt prev1 prev2 next1
+                               object-aliases method-aliases)]
+       [(wasm-spec-3.0)
+        (wasm-spec-3.0-url-for-token cls txt)])]
+    [(memq lang '(bash zsh powershell))
+     (and mdn-links?
+          (shell-doc-url-for-token lang cls txt
+                                   #:docs-source (or docs-source
+                                                    (current-shell-docs-source))))]
+    [(eq? lang 'latex)
+     (latex-doc-url-for-token cls txt)]
+    [(eq? lang 'go)
+     (go-doc-url-for-token cls txt prev1 prev2 next1)]
+    [(eq? lang 'java)
+     (java-doc-url-for-token cls txt prev1 prev2 next1)]
+    [(eq? lang 'pascal)
+     (pascal-doc-url-for-token cls txt)]
+    [(eq? lang 'rust)
+     (generated-rust-doc-url-for-token cls txt prev1 prev2 next1)]
+    [(memq lang '(c cpp))
+     (c/cpp-doc-url-for-token lang cls txt prev1 prev2)]
+    [else
+     (and mdn-links?
+          (js-contextual-mdn-url lang mdn-cls txt prev1 prev2 next1
+                                 object-aliases method-aliases))]))
+
+(define (text->code-parts cls s)
+  (cond
+    [(string=? s "") null]
+    [(regexp-match-positions #rx"(?:\r\n|\r|\n)" s)
+     => (lambda (m)
+          (append (text->code-parts cls (substring s 0 (caar m)))
+                  (list (code-newline))
+                  (text->code-parts cls (substring s (cdar m)))))]
+    [(regexp-match-positions #rx" +" s)
+     => (lambda (m)
+          (append (text->code-parts cls (substring s 0 (caar m)))
+                  (list (code-space (- (cdar m) (caar m))))
+                  (text->code-parts cls (substring s (cdar m)))))]
+    [else (list (code-text cls s))]))
+
+(define (preview-attrs class style title)
+  (append
+   `((class . ,class)
+     (style . ,style))
+   (preview-tooltip-attrs title)
+   (preview-url-attrs)))
+
+(define (preview-token->part cls datum mode)
+  (case cls
+    [(swatch)
+     (code-preview 'swatch
+                   (preview-attrs "css-preview-ui css-color-preview-ui"
+                                  (format "--css-preview-bg: ~a;" datum)
+                                  (format "Color preview: ~a" datum))
+                   " ")]
+    [(swatch-gradient)
+     (code-preview 'swatch-gradient
+                   (preview-attrs "css-preview-ui css-gradient-preview-ui"
+                                  (format "--css-preview-bg: ~a;" datum)
+                                  (format "Gradient preview: ~a" datum))
+                   " ")]
+    [(spacing-preview)
+     (code-preview 'spacing-preview
+                   (preview-attrs "css-preview-ui css-spacing-preview-ui"
+                                  (format "--css-preview-width: ~apx;" (car datum))
+                                  (spacing-preview-title (cdr datum)))
+                   " ")]
+    [(radius-preview)
+     (code-preview 'radius-preview
+                   (preview-attrs "css-preview-ui css-radius-preview-ui"
+                                  (format "--css-preview-radius: ~apx;" (car datum))
+                                  (radius-preview-title (cdr datum)))
+                   " ")]
+    [(token-def)
+     (code-preview 'token-def
+                   (preview-attrs "css-preview-ui css-token-def-preview-ui"
+                                  (format "--css-token-name: \"~a\";" (car datum))
+                                  (format "Design token ~a = ~a" (car datum) (cdr datum)))
+                   (car datum))]
+    [(token-ref)
+     (code-preview 'token-ref
+                   (preview-attrs "css-preview-ui css-token-ref-preview-ui"
+                                  (format "--css-token-name: \"~a\";" datum)
+                                  (format "Uses design token ~a" datum))
+                   datum)]
+    [(js-regex-preview)
+     (code-preview 'js-regex-preview
+                   `((class . "js-preview-ui js-regex-preview-ui")
+                     ,@(preview-tooltip-attrs "Regex literal"))
+                   "")]
+    [(js-template-preview)
+     (code-preview 'js-template-preview
+                   `((class . "js-preview-ui js-template-preview-ui")
+                     ,@(preview-tooltip-attrs "Template literal"))
+                   "")]
+    [(font-preview)
+     (code-preview 'font-preview
+                   (append
+                    `((class . "css-preview-ui css-font-preview-ui")
+                      (data-preview-mode . ,(preview-mode->string mode))
+                      (data-font-stack . ,datum)
+                      (style . ,(format "--css-preview-font: ~a;" datum)))
+                    (preview-tooltip-attrs (format "Preview stack: ~a" datum))
+                    (preview-url-attrs))
+                   "Aa")]
+    [else (code-text 'plain "")]))
+
+(define (decorate-code-tokens lang tokens
+                              #:color-swatch? [color-swatch? #f]
+                              #:font-preview? [font-preview? #f]
+                              #:dimension-preview? [dimension-preview? #t]
+                              #:preview-mode [preview-mode 'always])
+  (define mode (normalize-preview-mode 'decorate-code-tokens preview-mode))
+  (define css-preview-enabled? (not (eq? mode 'none)))
+  (define tokens*
+    (if (eq? lang 'css)
+        (insert-css-color-swatch-tokens tokens (and color-swatch? css-preview-enabled?))
+        tokens))
+  (define tokens**
+    (if (eq? lang 'css)
+        (insert-css-font-preview-tokens tokens* (and font-preview? css-preview-enabled?))
+        tokens*))
+  (define tokens***
+    (if (eq? lang 'css)
+        (insert-css-dimension-preview-tokens tokens** (and dimension-preview? css-preview-enabled?))
+        tokens**))
+  (define tokens****
+    (if (eq? lang 'css)
+        (insert-css-design-token-tokens tokens*** css-preview-enabled?)
+        tokens***))
+  (if (eq? lang 'css)
+      (move-css-decorations-to-decl-end tokens****)
+      tokens****))
+
+(define (tokens->code-parts lang tokens
+                            #:color-swatch? [color-swatch? #f]
+                            #:font-preview? [font-preview? #f]
+                            #:dimension-preview? [dimension-preview? #t]
+                            #:mdn-links? [mdn-links? #t]
+                            #:docs-source [docs-source #f]
+                            #:preview-tooltips? [preview-tooltips? #t]
+                            #:preview-mode [preview-mode 'always]
+                            #:preview-css-url [preview-css-url #f])
+  (define mode (normalize-preview-mode 'tokens->code-parts preview-mode))
+  (define tokens*
+    (decorate-code-tokens lang tokens
+                          #:color-swatch? color-swatch?
+                          #:font-preview? font-preview?
+                          #:dimension-preview? dimension-preview?
+                          #:preview-mode preview-mode))
+  (define-values (js-object-aliases js-method-aliases)
+    (if (memq lang '(js html))
+        (build-js-alias-env tokens*)
+        (values (hash) (hash))))
+  (parameterize ([current-preview-css-url preview-css-url]
+                 [current-preview-tooltips? preview-tooltips?])
+    (let loop ([rest tokens*] [acc null] [i 0])
+      (cond
+        [(null? rest) (reverse acc)]
+        [else
+         (define t (car rest))
+         (define cls (car t))
+         (define prev1
+           (let loop-prev ([k (sub1 i)])
+             (cond
+               [(negative? k) #f]
+               [else
+                (define tk (list-ref tokens* k))
+                (if (token-nonplain? tk) tk (loop-prev (sub1 k)))])))
+         (define prev2
+           (and prev1
+                (let ([k1
+                       (let loop-prev ([k (sub1 i)])
+                         (cond
+                           [(negative? k) #f]
+                           [else
+                            (define tk (list-ref tokens* k))
+                            (if (token-nonplain? tk) k (loop-prev (sub1 k)))]))])
+                  (and k1
+                       (let loop-prev2 ([k (sub1 k1)])
+                         (cond
+                           [(negative? k) #f]
+                           [else
+                            (define tk (list-ref tokens* k))
+                            (if (token-nonplain? tk) tk (loop-prev2 (sub1 k)))]))))))
+         (define next1 (next-nonplain-token (cdr rest)))
+         (define parts
+           (cond
+             [(eq? cls 'escape) (list (code-escape (cdr t)))]
+             [(memq cls '(swatch swatch-gradient spacing-preview radius-preview token-def token-ref
+                                  js-regex-preview js-template-preview font-preview))
+              (list (preview-token->part cls (cdr t) mode))]
+             [else
+              (define txt (cdr t))
+              (define maybe-url
+                (token-doc-url lang cls txt prev1 prev2 next1
+                               js-object-aliases js-method-aliases
+                               #:mdn-links? mdn-links?
+                               #:docs-source docs-source))
+              (define text-parts (text->code-parts cls txt))
+              (if maybe-url
+                  (list (code-link maybe-url text-parts))
+                  text-parts)]))
+         (loop (cdr rest) (append (reverse parts) acc) (add1 i))]))))
+
+(define (parts->copy-text parts)
+  (apply string-append
+         (for/list ([p (in-list parts)]
+                    #:when (or (code-text? p) (code-space? p) (code-newline? p)
+                               (code-link? p)))
+           (cond
+             [(code-text? p) (code-text-text p)]
+             [(code-space? p) (make-string (code-space-count p) #\space)]
+             [(code-newline? p) "\n"]
+             [(code-link? p) (parts->copy-text (code-link-parts p))]
+             [else ""]))))
+
+(define (parts->code-lines parts #:line-numbers [line-numbers #f])
+  (define raw-lines
+    (let loop ([rest parts] [lines null] [line null])
+      (cond
+        [(null? rest) (reverse (cons (reverse line) lines))]
+        [(code-newline? (car rest))
+         (loop (cdr rest) (cons (reverse line) lines) null)]
+        [else (loop (cdr rest) lines (cons (car rest) line))])))
+  (for/list ([line (in-list raw-lines)]
+             [i (in-naturals (or line-numbers 1))])
+    (code-line (and line-numbers i) line)))
+
+(define (make-code-parts lang chunks
+                         #:inline? [inline? #f]
+                         #:color-swatch? [color-swatch? #f]
+                         #:font-preview? [font-preview? #f]
+                         #:dimension-preview? [dimension-preview? #t]
+                         #:mdn-links? [mdn-links? #t]
+                         #:docs-source [docs-source #f]
+                         #:preview-tooltips? [preview-tooltips? #t]
+                         #:preview-mode [preview-mode 'always]
+                         #:preview-css-url [preview-css-url #f]
+                         #:jsx? [jsx? #f])
+  (define tokens
+    (prepare-code-tokens lang chunks
+                         #:inline? inline?
+                         #:color-swatch? color-swatch?
+                         #:font-preview? font-preview?
+                         #:dimension-preview? dimension-preview?
+                         #:preview-tooltips? preview-tooltips?
+                         #:preview-mode preview-mode
+                         #:preview-css-url preview-css-url
+                         #:jsx? jsx?))
+  (tokens->code-parts lang tokens
+                      #:color-swatch? color-swatch?
+                      #:font-preview? font-preview?
+                      #:dimension-preview? dimension-preview?
+                      #:mdn-links? mdn-links?
+                      #:docs-source docs-source
+                      #:preview-tooltips? preview-tooltips?
+                      #:preview-mode preview-mode
+                      #:preview-css-url preview-css-url))
+
+(define (code-parts->scribble lang parts)
+  (apply append
+         (for/list ([p (in-list parts)])
+           (cond
+             [(code-text? p) (list (element (style-for lang (code-text-class p))
+                                            (code-text-text p)))]
+             [(code-space? p) (list (hspace (code-space-count p)))]
+             [(code-newline? p) (list 'newline)]
+             [(code-link? p)
+              (list (hyperlink (code-link-url p)
+                               #:style mdn-link-style
+                               #:underline? #f
+                               (code-parts->scribble lang (code-link-parts p))))]
+             [(code-preview? p)
+              (list (make-element
+                     (make-style #f (list (attributes (code-preview-attrs p))))
+                     (list (code-preview-text p))))]
+             [(code-runtime? p) (runtime-prefix-elements)]
+             [(code-escape? p) (list (escape->element (code-escape-value p)))]
+             [else null]))))
+
+(define (html-class-for-token cls)
+  (format "stx-~a" cls))
+
+(define (attrs->sxml attrs)
+  (for/list ([a (in-list attrs)])
+    (list (car a) (cdr a))))
+
+(define (sxml-element name attrs children)
+  (if (null? attrs)
+      (cons name children)
+      (cons name (cons (cons '@ (attrs->sxml attrs)) children))))
+
+(define (code-parts->sxml-list parts)
+  (apply append
+         (for/list ([p (in-list parts)])
+           (cond
+             [(code-text? p)
+              (define txt (code-text-text p))
+              (if (eq? (code-text-class p) 'plain)
+                  (list txt)
+                  (list (sxml-element 'span
+                                      `((class . ,(html-class-for-token (code-text-class p))))
+                                      (list txt))))]
+             [(code-space? p) (list (make-string (code-space-count p) #\space))]
+             [(code-newline? p) (list "\n")]
+             [(code-link? p)
+              (list (sxml-element 'a
+                                  `((class . "stx-link")
+                                    (href . ,(code-link-url p)))
+                                  (code-parts->sxml-list (code-link-parts p))))]
+             [(code-preview? p)
+              (list (sxml-element 'span
+                                  (code-preview-attrs p)
+                                  (list (code-preview-text p))))]
+             [(code-escape? p)
+              (define v (code-escape-value p))
+              (cond
+                [(raw-sxml? v) (list (raw-sxml-value v))]
+                [(raw-html? v) (list v)]
+                [(string? v) (list v)]
+                [else
+                 (raise-argument-error 'code-parts->sxml-list
+                                       "(or/c string? raw-sxml? raw-html?)"
+                                       v)])]
+             [else null]))))
+
+(define (code-inline-doc->sxml doc)
+  (sxml-element 'code
+                `((class . ,(format "scribble-tools-code scribble-tools-code-~a"
+                                    (code-inline-doc-lang doc))))
+                (code-parts->sxml-list (code-inline-doc-parts doc))))
+
+(define (line-number-sxml n)
+  (sxml-element 'span
+                '((class . "stx-line-number")
+                  (aria-hidden . "true"))
+                (list (format "~a " n))))
+
+(define (code-line->sxml line last?)
+  (append
+   (if (code-line-number line)
+       (list (line-number-sxml (code-line-number line)))
+       null)
+   (code-parts->sxml-list (code-line-parts line))
+   (if last? null (list "\n"))))
+
+(define (code-block-doc->sxml doc #:copy-button? [copy-button? #t])
+  (define code-node
+    (sxml-element 'pre
+                  `((class . ,(format "scribble-tools-block scribble-tools-block-~a"
+                                      (code-block-doc-lang doc))))
+                  (list
+                   (sxml-element
+                    'code
+                    null
+                    (apply append
+                           (for/list ([line (in-list (code-block-doc-lines doc))]
+                                      [i (in-naturals)])
+                             (code-line->sxml
+                              line
+                              (= i (sub1 (length (code-block-doc-lines doc)))))))))))
+  (define payload
+    (if (code-block-doc-file doc)
+        (sxml-element 'figure
+                      '((class . "scribble-tools-file"))
+                      (list (sxml-element 'figcaption
+                                          '((class . "scribble-tools-file-label"))
+                                          (list (code-block-doc-file doc)))
+                            code-node))
+        code-node))
+  (if copy-button?
+      (sxml-element 'div
+                    '((class . "scribble-copy-wrap")
+                      (data-copy-button . "on"))
+                    (list payload
+                          (sxml-element 'span
+                                        '((class . "scribble-copy-source")
+                                          (style . "display: none; white-space: pre;"))
+                                        (list (code-block-doc-copy-text doc)))))
+      payload))
+
+(define code-html-support-css
+  #<<CSS
+.scribble-tools-code,.scribble-tools-block{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;}
+.scribble-tools-block{tab-size:2;-moz-tab-size:2;overflow:auto;padding:.75rem .9rem;border:1px solid rgba(120,120,120,.25);background:rgba(248,248,248,.92);}
+.stx-comment{color:#6A9955}.stx-keyword,.stx-static-keyword,.stx-wasm-form{color:#07A}.stx-value,.stx-wasm-type{color:#A31515}.stx-name{color:#262680}.stx-decl-name{color:#795E26}.stx-prop-name,.stx-method-name,.stx-private-name{color:#5A3E8E}.stx-object-key,.stx-param-name{color:#1F5F8B}.stx-operator{color:#8A4F00}.stx-punct{color:#7A6A4A}.stx-type-name,.stx-builtin-name{font-weight:600;color:#2B5F8A}.stx-make-target,.stx-recipe-command{font-weight:600;color:#07A}.stx-make-variable{color:#6B2F8A}.stx-line-number{display:inline-block;min-width:2.5em;padding-right:.75em;color:rgba(90,90,90,.72);text-align:right;user-select:none}.stx-link{color:inherit;text-decoration:none}.stx-link:hover{text-decoration:underline}
+CSS
+  )
+
+(define (code-html-support-sxml)
+  (list (sxml-element 'style null (list code-html-support-css))
+        (sxml-element 'script null (list css-font-preview-runtime-script))))
+
+(define (escape-html s #:attribute? [attribute? #f])
+  (define s1 (string-replace s "&" "&amp;"))
+  (define s2 (string-replace s1 "<" "&lt;"))
+  (define s3 (string-replace s2 ">" "&gt;"))
+  (if attribute?
+      (string-replace s3 "\"" "&quot;")
+      s3))
+
+(define (sxml-attrs? v)
+  (and (pair? v) (eq? (car v) '@)))
+
+(define (sxml->html x)
+  (cond
+    [(raw-html? x) (raw-html-value x)]
+    [(raw-sxml? x) (sxml->html (raw-sxml-value x))]
+    [(string? x) (escape-html x)]
+    [(symbol? x) (escape-html (symbol->string x))]
+    [(list? x)
+     (cond
+       [(null? x) ""]
+       [(raw-html? (car x))
+        (apply string-append (map sxml->html x))]
+       [else
+        (define tag (car x))
+        (define rest (cdr x))
+        (define attrs-node (and (pair? rest) (sxml-attrs? (car rest)) (car rest)))
+        (define children (if attrs-node (cdr rest) rest))
+        (define attrs
+          (if attrs-node
+              (apply string-append
+                     (for/list ([a (in-list (cdr attrs-node))])
+                       (format " ~a=\"~a\""
+                               (car a)
+                               (escape-html (format "~a" (cadr a)) #:attribute? #t))))
+              ""))
+        (define children-html
+          (if (memq tag '(script style))
+              (apply string-append
+                     (for/list ([child (in-list children)])
+                       (cond
+                         [(raw-html? child) (raw-html-value child)]
+                         [(string? child) child]
+                         [else (sxml->html child)])))
+              (apply string-append (map sxml->html children))))
+        (format "<~a~a>~a</~a>"
+                tag
+                attrs
+                children-html
+                tag)])]
+    [else (escape-html (format "~a" x))]))
+
+(define (code-html-support)
+  (apply string-append (map sxml->html (code-html-support-sxml))))
+
+(define (code->sxml lang
+                    #:color-swatch? [color-swatch? #t]
+                    #:font-preview? [font-preview? #t]
+                    #:dimension-preview? [dimension-preview? #t]
+                    #:mdn-links? [mdn-links? #t]
+                    #:docs-source [docs-source #f]
+                    #:preview-tooltips? [preview-tooltips? #t]
+                    #:preview-mode [preview-mode 'always]
+                    #:preview-css-url [preview-css-url #f]
+                    #:jsx? [jsx? #f]
+                    . values)
+  (define lang* (normalize-html-output-lang 'code->sxml lang))
+  (define chunks (values->chunks 'code->sxml values))
+  (code-inline-doc->sxml
+   (code-inline-doc
+    lang*
+    (make-code-parts lang* chunks
+                     #:inline? #t
+                     #:color-swatch? color-swatch?
+                     #:font-preview? font-preview?
+                     #:dimension-preview? dimension-preview?
+                     #:mdn-links? mdn-links?
+                     #:docs-source docs-source
+                     #:preview-tooltips? preview-tooltips?
+                     #:preview-mode preview-mode
+                     #:preview-css-url preview-css-url
+                     #:jsx? jsx?))))
+
+(define (code-block->sxml lang
+                          #:file [filename #f]
+                          #:indent [indent 0]
+                          #:line-numbers [line-numbers #f]
+                          #:line-number-sep [line-number-sep 1]
+                          #:copy-button? [copy-button? #t]
+                          #:color-swatch? [color-swatch? #t]
+                          #:font-preview? [font-preview? #t]
+                          #:dimension-preview? [dimension-preview? #t]
+                          #:mdn-links? [mdn-links? #t]
+                          #:docs-source [docs-source #f]
+                          #:preview-tooltips? [preview-tooltips? #t]
+                          #:preview-mode [preview-mode 'always]
+                          #:preview-css-url [preview-css-url #f]
+                          #:jsx? [jsx? #f]
+                          #:inset? [inset? #t]
+                          . values)
+  (define lang* (normalize-html-output-lang 'code-block->sxml lang))
+  (define chunks (values->chunks 'code-block->sxml values))
+  (define parts0
+    (make-code-parts lang* chunks
+                     #:inline? #f
+                     #:color-swatch? color-swatch?
+                     #:font-preview? font-preview?
+                     #:dimension-preview? dimension-preview?
+                     #:mdn-links? mdn-links?
+                     #:docs-source docs-source
+                     #:preview-tooltips? preview-tooltips?
+                     #:preview-mode preview-mode
+                     #:preview-css-url preview-css-url
+                     #:jsx? jsx?))
+  (define parts
+    (if (zero? indent)
+        parts0
+        (cons (code-space indent) parts0)))
+  (define doc
+    (code-block-doc lang*
+                    filename
+                    (parts->code-lines parts #:line-numbers line-numbers)
+                    (parts->copy-text parts0)
+                    inset?))
+  (code-block-doc->sxml doc #:copy-button? copy-button?))
+
+(define (code->html lang
+                    #:color-swatch? [color-swatch? #t]
+                    #:font-preview? [font-preview? #t]
+                    #:dimension-preview? [dimension-preview? #t]
+                    #:mdn-links? [mdn-links? #t]
+                    #:docs-source [docs-source #f]
+                    #:preview-tooltips? [preview-tooltips? #t]
+                    #:preview-mode [preview-mode 'always]
+                    #:preview-css-url [preview-css-url #f]
+                    #:jsx? [jsx? #f]
+                    . values)
+  (sxml->html
+   (keyword-apply code->sxml
+                  '(#:color-swatch?
+                    #:dimension-preview?
+                    #:docs-source
+                    #:font-preview?
+                    #:jsx?
+                    #:mdn-links?
+                    #:preview-css-url
+                    #:preview-mode
+                    #:preview-tooltips?)
+                  (list color-swatch?
+                        dimension-preview?
+                        docs-source
+                        font-preview?
+                        jsx?
+                        mdn-links?
+                        preview-css-url
+                        preview-mode
+                        preview-tooltips?)
+                  lang
+                  values)))
+
+(define (code-block->html lang
+                          #:file [filename #f]
+                          #:indent [indent 0]
+                          #:line-numbers [line-numbers #f]
+                          #:line-number-sep [line-number-sep 1]
+                          #:copy-button? [copy-button? #t]
+                          #:color-swatch? [color-swatch? #t]
+                          #:font-preview? [font-preview? #t]
+                          #:dimension-preview? [dimension-preview? #t]
+                          #:mdn-links? [mdn-links? #t]
+                          #:docs-source [docs-source #f]
+                          #:preview-tooltips? [preview-tooltips? #t]
+                          #:preview-mode [preview-mode 'always]
+                          #:preview-css-url [preview-css-url #f]
+                          #:jsx? [jsx? #f]
+                          #:inset? [inset? #t]
+                          . values)
+  (sxml->html
+   (keyword-apply code-block->sxml
+                  '(#:color-swatch?
+                    #:copy-button?
+                    #:dimension-preview?
+                    #:docs-source
+                    #:file
+                    #:font-preview?
+                    #:indent
+                    #:inset?
+                    #:jsx?
+                    #:line-number-sep
+                    #:line-numbers
+                    #:mdn-links?
+                    #:preview-css-url
+                    #:preview-mode
+                    #:preview-tooltips?)
+                  (list color-swatch?
+                        copy-button?
+                        dimension-preview?
+                        docs-source
+                        filename
+                        font-preview?
+                        indent
+                        inset?
+                        jsx?
+                        line-number-sep
+                        line-numbers
+                        mdn-links?
+                        preview-css-url
+                        preview-mode
+                        preview-tooltips?)
+                  lang
+                  values)))
+
 (define (typeset-lang-block/chunks lang
                                    #:file [filename #f]
                                    #:indent [indent 0]
@@ -6670,5 +7351,23 @@ JS
     (check-equal? (source-bearing-text new) src)
     (check-equal? (class-runs old)
                   (class-runs new)))
+  (let ([html (code->html 'js #:mdn-links? #f "const x = 1;")])
+    (check-true (string-contains? html "<code"))
+    (check-true (string-contains? html "stx-keyword"))
+    (check-false (string-contains? html "href=")))
+  (let ([html (code->html 'html "<em class=\"x\">&</em>")])
+    (check-true (string-contains? html "&lt;"))
+    (check-true (string-contains? html "&amp;")))
+  (let ([sxml (code->sxml 'html "<p>" (raw-sxml '(strong "hi")) "</p>")])
+    (check-true (contains-text? sxml "strong")))
+  (let ([html (code-block->html 'css
+                                 #:line-numbers 10
+                                 ".x { color: #c33; }")])
+    (check-true (string-contains? html "scribble-copy-wrap"))
+    (check-true (string-contains? html "scribble-copy-source"))
+    (check-true (string-contains? html "stx-line-number"))
+    (check-true (string-contains? html "css-color-preview-ui"))
+    (check-true (string-contains? html "https://developer.mozilla.org/en-US/docs/Web/CSS/color")))
+  (check-true (string-contains? (code-html-support) "scribble-copy-btn"))
   (check-true
    (block? (cssblock #:file "demo.css" ".x { color: red; }"))))

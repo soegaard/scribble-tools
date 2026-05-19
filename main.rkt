@@ -86,6 +86,18 @@
          scribbleblock0
          tsvblock0
          yamlblock0
+         code->sxml
+         code-block->sxml
+         code->html
+         code-block->html
+         code-html-support-sxml
+         code-html-support
+         raw-sxml
+         raw-sxml?
+         raw-sxml-value
+         raw-html
+         raw-html?
+         raw-html-value
          current-wasm-docs-source
          current-scribble-shell
          current-shell-docs-source
@@ -182,6 +194,18 @@
 (define-syntax-rule (tsvblock0 . rest) (api:tsvblock0 . rest))
 (define-syntax-rule (yamlblock0 . rest) (api:yamlblock0 . rest))
 
+(define code->sxml api:code->sxml)
+(define code-block->sxml api:code-block->sxml)
+(define code->html api:code->html)
+(define code-block->html api:code-block->html)
+(define code-html-support-sxml api:code-html-support-sxml)
+(define code-html-support api:code-html-support)
+(define raw-sxml api:raw-sxml)
+(define raw-sxml? api:raw-sxml?)
+(define raw-sxml-value api:raw-sxml-value)
+(define raw-html api:raw-html)
+(define raw-html? api:raw-html?)
+(define raw-html-value api:raw-html-value)
 (define current-wasm-docs-source api:current-wasm-docs-source)
 (define current-scribble-shell api:current-scribble-shell)
 (define current-shell-docs-source api:current-shell-docs-source)

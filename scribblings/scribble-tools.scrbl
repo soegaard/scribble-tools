@@ -34,6 +34,42 @@ blocks with optional line numbers, file labels, and escapes.
 This section gives a practical introduction to the forms and the most
 useful options.
 
+@subsection[#:tag "plain-html"]{Plain HTML and SXML}
+
+The Scribble forms remain the primary interface for manuals, but the same
+tokenization and linking pipeline can also generate ordinary HTML or SXML
+for use in a normal web page.
+
+@defmodule[scribble-tools/html]
+
+Use @racket[code->html] for inline code and @racket[code-block->html] for
+block snippets:
+
+@scribbleblock[
+"(require scribble-tools/html)\n"
+"\n"
+"(define snippet\n"
+"  (code-block->html 'js\n"
+"                    #:line-numbers 1\n"
+"                    \"const n = 42;\\nconsole.log(n);\\n\"))\n"
+"\n"
+"(define page\n"
+"  (string-append\n"
+"   \"<!doctype html><html><head>\"\n"
+"   (code-html-support)\n"
+"   \"</head><body>\"\n"
+"   snippet\n"
+"   \"</body></html>\"))"]
+
+Use @racket[code->sxml] and @racket[code-block->sxml] when you want to
+compose the generated markup before serializing it.  The convenience HTML
+functions serialize that SXML output.
+
+Escapes in the HTML/SXML API are explicit: pass strings for ordinary source,
+@racket[raw-sxml] to splice SXML, or @racket[raw-html] to splice trusted raw
+HTML during serialization.  Arbitrary Scribble elements are still supported
+by the Scribble forms, but are rejected by the HTML/SXML renderer.
+
 @subsection[#:tag "reference-inline-forms"]{Inline Forms}
 
 Use inline forms when you want code inside running text:
