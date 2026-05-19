@@ -6,6 +6,7 @@
 (require racket/list
          racket/match
          racket/runtime-path
+         racket/set
          racket/string)
 
 (provide cppreference-entry?
@@ -71,6 +72,12 @@
                         [(cpp) "cpp/keyword/"])
                       t)))
 
+(define c-family-builtin-type-names
+  (list->set
+   '("void" "char" "short" "int" "long" "float" "double" "signed" "unsigned"
+     "_Bool" "_Complex" "_Imaginary" "bool" "wchar_t" "char8_t" "char16_t"
+     "char32_t" "auto")))
+
 (define (c/cpp-doc-url-for-token lang cls token prev1 prev2)
   (define t (string-trim token))
   (cond
@@ -79,6 +86,9 @@
          (regexp-match? #px"[[:space:]]" t))
      #f]
     [(eq? cls 'keyword)
+     (keyword-url lang t)]
+    [(and (eq? cls 'type-name)
+          (set-member? c-family-builtin-type-names t))
      (keyword-url lang t)]
     [(and (eq? lang 'cpp)
           (equal? prev1 "::")
@@ -105,6 +115,12 @@
   (check-false (cppreference-doc-url-for-token 'c "not-a-real-c-identifier"))
   (check-equal? (c/cpp-doc-url-for-token 'c 'keyword "return" #f #f)
                 "https://en.cppreference.com/w/c/keyword/return")
+  (check-equal? (c/cpp-doc-url-for-token 'c 'type-name "int" #f #f)
+                "https://en.cppreference.com/w/c/keyword/int")
+  (check-equal? (c/cpp-doc-url-for-token 'c 'type-name "void" #f #f)
+                "https://en.cppreference.com/w/c/keyword/void")
+  (check-equal? (c/cpp-doc-url-for-token 'cpp 'type-name "char" #f #f)
+                "https://en.cppreference.com/w/cpp/keyword/char")
   (check-equal? (c/cpp-doc-url-for-token 'cpp 'keyword "if" #f #f)
                 "https://en.cppreference.com/w/cpp/keyword/if")
   (check-equal? (c/cpp-doc-url-for-token 'cpp 'identifier "vector" "::" "std")
