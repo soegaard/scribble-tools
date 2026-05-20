@@ -17,7 +17,9 @@
                      raw-html
                      raw-html?
                      raw-html-value)
+          scribble-tools/youtube
           (for-label racket/base
+                     scribble/core
                      (except-in scribble/manual racketblock racketblock0)
                      (except-in scribble-tools
                                 code->sxml
@@ -36,7 +38,8 @@
                                 raw-html
                                 raw-html?
                                 raw-html-value)
-                     scribble-tools/html))
+                     scribble-tools/html
+                     scribble-tools/youtube))
 
 @title{scribble-tools}
 @author+email["Jens Axel Søgaard" "jensaxel@soegaard.net"]
@@ -1700,6 +1703,65 @@ Wraps trusted HTML so the HTML serializer emits it without escaping.}
 
 @defproc[(raw-html? [value any/c]) boolean?]{
 Recognizes values produced by @racket[raw-html].}
+
+@subsection{YouTube Embeds}
+
+@defmodule[scribble-tools/youtube]
+
+Use this module when a Scribble document needs to embed a YouTube video.
+The generated iframe uses the standard
+@hyperlink["https://developers.google.com/youtube/player_parameters"]{YouTube embedded-player URL}
+shape, @tt{https://www.youtube.com/embed/VIDEO_ID}. YouTube documents that
+embedded players should have a viewport of at least @tt{200px} by @tt{200px},
+so smaller dimensions are rejected.
+
+@defproc[(youtube [video (or/c string? symbol?)]
+                  [#:title title string? "YouTube video player"]
+                  [#:width width exact-positive-integer? 640]
+                  [#:height height exact-positive-integer? 360]
+                  [#:start start (or/c #f exact-nonnegative-integer?) #f]
+                  [#:params params (listof (cons/c (or/c symbol? string?)
+                                                    (or/c string? symbol? number? boolean?))) null]
+                  [#:privacy-enhanced? privacy-enhanced? boolean? #f]
+                  [#:allow allow string? "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"]
+                  [#:allow-fullscreen? allow-fullscreen? boolean? #t])
+         block?]{
+Produces a Scribble block containing a YouTube iframe.
+
+The @racket[video] argument may be an 11-character YouTube video id or a
+common YouTube URL such as a @tt{watch?v=...}, @tt{youtu.be/...},
+@tt{/embed/...}, @tt{/shorts/...}, or @tt{/live/...} URL.
+
+Use @racket[#:start] for the standard YouTube player @tt{start} parameter,
+given in seconds. Use @racket[#:params] for additional player parameters;
+boolean values are serialized as @tt{1} and @tt{0}.
+Use @racket[#:privacy-enhanced?] to generate a
+@tt{www.youtube-nocookie.com} embed URL instead of @tt{www.youtube.com}.
+
+@racketmod[
+racket/base
+(require scribble-tools/youtube)
+
+(youtube "https://www.youtube.com/watch?v=lw6TaiXzHAE"
+         #:title "Example video"
+         #:width 640
+         #:height 360
+         #:start 30
+         #:params '((rel . 0)))]
+
+Rendered result:
+
+@youtube["https://www.youtube.com/watch?v=lw6TaiXzHAE"
+         #:title "Example video"
+         #:width 640
+         #:height 360
+         #:start 30
+         #:params '((rel . 0))]
+
+If you open the generated HTML directly as a @tt{file://} URL, YouTube may
+show @tt{Error 153} with the message @tt{Video player configuration error}.
+Serve the page through a local or remote web server instead.
+}
 
 @subsection{MDN Maps}
 

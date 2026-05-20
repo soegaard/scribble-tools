@@ -5,6 +5,8 @@
 - Future languages/formats to add:
   - SVG
 
+- Added `scribble-tools/youtube` with a `youtube` form for embedding
+  YouTube videos in Scribble documents.
 - Added Python support:
   - `python-code`
   - `pythonblock`, `pythonblock0`
