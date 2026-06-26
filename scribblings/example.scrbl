@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, Java, JavaScript, JSON, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, Java, JavaScript, JSON, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Ruby, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -26,6 +26,7 @@ inline plist with @plist-code{<plist/>} and
 inline Python with @python-code{def answer(): return 42} and
 inline Racket with @racket-code{(define (add x y) (+ x y))} and
 inline Rhombus with @rhombus-code{fun add(x, y): x + y} and
+inline Ruby with @ruby-code{class Greeter; def call(name:) puts name; end; end} and
 inline Rust with @rust-code{let xs: Vec<i32> = vec![1, 2, 3];} and
 inline shell with @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi} and
 inline Swift with @swift-code{let answer = 42} and
@@ -92,6 +93,8 @@ Inline Python: @python-code{def answer(): return 42}
 Inline Racket: @racket-code{(define (add x y) (+ x y))}
 
 Inline Rhombus: @rhombus-code{fun add(x, y): x + y}
+
+Inline Ruby: @ruby-code{class Greeter; def call(name:) puts name; end; end}
 
 Inline Rust: @rust-code{let xs: Vec<i32> = vec![1, 2, 3];}
 
@@ -609,6 +612,27 @@ Rhombus is included too, so manuals can show mixed Racket-family syntax.
 fun add(x, y):
   x + y
 }
+
+@subsection{Ruby}
+
+Ruby examples show keyword arguments, constants, instance variables, symbols,
+and string interpolation.
+
+@rubyblock[#:line-numbers 1
+           #:file "greeter.rb"
+           "class Greeter\n"
+           "  DEFAULT_GREETING = \"Hello\"\n"
+           "\n"
+           "  def initialize(name)\n"
+           "    @name = name\n"
+           "  end\n"
+           "\n"
+           "  def call(greeting: DEFAULT_GREETING)\n"
+           "    puts \"#{greeting}, #{@name}\"\n"
+           "  end\n"
+           "end\n"
+           "\n"
+           "Greeter.new(:Ada).call(greeting: \"Hi\")\n"]
 
 @subsection{Swift}
 

@@ -105,6 +105,12 @@
                   scribble-derived-token-text
                   scribble-string->derived-tokens)
          (only-in lexers/racket racket-string->tokens)
+         (only-in lexers/ruby
+                  ruby-derived-token-has-tag?
+                  ruby-derived-token-text
+                  ruby-derived-token-start
+                  ruby-derived-token-end
+                  ruby-string->derived-tokens)
          (only-in lexers/rhombus rhombus-string->tokens)
          (only-in lexers/rust rust-string->tokens)
          lexers/shell
@@ -147,6 +153,7 @@
          "java-docs-map.rkt"
          "pascal-docs-map.rkt"
          "racket-standard-map.rkt"
+         "ruby-docs-map.rkt"
          "rust-docs-map.rkt"
          "rustdoc-docs-map.rkt"
          "wasm-spec-map.rkt"
@@ -181,6 +188,7 @@
          racket-code
          rhombus-code
          rust-code
+         ruby-code
          swift-code
          wasm-code
          shell-code
@@ -209,6 +217,7 @@
          racketblock
          rhombusblock
          rustblock
+         rubyblock
          swiftblock
          wasmblock
          shellblock
@@ -237,6 +246,7 @@
          racketblock0
          rhombusblock0
          rustblock0
+         rubyblock0
          swiftblock0
          wasmblock0
          shellblock0
@@ -1337,6 +1347,20 @@ JS
        [(operator) js-operator-color]
        [(punct) paren-color]
        [else no-color])]
+    [(ruby)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(constant-name) c-type-name-color]
+       [(method-name) js-method-name-color]
+       [(variable-name) js-private-name-color]
+       [(label-name) js-object-key-color]
+       [(interpolation) js-operator-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
     [(mathematica)
      (case cls
        [(comment) comment-color]
@@ -1371,7 +1395,7 @@ JS
        [(operator) js-operator-color]
        [(punct) paren-color]
        [else no-color])]
-    [(c cpp go haskell java json markdown objc pascal plist racket rhombus rust swift yaml)
+    [(c cpp go haskell java json markdown objc pascal plist racket rhombus ruby rust swift yaml)
      (case cls
        [(comment) comment-color]
        [(keyword) js-keyword-color]
@@ -3256,6 +3280,58 @@ JS
        (define next-prev2 (if (token-nonplain? piece) prev1 prev2))
        (loop (cdr rest) (cons piece acc) next-prev1 next-prev2)])))
 
+(define (ruby-derived-token->piece token)
+  (define txt (ruby-derived-token-text token))
+  (cons
+   (cond
+     [(or (ruby-derived-token-has-tag? token 'comment)
+          (ruby-derived-token-has-tag? token 'ruby-comment)
+          (ruby-derived-token-has-tag? token 'ruby-shebang-comment))
+      'comment]
+     [(ruby-derived-token-has-tag? token 'whitespace) 'plain]
+     [(ruby-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (ruby-derived-token-has-tag? token 'ruby-keyword)
+          (ruby-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(or (ruby-derived-token-has-tag? token 'ruby-constant))
+      'constant-name]
+     [(or (ruby-derived-token-has-tag? token 'ruby-method-name)
+          (ruby-derived-token-has-tag? token 'ruby-operator-method-name)
+          (ruby-derived-token-has-tag? token 'ruby-method-reference))
+      'method-name]
+     [(or (ruby-derived-token-has-tag? token 'ruby-instance-variable)
+          (ruby-derived-token-has-tag? token 'ruby-class-variable)
+          (ruby-derived-token-has-tag? token 'ruby-global-variable))
+      'variable-name]
+     [(ruby-derived-token-has-tag? token 'ruby-keyword-argument-label)
+      'label-name]
+     [(ruby-derived-token-has-tag? token 'ruby-interpolation)
+      'interpolation]
+     [(or (ruby-derived-token-has-tag? token 'ruby-string-literal)
+          (ruby-derived-token-has-tag? token 'ruby-symbol-literal)
+          (ruby-derived-token-has-tag? token 'ruby-character-literal)
+          (ruby-derived-token-has-tag? token 'ruby-number-literal)
+          (ruby-derived-token-has-tag? token 'ruby-regexp-literal)
+          (ruby-derived-token-has-tag? token 'ruby-command-literal)
+          (ruby-derived-token-has-tag? token 'ruby-percent-literal)
+          (ruby-derived-token-has-tag? token 'ruby-word-list-literal)
+          (ruby-derived-token-has-tag? token 'ruby-symbol-list-literal)
+          (ruby-derived-token-has-tag? token 'ruby-heredoc-introducer)
+          (ruby-derived-token-has-tag? token 'ruby-heredoc-body)
+          (ruby-derived-token-has-tag? token 'literal))
+      'value]
+     [(ruby-derived-token-has-tag? token 'operator) 'operator]
+     [(ruby-derived-token-has-tag? token 'delimiter) 'punct]
+     [(or (ruby-derived-token-has-tag? token 'ruby-identifier)
+          (ruby-derived-token-has-tag? token 'identifier))
+      'name]
+     [else 'plain])
+   txt))
+
+(define (tokenize-ruby s)
+  (for/list ([token (in-list (ruby-string->derived-tokens s))])
+    (ruby-derived-token->piece token)))
+
 (define (yaml-derived-token->piece token)
   (define txt (yaml-derived-token-text token))
   (cons
@@ -3666,6 +3742,7 @@ JS
      (with-handlers ([exn:fail? (lambda (_e) (list (cons 'plain s)))])
        (projected-tokens->scribble-tokens
         (rhombus-string->tokens s #:profile 'coloring #:source-positions #t)))]
+    [(ruby) (tokenize-ruby s)]
     [(rust) (tokenize-rust s)]
     [(swift) (tokenize-swift s)]
     [(tex) (tokenize-tex s)]
@@ -4601,6 +4678,8 @@ JS
                (java-doc-url-for-token cls txt prev1 prev2 next1)]
               [(eq? lang 'pascal)
                (pascal-doc-url-for-token cls txt)]
+              [(eq? lang 'ruby)
+               (ruby-doc-url-for-token cls txt prev1 prev2 next1)]
               [(eq? lang 'rust)
                (generated-rust-doc-url-for-token cls txt prev1 prev2 next1)]
               [(memq lang '(c cpp))
@@ -4774,6 +4853,8 @@ JS
      (java-doc-url-for-token cls txt prev1 prev2 next1)]
     [(eq? lang 'pascal)
      (pascal-doc-url-for-token cls txt)]
+    [(eq? lang 'ruby)
+     (ruby-doc-url-for-token cls txt prev1 prev2 next1)]
     [(eq? lang 'rust)
      (generated-rust-doc-url-for-token cls txt prev1 prev2 next1)]
     [(memq lang '(c cpp))
@@ -6387,6 +6468,7 @@ CSS
 (define-syntax (markdown-code stx) (do-simple-inline stx 'markdown))
 (define-syntax (racket-code stx) (do-simple-inline stx 'racket))
 (define-syntax (rhombus-code stx) (do-simple-inline stx 'rhombus))
+(define-syntax (ruby-code stx) (do-simple-inline stx 'ruby))
 (define-syntax (rust-code stx) (do-simple-inline stx 'rust))
 (define-syntax (swift-code stx) (do-simple-inline stx 'swift))
 (define-syntax (tsv-code stx) (do-simple-inline stx 'tsv))
@@ -6484,6 +6566,8 @@ CSS
 (define-syntax (racketblock stx) (do-simple-block stx 'racket #t))
 (define-syntax (rhombusblock0 stx) (do-simple-block stx 'rhombus #f))
 (define-syntax (rhombusblock stx) (do-simple-block stx 'rhombus #t))
+(define-syntax (rubyblock0 stx) (do-simple-block stx 'ruby #f))
+(define-syntax (rubyblock stx) (do-simple-block stx 'ruby #t))
 (define-syntax (rustblock0 stx) (do-simple-block stx 'rust #f))
 (define-syntax (rustblock stx) (do-simple-block stx 'rust #t))
 (define-syntax (swiftblock0 stx) (do-simple-block stx 'swift #f))
@@ -6615,6 +6699,7 @@ CSS
   (check-true (block? (pythonblock "def f(x):\n    return x\n")))
   (check-true (block? (racketblock "(define (f x) (+ x 1))")))
   (check-true (block? (rhombusblock "fun add(x, y): x + y")))
+  (check-true (block? (rubyblock "class Greeter\n  def call(name:) puts name end\nend\n")))
   (check-true (block? (rustblock "fn add(x: i32, y: i32) -> i32 { x + y }")))
   (check-true (block? (swiftblock "func add(_ x: Int, _ y: Int) -> Int { x + y }")))
   (check-true (block? (wasmblock "(module (func))")))
@@ -6732,6 +6817,16 @@ CSS
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'builtin-name cls)))
   (check-true (element? (rhombus-code "fun add(x, y): x + y")))
+  (check-true (element? (ruby-code "class Greeter; def call(name:) puts name; end; end")))
+  (let ([cls (classes 'ruby "#!/usr/bin/env ruby\nclass Greeter\n  DEFAULT_GREETING = \"Hello\"\n\n  def initialize(name)\n    @name = name\n  end\n\n  def call(greeting: DEFAULT_GREETING)\n    puts \"#{greeting}, #{@name}\"\n    puts %w[one two].join(/,\\s*/)\n  end\nend\n\nGreeter.new(:Ada).call(greeting: \"Hi\")\n")])
+    (check-not-false (member 'comment cls))
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'constant-name cls))
+    (check-not-false (member 'method-name cls))
+    (check-not-false (member 'variable-name cls))
+    (check-not-false (member 'label-name cls))
+    (check-not-false (member 'interpolation cls))
+    (check-not-false (member 'value cls)))
   (check-true (element? (rust-code "let answer: i32 = 42;")))
   (let ([cls (classes 'rust "use std::collections::HashMap;\n\nstruct User {\n    name: String,\n    score: i32,\n}\n\nfn histogram(words: &[&str]) -> HashMap<String, usize> {\n    let mut counts = HashMap::new();\n    counts\n}\n")])
     (check-not-false (member 'keyword cls))
@@ -6873,11 +6968,15 @@ CSS
   (check-not-false (pascal-doc-url-for-token 'identifier "WriteLn"))
   (check-not-false (pascal-doc-url-for-token 'identifier "Format"))
   (check-not-false (pascal-doc-url-for-token 'identifier "SysUtils"))
+  (check-not-false (ruby-doc-url-for-token 'keyword "class" #f #f #f))
+  (check-not-false (ruby-doc-url-for-token 'constant-name "Array" #f #f #f))
+  (check-not-false (ruby-doc-url-for-token 'method-name "puts" #f #f #f))
   (check-true (contains-link? (c-code "int main(void) { return 0; }")))
   (check-true (contains-link? (cpp-code "std::vector<int> xs;")))
   (check-true (contains-link? (go-code "func main() { fmt.Println(nil) }")))
   (check-true (contains-link? (java-code "@Override class Example { void run() { String s = null; System.out.println(\"hi\"); } }")))
   (check-true (contains-link? (rust-code "fn main() { let xs: Vec<i32> = vec![1, 2, 3]; }")))
+  (check-true (contains-link? (ruby-code "class Greeter; def call(name:) puts name; end; end")))
   (check-true (contains-link? (pascal-code "function Add(x, y: Integer): Integer; begin WriteLn(Format('%d', [x])); end;")))
   (check-true (contains-link? (css-code "a{color:red;}")))
   (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))

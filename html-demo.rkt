@@ -40,7 +40,7 @@
          "const users = [\n  { name: \"Ada\", score: 42 },\n  { name: \"Grace\", score: 51 }\n];\n\nconst total = users\n  .filter((user) => user.score > 40)\n  .map((user) => user.score)\n  .reduce((sum, score) => sum + score, 0);\n\nconsole.log(`total: ${total}`);")
    (list "JSON" 'json
          "{\"name\": \"Ada\"}"
-         "{\n  \"project\": \"scribble-tools\",\n  \"features\": [\"sxml\", \"html\", \"copy-button\"],\n  \"stable\": true,\n  \"counts\": { \"languages\": 28, \"examples\": 28 }\n}")
+         "{\n  \"project\": \"scribble-tools\",\n  \"features\": [\"sxml\", \"html\", \"copy-button\"],\n  \"stable\": true,\n  \"counts\": { \"languages\": 29, \"examples\": 29 }\n}")
    (list "Haskell" 'haskell
          "sumSquares xs = sum (map (^ (2 :: Int)) xs)"
          "module Main where\n\nsumSquares :: [Int] -> Int\nsumSquares xs = sum (map (^ (2 :: Int)) xs)\n\nmain :: IO ()\nmain = do\n  let values = [1, 2, 3, 4]\n  print (sumSquares values)")
@@ -74,6 +74,9 @@
    (list "Rhombus" 'rhombus
          "fun add(x, y): x + y"
          "#lang rhombus\n\nfun total(values):\n  values.foldl(0, fun (sum, value): sum + value)\n\nval scores = [10, 20, 12]\ntotal(scores)")
+   (list "Ruby" 'ruby
+         "class Greeter; def call(name:) puts name; end; end"
+         "class Greeter\n  DEFAULT_GREETING = \"Hello\"\n\n  def initialize(name)\n    @name = name\n  end\n\n  def call(greeting: DEFAULT_GREETING)\n    puts \"#{greeting}, #{@name}\"\n  end\nend\n\nGreeter.new(:Ada).call(greeting: \"Hi\")")
    (list "Shell" 'bash
          "if [ -f ~/.zshrc ]; then echo ok; fi"
          "set -euo pipefail\n\nfor file in README.md html-demo.rkt; do\n  if [ -f \"$file\" ]; then\n    printf 'found %s\\n' \"$file\"\n  else\n    printf 'missing %s\\n' \"$file\" >&2\n  fi\ndone")
@@ -94,7 +97,7 @@
          "(module\n  (func $answer (result i32)\n    (i32.const 42))\n  (func $add (param $x i32) (param $y i32) (result i32)\n    (i32.add\n      (local.get $x)\n      (local.get $y)))\n  (export \"answer\" (func $answer))\n  (export \"add\" (func $add)))")
    (list "YAML" 'yaml
          "name: Ada"
-         "---\nproject: scribble-tools\nfeatures:\n  - sxml\n  - html\n  - copy-button\nchecks:\n  compile: true\n  examples: 28\n")
+         "---\nproject: scribble-tools\nfeatures:\n  - sxml\n  - html\n  - copy-button\nchecks:\n  compile: true\n  examples: 29\n")
    (list "Scribble" 'scribble
          "@bold{Hello} world."
          "#lang scribble/manual\n\n@(require scribble-tools)\n\n@title{Renderer Demo}\n\nUse @racket[code-block->html] to produce a normal HTML snippet.\n\n@itemlist[\n @item{Inline code}\n @item{Block code}\n @item{Copy buttons}\n]")))

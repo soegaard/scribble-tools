@@ -27,6 +27,7 @@
   - plist: `plist-code`, `plistblock`, `plistblock0`
   - Racket: `racket-code`, `racketblock`, `racketblock0`
   - Rhombus: `rhombus-code`, `rhombusblock`, `rhombusblock0`
+  - Ruby: `ruby-code`, `rubyblock`, `rubyblock0`
   - Rust: `rust-code`, `rustblock`, `rustblock0`
   - Swift: `swift-code`, `swiftblock`, `swiftblock0`
   - TeX: `tex-code`, `texblock`, `texblock0`
@@ -51,6 +52,12 @@
 - Kept JSX mode on the handwritten JavaScript lexer path for compatibility with the existing TSX-style generic-angle heuristic.
 - Added LaTeX identifier links via `latexref.xyz` for common LaTeX commands and environments.
 - Switched the main renderer to derived-token integration for the practical language set, improving visible structure for shell, Makefile, TeX/LaTeX, C-family languages, plist, Python, Swift, Pascal, YAML, Go, and Haskell.
+- Added Ruby rendering through `lexers/ruby`, including derived-token styling
+  for constants, method names, variables, keyword argument labels,
+  interpolation, regular expressions, symbols, percent literals, and heredocs.
+- Added Ruby documentation links for keywords, classes/modules, and API
+  methods using a generated map from a 2026 local mirror of
+  `https://docs.ruby-lang.org/en/master/`.
 
 ## 0.2.0 - 2026-03-11
 

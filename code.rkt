@@ -25,6 +25,7 @@
          racket-code
          rhombus-code
          rust-code
+         ruby-code
          swift-code
          wasm-code
          shell-code
@@ -53,6 +54,7 @@
          racketblock
          rhombusblock
          rustblock
+         rubyblock
          swiftblock
          wasmblock
          shellblock
@@ -81,6 +83,7 @@
          racketblock0
          rhombusblock0
          rustblock0
+         rubyblock0
          swiftblock0
          wasmblock0
          shellblock0
@@ -135,6 +138,7 @@
 (define-syntax-rule (python-code . rest) (lang:python-code . rest))
 (define-syntax-rule (racket-code . rest) (lang:racket-code . rest))
 (define-syntax-rule (rhombus-code . rest) (lang:rhombus-code . rest))
+(define-syntax-rule (ruby-code . rest) (lang:ruby-code . rest))
 (define-syntax-rule (rust-code . rest) (lang:rust-code . rest))
 (define-syntax-rule (swift-code . rest) (lang:swift-code . rest))
 (define-syntax-rule (wasm-code . rest) (lang:wasm-code . rest))
@@ -163,6 +167,7 @@
 (define-syntax-rule (pythonblock . rest) (lang:pythonblock . rest))
 (define-syntax-rule (racketblock . rest) (lang:racketblock . rest))
 (define-syntax-rule (rhombusblock . rest) (lang:rhombusblock . rest))
+(define-syntax-rule (rubyblock . rest) (lang:rubyblock . rest))
 (define-syntax-rule (rustblock . rest) (lang:rustblock . rest))
 (define-syntax-rule (swiftblock . rest) (lang:swiftblock . rest))
 (define-syntax-rule (wasmblock . rest) (lang:wasmblock . rest))
@@ -191,6 +196,7 @@
 (define-syntax-rule (pythonblock0 . rest) (lang:pythonblock0 . rest))
 (define-syntax-rule (racketblock0 . rest) (lang:racketblock0 . rest))
 (define-syntax-rule (rhombusblock0 . rest) (lang:rhombusblock0 . rest))
+(define-syntax-rule (rubyblock0 . rest) (lang:rubyblock0 . rest))
 (define-syntax-rule (rustblock0 . rest) (lang:rustblock0 . rest))
 (define-syntax-rule (swiftblock0 . rest) (lang:swiftblock0 . rest))
 (define-syntax-rule (wasmblock0 . rest) (lang:wasmblock0 . rest))

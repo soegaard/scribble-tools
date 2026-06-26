@@ -1,14 +1,17 @@
 # scribble-tools
 
-`scribble-tools` provides forms for typesetting CSS, HTML, JavaScript, shell (Bash/Zsh), WebAssembly (WAT), and Scribble code in Scribble documents.
+`scribble-tools` provides forms for typesetting many programming, document,
+data, web, and tooling languages in Scribble documents.
 
 Key features:
 
 - Inline and block forms for all supported languages.
-- Syntax coloring for CSS/HTML/JavaScript/shell/WebAssembly/Scribble snippets.
+- Syntax coloring for languages including CSS, HTML, JavaScript, Ruby, shell,
+  WebAssembly, and Scribble.
 - CSS visualizations such as color swatches, gradient bars, spacing and radius previews, and font previews.
 - Optional links from common CSS/HTML/JavaScript identifiers to the MDN documentation site.
 - Optional links from shell keywords/builtins to Bash/Zsh/POSIX shell documentation.
+- Optional links from Ruby keywords, core classes/modules, and API methods to docs.ruby-lang.org.
 - Optional copy button for code blocks.
 - Plain HTML/SXML rendering for using the same snippets outside Scribble.
 

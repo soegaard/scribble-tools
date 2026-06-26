@@ -46,14 +46,14 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-Java, JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Rust, shell scripts
+Java, JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Ruby, Rust, shell scripts
 (Bash/Zsh/PowerShell), Swift, TeX, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[go-code], @racket[html-code], @racket[java-code], @racket[js-code], @racket[json-code],
 @racket[haskell-code], @racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[mathematica-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
-@racket[rhombus-code], @racket[rust-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
+@racket[rhombus-code], @racket[ruby-code], @racket[rust-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
 
@@ -61,7 +61,7 @@ The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[goblock], @racket[javablock], @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
         @racket[haskellblock], @racket[latexblock], @racket[makefileblock], @racket[mathematicablock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
-        @racket[rustblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
+        @racket[rubyblock], @racket[rustblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
 
@@ -98,6 +98,7 @@ Use inline forms when you want code inside running text:
   (list "Python"      @scribble-code["@python-code{def total(xs): return sum(xs)}"])
   (list "Racket"      @scribble-code["@racket-code{(define (add x y) (+ x y))}"])
   (list "Rhombus"     @scribble-code["@rhombus-code{fun add(x, y): x + y}"])
+  (list "Ruby"        @scribble-code["@ruby-code{class Greeter; def call(name:) puts name; end; end}"])
   (list "Shell"       @scribble-code["@shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}"])
   (list "Rust"        @scribble-code["@rust-code{let xs: Vec<i32> = vec![1, 2, 3];}"])
   (list "Swift"       @scribble-code["@swift-code{let answer = 42}"])
@@ -131,6 +132,7 @@ Use inline forms when you want code inside running text:
   (list "Python"        @python-code{def total(xs): return sum(xs)})
   (list "Racket"        @racket-code{(define (add x y) (+ x y))})
   (list "Rhombus"       @rhombus-code{fun add(x, y): x + y})
+  (list "Ruby"          @ruby-code{class Greeter; def call(name:) puts name; end; end})
   (list "Shell"         @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi})
   (list "Rust"          @rust-code{let xs: Vec<i32> = vec![1, 2, 3];})
   (list "Swift"         @swift-code{let answer = 42})
@@ -689,6 +691,19 @@ Typesets the concatenated strings as inline Rhombus code.
 Example: @rhombus-code{fun add(x, y): x + y}
 }
 
+@defform/subs[(ruby-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline Ruby code.
+
+Common Ruby keywords, core classes and modules, and API methods are linked
+to the Ruby documentation at @hyperlink["https://docs.ruby-lang.org/en/master/"]{docs.ruby-lang.org}.
+The bundled Ruby identifier map was generated in 2026 from a local mirror of
+@hyperlink["https://docs.ruby-lang.org/en/master/"]{the Ruby master documentation}.
+
+Example: @ruby-code{class Greeter; def call(name:) puts name; end; end}
+}
+
 @defform/subs[(swift-code maybe-escape str-expr ...+)
               ([maybe-escape code:blank
                              (code:line #:escape escape-id)])]{
@@ -1158,6 +1173,14 @@ Typesets Rhombus code as a block inset.
 Like @racket[rhombusblock], but without the inset wrapper.
 }
 
+@defform[(rubyblock option ... str-expr ...+)]{
+Typesets Ruby code as a block inset.
+}
+
+@defform[(rubyblock0 option ... str-expr ...+)]{
+Like @racket[rubyblock], but without the inset wrapper.
+}
+
 @defform[(swiftblock option ... str-expr ...+)]{
 Typesets Swift code as a block inset.
 }
@@ -1518,7 +1541,7 @@ more source values. Recognized language symbols are @racket['css],
 @racket['java], @racket['js], @racket['json], @racket['haskell],
 @racket['latex], @racket['makefile], @racket['markdown],
 @racket['mathematica], @racket['objc], @racket['pascal], @racket['plist],
-@racket['python], @racket['racket], @racket['rhombus], @racket['rust],
+@racket['python], @racket['racket], @racket['rhombus], @racket['ruby], @racket['rust],
 @racket['swift], @racket['tex], @racket['tsv], @racket['wasm],
 @racket['yaml], @racket['scribble], @racket['bash], @racket['zsh], and
 @racket['powershell]. The symbol @racket['pwsh] is accepted as an alias for
@@ -2155,6 +2178,24 @@ fun summarize(name, count):
   else:
     "$name has $(count) items"
 }
+
+@subsubsection[#:tag "extended-ruby"]{Ruby}
+
+@rubyblock[#:line-numbers 1
+           #:file "extended/greeter.rb"
+           "class Greeter\n"
+           "  DEFAULT_GREETING = \"Hello\"\n"
+           "\n"
+           "  def initialize(name)\n"
+           "    @name = name\n"
+           "  end\n"
+           "\n"
+           "  def call(greeting: DEFAULT_GREETING)\n"
+           "    puts \"#{greeting}, #{@name}\"\n"
+           "  end\n"
+           "end\n"
+           "\n"
+           "Greeter.new(:Ada).call(greeting: \"Hi\")\n"]
 
 @subsubsection[#:tag "extended-swift"]{Swift}
 
