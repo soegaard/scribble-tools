@@ -4,7 +4,7 @@
           (for-label racket/base
                      scribble/manual))
 
-@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, Java, JavaScript, JSON, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Ruby, Rust, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
+@title{Example: CSS, C, C++, CSV, Go, HTML, Haskell, Java, JavaScript, JSON, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Ruby, Rust, SQL, SQLite, MySQL, PostgreSQL, Shell, Swift, TeX, TSV, WebAssembly, YAML, and Scribble Code Forms}
 
 This paragraph includes inline CSS with @css-code{h1 { color: #c33; }} and
 inline HTML with @html-code{<em class="highlight">Hi</em>} and
@@ -28,6 +28,10 @@ inline Racket with @racket-code{(define (add x y) (+ x y))} and
 inline Rhombus with @rhombus-code{fun add(x, y): x + y} and
 inline Ruby with @ruby-code{class Greeter; def call(name:) puts name; end; end} and
 inline Rust with @rust-code{let xs: Vec<i32> = vec![1, 2, 3];} and
+inline SQL with @sql-code{SELECT name FROM people WHERE active = TRUE;} and
+inline SQLite with @sqlite-code{SELECT [group] FROM `items` WHERE id = ?1;} and
+inline MySQL with @mysql-code{SELECT @"@"user FROM `users`;} and
+inline PostgreSQL with @postgres-code{SELECT $1, $$hello$$;} and
 inline shell with @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi} and
 inline Swift with @swift-code{let answer = 42} and
 inline TeX with @tex-code{\hbox{Hello}} and
@@ -97,6 +101,14 @@ Inline Rhombus: @rhombus-code{fun add(x, y): x + y}
 Inline Ruby: @ruby-code{class Greeter; def call(name:) puts name; end; end}
 
 Inline Rust: @rust-code{let xs: Vec<i32> = vec![1, 2, 3];}
+
+Inline SQL: @sql-code{SELECT name FROM people WHERE active = TRUE;}
+
+Inline SQLite: @sqlite-code{SELECT [group] FROM `items` WHERE id = ?1;}
+
+Inline MySQL: @mysql-code{SELECT @"@"user FROM `users`;}
+
+Inline PostgreSQL: @postgres-code{SELECT $1, $$hello$$;}
 
 Inline shell (Bash): @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}
 
@@ -633,6 +645,64 @@ and string interpolation.
            "end\n"
            "\n"
            "Greeter.new(:Ada).call(greeting: \"Hi\")\n"]
+
+@subsection{SQL}
+
+SQL examples show generic statement structure, identifiers, literals,
+operators, and delimiters.
+
+@sqlblock[#:line-numbers 1 #:file "report.sql"]{
+CREATE TABLE people (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  active BOOLEAN DEFAULT TRUE
+);
+
+SELECT name, active
+FROM people
+WHERE active = TRUE
+ORDER BY name;
+}
+
+@subsection{SQLite}
+
+SQLite examples include bracket identifiers, backtick identifiers, and
+positional parameters.
+
+@sqliteblock[#:line-numbers 1 #:file "report.sqlite.sql"]{
+SELECT x'ABCD', [group], `name`
+FROM "items"
+WHERE id = ?1;
+}
+
+@subsection{MySQL}
+
+MySQL examples include hash comments, character-set string prefixes,
+backtick identifiers, and user/global variables.
+
+@mysqlblock[#:line-numbers 1
+            #:file "report.mysql.sql"]{
+# MySQL dialect example
+SELECT _utf8'hej' AS greeting,
+       `name`,
+       @"@"user,
+       @"@"@"@"global.time_zone
+FROM users;
+}
+
+@subsection{PostgreSQL}
+
+PostgreSQL examples include numbered parameters, casts, dollar-quoted
+strings, escaped strings, and quoted identifiers.
+
+@postgresblock[#:line-numbers 1 #:file "report.pg.sql"]{
+SELECT $1::int AS id,
+       $$hello$$ AS message,
+       E'line\n' AS escaped,
+       "user"
+FROM accounts
+WHERE note ILIKE '%ok%';
+}
 
 @subsection{Swift}
 

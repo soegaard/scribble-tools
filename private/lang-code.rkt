@@ -113,6 +113,12 @@
                   ruby-string->derived-tokens)
          (only-in lexers/rhombus rhombus-string->tokens)
          (only-in lexers/rust rust-string->tokens)
+         (only-in lexers/sql
+                  sql-derived-token-has-tag?
+                  sql-derived-token-text
+                  sql-derived-token-start
+                  sql-derived-token-end
+                  sql-string->derived-tokens)
          lexers/shell
          (only-in lexers/swift
                   swift-derived-token-has-tag?
@@ -190,6 +196,10 @@
          rust-code
          ruby-code
          swift-code
+         sql-code
+         sqlite-code
+         mysql-code
+         postgres-code
          wasm-code
          shell-code
          scribble-code
@@ -219,6 +229,10 @@
          rustblock
          rubyblock
          swiftblock
+         sqlblock
+         sqliteblock
+         mysqlblock
+         postgresblock
          wasmblock
          shellblock
          scribbleblock
@@ -248,6 +262,10 @@
          rustblock0
          rubyblock0
          swiftblock0
+         sqlblock0
+         sqliteblock0
+         mysqlblock0
+         postgresblock0
          wasmblock0
          shellblock0
          scribbleblock0
@@ -1342,6 +1360,16 @@ JS
        [(comment) comment-color]
        [(keyword) js-keyword-color]
        [(type-name) c-type-name-color]
+       [(value) value-color]
+       [(name) js-name-color]
+       [(operator) js-operator-color]
+       [(punct) paren-color]
+       [else no-color])]
+    [(sql sqlite mysql postgres postgresql)
+     (case cls
+       [(comment) comment-color]
+       [(keyword) js-keyword-color]
+       [(parameter-name) js-private-name-color]
        [(value) value-color]
        [(name) js-name-color]
        [(operator) js-operator-color]
@@ -3332,6 +3360,47 @@ JS
   (for/list ([token (in-list (ruby-string->derived-tokens s))])
     (ruby-derived-token->piece token)))
 
+(define (sql-derived-token->piece token)
+  (define txt (sql-derived-token-text token))
+  (cons
+   (cond
+     [(or (sql-derived-token-has-tag? token 'comment)
+          (sql-derived-token-has-tag? token 'sql-comment))
+      'comment]
+     [(sql-derived-token-has-tag? token 'whitespace) 'plain]
+     [(sql-derived-token-has-tag? token 'malformed-token) 'plain]
+     [(or (sql-derived-token-has-tag? token 'sql-keyword)
+          (sql-derived-token-has-tag? token 'keyword))
+      'keyword]
+     [(or (sql-derived-token-has-tag? token 'sql-string-literal)
+          (sql-derived-token-has-tag? token 'sql-numeric-literal)
+          (sql-derived-token-has-tag? token 'literal))
+      'value]
+     [(sql-derived-token-has-tag? token 'sql-parameter)
+      'parameter-name]
+     [(or (sql-derived-token-has-tag? token 'sql-operator)
+          (sql-derived-token-has-tag? token 'operator))
+      'operator]
+     [(or (sql-derived-token-has-tag? token 'sql-delimiter)
+          (sql-derived-token-has-tag? token 'delimiter))
+      'punct]
+     [(or (sql-derived-token-has-tag? token 'sql-identifier)
+          (sql-derived-token-has-tag? token 'identifier))
+      'name]
+     [else 'plain])
+   txt))
+
+(define (sql-lang->dialect lang)
+  (case lang
+    [(sqlite) 'sqlite]
+    [(mysql) 'mysql]
+    [(postgres postgresql) 'postgres]
+    [else 'generic]))
+
+(define (tokenize-sql s dialect)
+  (for/list ([token (in-list (sql-string->derived-tokens s #:dialect dialect))])
+    (sql-derived-token->piece token)))
+
 (define (yaml-derived-token->piece token)
   (define txt (yaml-derived-token-text token))
   (cons
@@ -3744,6 +3813,7 @@ JS
         (rhombus-string->tokens s #:profile 'coloring #:source-positions #t)))]
     [(ruby) (tokenize-ruby s)]
     [(rust) (tokenize-rust s)]
+    [(sql sqlite mysql postgres postgresql) (tokenize-sql s (sql-lang->dialect lang))]
     [(swift) (tokenize-swift s)]
     [(tex) (tokenize-tex s)]
     [(wasm) (tokenize-wasm s)]
@@ -6471,6 +6541,10 @@ CSS
 (define-syntax (ruby-code stx) (do-simple-inline stx 'ruby))
 (define-syntax (rust-code stx) (do-simple-inline stx 'rust))
 (define-syntax (swift-code stx) (do-simple-inline stx 'swift))
+(define-syntax (sql-code stx) (do-simple-inline stx 'sql))
+(define-syntax (sqlite-code stx) (do-simple-inline stx 'sqlite))
+(define-syntax (mysql-code stx) (do-simple-inline stx 'mysql))
+(define-syntax (postgres-code stx) (do-simple-inline stx 'postgres))
 (define-syntax (tsv-code stx) (do-simple-inline stx 'tsv))
 (define-syntax (yaml-code stx) (do-simple-inline stx 'yaml))
 
@@ -6572,6 +6646,14 @@ CSS
 (define-syntax (rustblock stx) (do-simple-block stx 'rust #t))
 (define-syntax (swiftblock0 stx) (do-simple-block stx 'swift #f))
 (define-syntax (swiftblock stx) (do-simple-block stx 'swift #t))
+(define-syntax (sqlblock0 stx) (do-simple-block stx 'sql #f))
+(define-syntax (sqlblock stx) (do-simple-block stx 'sql #t))
+(define-syntax (sqliteblock0 stx) (do-simple-block stx 'sqlite #f))
+(define-syntax (sqliteblock stx) (do-simple-block stx 'sqlite #t))
+(define-syntax (mysqlblock0 stx) (do-simple-block stx 'mysql #f))
+(define-syntax (mysqlblock stx) (do-simple-block stx 'mysql #t))
+(define-syntax (postgresblock0 stx) (do-simple-block stx 'postgres #f))
+(define-syntax (postgresblock stx) (do-simple-block stx 'postgres #t))
 (define-syntax (wasmblock0 stx) (do-wasm-block stx #f))
 (define-syntax (wasmblock stx) (do-wasm-block stx #t))
 (define-syntax (shellblock0 stx) (do-shell-block stx #f))
@@ -6678,6 +6760,10 @@ CSS
     (derived-stream-contiguous? tokens
                                latex-derived-token-start
                                latex-derived-token-end))
+  (define (sql-derived-stream-contiguous? tokens)
+    (derived-stream-contiguous? tokens
+                               sql-derived-token-start
+                               sql-derived-token-end))
   (check-true (block? (cssblock "h1 { color: red; }")))
   (check-true (block? (cblock "int main(void) { return 0; }")))
   (check-true (block? (cppblock "int main() { return 0; }")))
@@ -6702,6 +6788,10 @@ CSS
   (check-true (block? (rubyblock "class Greeter\n  def call(name:) puts name end\nend\n")))
   (check-true (block? (rustblock "fn add(x: i32, y: i32) -> i32 { x + y }")))
   (check-true (block? (swiftblock "func add(_ x: Int, _ y: Int) -> Int { x + y }")))
+  (check-true (block? (sqlblock "SELECT name FROM people WHERE active = TRUE;")))
+  (check-true (block? (sqliteblock "SELECT [group] FROM `items` WHERE id = ?1;")))
+  (check-true (block? (mysqlblock "# note\nSELECT @user FROM `users`;")))
+  (check-true (block? (postgresblock "SELECT $1, $$hello$$;")))
   (check-true (block? (wasmblock "(module (func))")))
   (check-true (block? (shellblock "if [ -f ./x ]; then echo ok; fi")))
   (check-true (block? (scribbleblock "@title{Hi}\nText.")))
@@ -6843,6 +6933,34 @@ CSS
     (check-not-false (member 'keyword cls))
     (check-not-false (member 'value cls))
     (check-not-false (member 'operator cls)))
+  (check-true (element? (sql-code "SELECT name FROM people WHERE id = 1;")))
+  (check-true (element? (sqlite-code "SELECT [group] FROM `items` WHERE id = ?1;")))
+  (check-true (element? (mysql-code "SELECT @user FROM `users`;")))
+  (check-true (element? (postgres-code "SELECT $1, $$hello$$;")))
+  (let ([cls (classes 'sql "SELECT name FROM people WHERE active = TRUE AND score >= 10;")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'operator cls))
+    (check-not-false (member 'punct cls)))
+  (let ([cls (classes 'sqlite "SELECT x'ABCD', [group], `name` FROM \"items\" WHERE id = ?1;\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'name cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'parameter-name cls)))
+  (let ([cls (classes 'mysql "# comment\nSELECT _utf8'hej', `name`, @user, @@global.time_zone FROM users;\n")])
+    (check-not-false (member 'comment cls))
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'parameter-name cls)))
+  (let ([cls (classes 'postgres "SELECT $1, $$hello$$, E'line\\n', \"user\" FROM accounts WHERE note ILIKE '%ok%';\n")])
+    (check-not-false (member 'keyword cls))
+    (check-not-false (member 'value cls))
+    (check-not-false (member 'parameter-name cls))
+    (check-not-false (member 'name cls)))
+  (let ([cls (classes 'postgresql "SELECT $1::int;")])
+    (check-not-false (member 'parameter-name cls))
+    (check-not-false (member 'punct cls)))
   (check-true (element? (wasm-code "(module (func))")))
   (check-true (element? (shell-code "echo $HOME")))
   (let ([cls (classes 'bash "cat <<EOF | grep hi && echo $'ok\\n' >out\n")])

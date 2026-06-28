@@ -29,6 +29,10 @@
   - Rhombus: `rhombus-code`, `rhombusblock`, `rhombusblock0`
   - Ruby: `ruby-code`, `rubyblock`, `rubyblock0`
   - Rust: `rust-code`, `rustblock`, `rustblock0`
+  - SQL: `sql-code`, `sqlblock`, `sqlblock0`
+  - SQLite: `sqlite-code`, `sqliteblock`, `sqliteblock0`
+  - MySQL: `mysql-code`, `mysqlblock`, `mysqlblock0`
+  - PostgreSQL: `postgres-code`, `postgresblock`, `postgresblock0`
   - Swift: `swift-code`, `swiftblock`, `swiftblock0`
   - TeX: `tex-code`, `texblock`, `texblock0`
   - TSV: `tsv-code`, `tsvblock`, `tsvblock0`
@@ -63,6 +67,8 @@
 - Improved Ruby identifier links with source metadata, safer generic-method
   guards, receiver-aware method links for common literals, selected operator
   syntax links, and alias-aware method lookup.
+- Added SQL rendering through `lexers/sql`, including generic SQL plus SQLite,
+  MySQL, and PostgreSQL dialect forms.
 
 ## 0.2.0 - 2026-03-11
 

@@ -27,6 +27,10 @@
          rust-code
          ruby-code
          swift-code
+         sql-code
+         sqlite-code
+         mysql-code
+         postgres-code
          wasm-code
          shell-code
          scribble-code
@@ -56,6 +60,10 @@
          rustblock
          rubyblock
          swiftblock
+         sqlblock
+         sqliteblock
+         mysqlblock
+         postgresblock
          wasmblock
          shellblock
          scribbleblock
@@ -85,6 +93,10 @@
          rustblock0
          rubyblock0
          swiftblock0
+         sqlblock0
+         sqliteblock0
+         mysqlblock0
+         postgresblock0
          wasmblock0
          shellblock0
          scribbleblock0
@@ -141,6 +153,10 @@
 (define-syntax-rule (ruby-code . rest) (lang:ruby-code . rest))
 (define-syntax-rule (rust-code . rest) (lang:rust-code . rest))
 (define-syntax-rule (swift-code . rest) (lang:swift-code . rest))
+(define-syntax-rule (sql-code . rest) (lang:sql-code . rest))
+(define-syntax-rule (sqlite-code . rest) (lang:sqlite-code . rest))
+(define-syntax-rule (mysql-code . rest) (lang:mysql-code . rest))
+(define-syntax-rule (postgres-code . rest) (lang:postgres-code . rest))
 (define-syntax-rule (wasm-code . rest) (lang:wasm-code . rest))
 (define-syntax-rule (shell-code . rest) (lang:shell-code . rest))
 (define-syntax-rule (scribble-code . rest) (lang:scribble-code . rest))
@@ -170,6 +186,10 @@
 (define-syntax-rule (rubyblock . rest) (lang:rubyblock . rest))
 (define-syntax-rule (rustblock . rest) (lang:rustblock . rest))
 (define-syntax-rule (swiftblock . rest) (lang:swiftblock . rest))
+(define-syntax-rule (sqlblock . rest) (lang:sqlblock . rest))
+(define-syntax-rule (sqliteblock . rest) (lang:sqliteblock . rest))
+(define-syntax-rule (mysqlblock . rest) (lang:mysqlblock . rest))
+(define-syntax-rule (postgresblock . rest) (lang:postgresblock . rest))
 (define-syntax-rule (wasmblock . rest) (lang:wasmblock . rest))
 (define-syntax-rule (shellblock . rest) (lang:shellblock . rest))
 (define-syntax-rule (scribbleblock . rest) (lang:scribbleblock . rest))
@@ -199,6 +219,10 @@
 (define-syntax-rule (rubyblock0 . rest) (lang:rubyblock0 . rest))
 (define-syntax-rule (rustblock0 . rest) (lang:rustblock0 . rest))
 (define-syntax-rule (swiftblock0 . rest) (lang:swiftblock0 . rest))
+(define-syntax-rule (sqlblock0 . rest) (lang:sqlblock0 . rest))
+(define-syntax-rule (sqliteblock0 . rest) (lang:sqliteblock0 . rest))
+(define-syntax-rule (mysqlblock0 . rest) (lang:mysqlblock0 . rest))
+(define-syntax-rule (postgresblock0 . rest) (lang:postgresblock0 . rest))
 (define-syntax-rule (wasmblock0 . rest) (lang:wasmblock0 . rest))
 (define-syntax-rule (shellblock0 . rest) (lang:shellblock0 . rest))
 (define-syntax-rule (scribbleblock0 . rest) (lang:scribbleblock0 . rest))

@@ -46,14 +46,15 @@
 @defmodule[scribble-tools]
 
 This library provides Scribble forms for typesetting CSS, C, C++, CSV, HTML,
-Java, JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Ruby, Rust, shell scripts
+Java, JavaScript, JSON, Go, Haskell, LaTeX, Makefile, Markdown, Mathematica, Objective-C, plist, Python, Racket, Rhombus, Ruby, Rust, SQL
+(including SQLite, MySQL, and PostgreSQL dialects), shell scripts
 (Bash/Zsh/PowerShell), Swift, TeX, TSV, WebAssembly (WAT), YAML, and Scribble
 snippets with syntax coloring.
 
 The inline forms (@racket[css-code], @racket[c-code], @racket[cpp-code], @racket[csv-code],
 @racket[go-code], @racket[html-code], @racket[java-code], @racket[js-code], @racket[json-code],
 @racket[haskell-code], @racket[latex-code], @racket[makefile-code], @racket[markdown-code], @racket[mathematica-code], @racket[objc-code], @racket[pascal-code], @racket[plist-code], @racket[python-code], @racket[racket-code],
-@racket[rhombus-code], @racket[ruby-code], @racket[rust-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
+@racket[rhombus-code], @racket[ruby-code], @racket[rust-code], @racket[sql-code], @racket[sqlite-code], @racket[mysql-code], @racket[postgres-code], @racket[shell-code], @racket[swift-code], @racket[tex-code], @racket[tsv-code],
 @racket[wasm-code], @racket[yaml-code], and @racket[scribble-code])
 produce content.
 
@@ -61,7 +62,7 @@ The block forms
 (@racket[cssblock], @racket[cblock], @racket[cppblock], @racket[csvblock], @racket[htmlblock],
         @racket[goblock], @racket[javablock], @racket[jsblock], @racket[jsonblock], @racket[markdownblock],
         @racket[haskellblock], @racket[latexblock], @racket[makefileblock], @racket[mathematicablock], @racket[objcblock], @racket[pascalblock], @racket[plistblock], @racket[pythonblock], @racket[racketblock], @racket[rhombusblock],
-        @racket[rubyblock], @racket[rustblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
+        @racket[rubyblock], @racket[rustblock], @racket[sqlblock], @racket[sqliteblock], @racket[mysqlblock], @racket[postgresblock], @racket[shellblock], @racket[swiftblock], @racket[texblock], @racket[tsvblock], @racket[wasmblock],
         @racket[yamlblock], and @racket[scribbleblock]) produce code
 blocks with optional line numbers, file labels, and escapes.
 
@@ -101,6 +102,10 @@ Use inline forms when you want code inside running text:
   (list "Ruby"        @scribble-code["@ruby-code{class Greeter; def call(name:) puts name; end; end}"])
   (list "Shell"       @scribble-code["@shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi}"])
   (list "Rust"        @scribble-code["@rust-code{let xs: Vec<i32> = vec![1, 2, 3];}"])
+  (list "SQL"         @scribble-code["@sql-code{SELECT name FROM people WHERE active = TRUE;}"])
+  (list "SQLite"      @scribble-code["@sqlite-code{SELECT [group] FROM `items` WHERE id = ?1;}"])
+  (list "MySQL"       @scribble-code["@mysql-code{SELECT @\"@\"user FROM `users`;}"])
+  (list "PostgreSQL"  @scribble-code["@postgres-code{SELECT $1, $$hello$$;}"])
   (list "Swift"       @scribble-code["@swift-code{let answer = 42}"])
   (list "TeX"         @scribble-code["@tex-code{\\hbox{Hello}}"])
   (list "TSV"         @scribble-code["@tsv-code[\"name\\tage\"]"])
@@ -135,6 +140,10 @@ Use inline forms when you want code inside running text:
   (list "Ruby"          @ruby-code{class Greeter; def call(name:) puts name; end; end})
   (list "Shell"         @shell-code[#:shell 'bash]{if [ -f ~/.zshrc ]; then echo ok; fi})
   (list "Rust"          @rust-code{let xs: Vec<i32> = vec![1, 2, 3];})
+  (list "SQL"           @sql-code{SELECT name FROM people WHERE active = TRUE;})
+  (list "SQLite"        @sqlite-code{SELECT [group] FROM `items` WHERE id = ?1;})
+  (list "MySQL"         @mysql-code{SELECT @"@"user FROM `users`;})
+  (list "PostgreSQL"    @postgres-code{SELECT $1, $$hello$$;})
   (list "Swift"         @swift-code{let answer = 42})
   (list "TeX"           @tex-code{\hbox{Hello}})
   (list "TSV"           @tsv-code["name\tage"])
@@ -876,6 +885,38 @@ Typesets the concatenated strings as inline CSV text.
 Example: @csv-code["name,age"]
 }
 
+@defform/subs[(sql-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline generic SQL code.
+
+Example: @sql-code{SELECT name FROM people WHERE active = TRUE;}
+}
+
+@defform/subs[(sqlite-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline SQLite SQL code.
+
+Example: @sqlite-code{SELECT [group] FROM `items` WHERE id = ?1;}
+}
+
+@defform/subs[(mysql-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline MySQL SQL code.
+
+Example: @mysql-code{SELECT @"@"user FROM `users`;}
+}
+
+@defform/subs[(postgres-code maybe-escape str-expr ...+)
+              ([maybe-escape code:blank
+                             (code:line #:escape escape-id)])]{
+Typesets the concatenated strings as inline PostgreSQL SQL code.
+
+Example: @postgres-code{SELECT $1, $$hello$$;}
+}
+
 @subsection{Block Forms}
 
 All block forms accept @racket[#:highlight-lines]. The value is @racket[#f]
@@ -1385,6 +1426,38 @@ Typesets CSV as a block inset.
 
 @defform[(csvblock0 option ... str-expr ...+)]{
 Like @racket[csvblock], but without the inset wrapper.
+}
+
+@defform[(sqlblock option ... str-expr ...+)]{
+Typesets generic SQL as a block inset.
+}
+
+@defform[(sqlblock0 option ... str-expr ...+)]{
+Like @racket[sqlblock], but without the inset wrapper.
+}
+
+@defform[(sqliteblock option ... str-expr ...+)]{
+Typesets SQLite SQL as a block inset.
+}
+
+@defform[(sqliteblock0 option ... str-expr ...+)]{
+Like @racket[sqliteblock], but without the inset wrapper.
+}
+
+@defform[(mysqlblock option ... str-expr ...+)]{
+Typesets MySQL SQL as a block inset.
+}
+
+@defform[(mysqlblock0 option ... str-expr ...+)]{
+Like @racket[mysqlblock], but without the inset wrapper.
+}
+
+@defform[(postgresblock option ... str-expr ...+)]{
+Typesets PostgreSQL SQL as a block inset.
+}
+
+@defform[(postgresblock0 option ... str-expr ...+)]{
+Like @racket[postgresblock], but without the inset wrapper.
 }
 
 @defform[(tsvblock option ... str-expr ...+)]{
@@ -2426,6 +2499,65 @@ features:
 }
 
 @subsection[#:tag "extended-data-formats"]{Data Formats}
+
+@subsubsection[#:tag "extended-sql"]{SQL}
+
+@sqlblock[#:line-numbers 1
+          #:file "extended/report.sql"]{
+CREATE TABLE people (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  role VARCHAR(40),
+  active BOOLEAN DEFAULT TRUE
+);
+
+SELECT name, role
+FROM people
+WHERE active = TRUE
+ORDER BY name;
+}
+
+@subsubsection[#:tag "extended-sqlite"]{SQLite}
+
+@sqliteblock[#:line-numbers 1
+             #:file "extended/report.sqlite.sql"]{
+CREATE TABLE notes (
+  id INTEGER PRIMARY KEY,
+  body TEXT NOT NULL
+);
+
+INSERT INTO notes(body) VALUES ('hello');
+
+SELECT [group], `name`
+FROM "items"
+WHERE id = ?1;
+}
+
+@subsubsection[#:tag "extended-mysql"]{MySQL}
+
+@mysqlblock[#:line-numbers 1
+            #:file "extended/report.mysql.sql"]{
+# MySQL dialect example
+SELECT _utf8'hej' AS greeting,
+       `name`,
+       @"@"user,
+       @"@"@"@"global.time_zone
+FROM users
+WHERE active = TRUE
+LIMIT 10;
+}
+
+@subsubsection[#:tag "extended-postgres"]{PostgreSQL}
+
+@postgresblock[#:line-numbers 1
+               #:file "extended/report.pg.sql"]{
+SELECT $1::int AS id,
+       $$hello$$ AS message,
+       E'line\n' AS escaped,
+       "user"
+FROM accounts
+WHERE note ILIKE '%ok%';
+}
 
 @subsubsection[#:tag "extended-csv-tsv"]{CSV and TSV}
 

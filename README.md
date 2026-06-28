@@ -6,8 +6,8 @@ data, web, and tooling languages in Scribble documents.
 Key features:
 
 - Inline and block forms for all supported languages.
-- Syntax coloring for languages including CSS, HTML, JavaScript, Ruby, shell,
-  WebAssembly, and Scribble.
+- Syntax coloring for languages including CSS, HTML, JavaScript, Ruby, SQL,
+  shell, WebAssembly, and Scribble.
 - CSS visualizations such as color swatches, gradient bars, spacing and radius previews, and font previews.
 - Optional links from common CSS/HTML/JavaScript identifiers to the MDN documentation site.
 - Optional links from shell keywords/builtins to Bash/Zsh/POSIX shell documentation.

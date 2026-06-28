@@ -40,7 +40,7 @@
          "const users = [\n  { name: \"Ada\", score: 42 },\n  { name: \"Grace\", score: 51 }\n];\n\nconst total = users\n  .filter((user) => user.score > 40)\n  .map((user) => user.score)\n  .reduce((sum, score) => sum + score, 0);\n\nconsole.log(`total: ${total}`);")
    (list "JSON" 'json
          "{\"name\": \"Ada\"}"
-         "{\n  \"project\": \"scribble-tools\",\n  \"features\": [\"sxml\", \"html\", \"copy-button\"],\n  \"stable\": true,\n  \"counts\": { \"languages\": 29, \"examples\": 29 }\n}")
+         "{\n  \"project\": \"scribble-tools\",\n  \"features\": [\"sxml\", \"html\", \"copy-button\"],\n  \"stable\": true,\n  \"counts\": { \"languages\": 33, \"examples\": 33 }\n}")
    (list "Haskell" 'haskell
          "sumSquares xs = sum (map (^ (2 :: Int)) xs)"
          "module Main where\n\nsumSquares :: [Int] -> Int\nsumSquares xs = sum (map (^ (2 :: Int)) xs)\n\nmain :: IO ()\nmain = do\n  let values = [1, 2, 3, 4]\n  print (sumSquares values)")
@@ -77,6 +77,18 @@
    (list "Ruby" 'ruby
          "class Greeter; def call(name:) puts name; end; end"
          "class Greeter\n  DEFAULT_GREETING = \"Hello\"\n\n  def initialize(name)\n    @name = name\n  end\n\n  def call(greeting: DEFAULT_GREETING)\n    puts \"#{greeting}, #{@name}\"\n  end\nend\n\nGreeter.new(:Ada).call(greeting: \"Hi\")")
+   (list "SQL" 'sql
+         "SELECT name FROM people WHERE active = TRUE;"
+         "CREATE TABLE people (\n  id INTEGER PRIMARY KEY,\n  name VARCHAR(80) NOT NULL,\n  active BOOLEAN DEFAULT TRUE\n);\n\nSELECT name, active\nFROM people\nWHERE active = TRUE\nORDER BY name;")
+   (list "SQLite" 'sqlite
+         "SELECT [group] FROM `items` WHERE id = ?1;"
+         "CREATE TABLE notes (\n  id INTEGER PRIMARY KEY,\n  body TEXT NOT NULL\n);\n\nINSERT INTO notes(body) VALUES ('hello');\nSELECT [group], `name`\nFROM \"items\"\nWHERE id = ?1;")
+   (list "MySQL" 'mysql
+         "SELECT @user FROM `users`;"
+         "# MySQL dialect example\nSELECT _utf8'hej' AS greeting,\n       `name`,\n       @user,\n       @@global.time_zone\nFROM users\nWHERE active = TRUE\nLIMIT 10;")
+   (list "PostgreSQL" 'postgres
+         "SELECT $1, $$hello$$;"
+         "SELECT $1::int AS id,\n       $$hello$$ AS message,\n       E'line\\n' AS escaped,\n       \"user\"\nFROM accounts\nWHERE note ILIKE '%ok%';")
    (list "Shell" 'bash
          "if [ -f ~/.zshrc ]; then echo ok; fi"
          "set -euo pipefail\n\nfor file in README.md html-demo.rkt; do\n  if [ -f \"$file\" ]; then\n    printf 'found %s\\n' \"$file\"\n  else\n    printf 'missing %s\\n' \"$file\" >&2\n  fi\ndone")
@@ -97,7 +109,7 @@
          "(module\n  (func $answer (result i32)\n    (i32.const 42))\n  (func $add (param $x i32) (param $y i32) (result i32)\n    (i32.add\n      (local.get $x)\n      (local.get $y)))\n  (export \"answer\" (func $answer))\n  (export \"add\" (func $add)))")
    (list "YAML" 'yaml
          "name: Ada"
-         "---\nproject: scribble-tools\nfeatures:\n  - sxml\n  - html\n  - copy-button\nchecks:\n  compile: true\n  examples: 29\n")
+         "---\nproject: scribble-tools\nfeatures:\n  - sxml\n  - html\n  - copy-button\nchecks:\n  compile: true\n  examples: 33\n")
    (list "Scribble" 'scribble
          "@bold{Hello} world."
          "#lang scribble/manual\n\n@(require scribble-tools)\n\n@title{Renderer Demo}\n\nUse @racket[code-block->html] to produce a normal HTML snippet.\n\n@itemlist[\n @item{Inline code}\n @item{Block code}\n @item{Copy buttons}\n]")))
