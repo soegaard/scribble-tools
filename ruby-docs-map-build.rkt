@@ -18,11 +18,13 @@
          print-stats
          main)
 
-;; Compact tuple: (owner kind token url)
+;; Compact tuple: (source owner kind token url)
+;; source is one of 'syntax 'core 'stdlib.
 ;; owner is the documenting class/module symbol, or 'syntax for keywords.
 ;; kind is one of 'class 'module 'keyword 'instance-method 'class-method.
 
 (define ruby-docs-base-url "https://docs.ruby-lang.org/en/master/")
+(define allowed-sources '(syntax core stdlib))
 (define allowed-kinds '(class module keyword instance-method class-method))
 
 (define ruby-keywords
@@ -80,13 +82,21 @@
    "while" (cons "syntax/control_expressions_rdoc.html" "#while-loop")
    "yield" (cons "syntax/methods_rdoc.html" "#block-argument")))
 
+(define core-owners
+  '(ARGF Array BasicObject Binding Class Comparable Data Dir Encoding Enumerable
+         Enumerator Exception FalseClass Fiber File Float GC Hash Integer IO
+         Kernel MatchData Math Method Module NilClass Numeric Object Proc Process
+         Random Range Rational Regexp String Struct Symbol Thread Time TracePoint
+         TrueClass UnboundMethod))
+
 (define (symbol<? a b)
   (string<? (symbol->string a) (symbol->string b)))
 
 (define (ruby-entry? v)
   (match v
-    [(list owner kind token url)
-     (and (symbol? owner)
+    [(list source owner kind token url)
+     (and (memq source allowed-sources)
+          (symbol? owner)
           (memq kind allowed-kinds)
           (string? token)
           (not (string=? "" (string-trim token)))
@@ -96,8 +106,8 @@
 
 (define (entry-key e)
   (match e
-    [(list owner kind token _url)
-     (list owner kind token)]))
+    [(list source owner kind token _url)
+     (list source owner kind token)]))
 
 (define (dedupe entries)
   (define h
@@ -108,9 +118,11 @@
   (sort (hash-values h)
         (lambda (a b)
           (match* (a b)
-            [((list owner-a kind-a token-a _)
-              (list owner-b kind-b token-b _))
+            [((list source-a owner-a kind-a token-a _)
+              (list source-b owner-b kind-b token-b _))
              (cond
+               [(symbol<? source-a source-b) #t]
+               [(not (eq? source-a source-b)) #f]
                [(symbol<? owner-a owner-b) #t]
                [(eq? owner-a owner-b)
                 (cond
@@ -148,6 +160,9 @@
       (url-for-relpath (string->path (car default-keyword-target))
                        (cdr default-keyword-target))))
 
+(define (api-source owner)
+  (if (memq owner core-owners) 'core 'stdlib))
+
 (define title-rx #px"<title>(class|module) ([^-<]+) - Documentation")
 (define method-link-rx #px"<a href=\"[^\"]*#(method-([ic])-[^\"]+)\">([^<]+)</a>")
 
@@ -157,7 +172,8 @@
      (define kind (string->symbol kind-s))
      (define token (string-trim (html-basic-decode token-s)))
      (and (not (string=? token ""))
-          (list (string->symbol token) kind token (url-for-relpath rel)))]
+          (let ([owner (string->symbol token)])
+            (list (api-source owner) owner kind token (url-for-relpath rel))))]
     [_ #f]))
 
 (define (extract-method-entries html rel owner)
@@ -166,7 +182,7 @@
      (match-define (list _ anchor sigil token-s) m)
      (define kind (if (string=? sigil "c") 'class-method 'instance-method))
      (define token (string-trim (html-basic-decode token-s)))
-     (list owner kind token (url-for-relpath rel (string-append "#" anchor))))))
+     (list (api-source owner) owner kind token (url-for-relpath rel (string-append "#" anchor))))))
 
 (define (extract-ruby-page-entries root p)
   (define root-path (simplify-path root #t))
@@ -174,7 +190,7 @@
   (define html (file->string p))
   (define title-entry (extract-title-entry html rel))
   (if title-entry
-      (let ([owner (first title-entry)])
+      (let ([owner (second title-entry)])
         (dedupe (cons title-entry (extract-method-entries html rel owner))))
       null))
 
@@ -183,7 +199,7 @@
   (define default-path (build-path root-path (string->path (car default-keyword-target))))
   (if (file-exists? default-path)
       (for/list ([kw (in-list ruby-keywords)])
-        (list 'syntax 'keyword kw (keyword-url root-path kw)))
+        (list 'syntax 'syntax 'keyword kw (keyword-url root-path kw)))
       null))
 
 (define (extract-ruby-doc-entries root)
@@ -208,7 +224,12 @@
 
 (define (print-stats entries)
   (printf "total: ~a\n" (length entries))
-  (define by-kind (count-by second entries))
+  (define by-source (count-by first entries))
+  (for ([source (in-list allowed-sources)])
+    (define n (hash-ref by-source source 0))
+    (when (positive? n)
+      (printf "  ~a: ~a\n" source n)))
+  (define by-kind (count-by third entries))
   (for ([kind (in-list allowed-kinds)])
     (define n (hash-ref by-kind kind 0))
     (when (positive? n)
@@ -250,5 +271,5 @@
 (module+ test
   (require rackunit)
 
-  (check-true (ruby-entry? '(syntax keyword "class" "https://docs.ruby-lang.org/en/master/syntax/modules_and_classes_rdoc.html#classes")))
-  (check-false (ruby-entry? '(syntax keyword "class" "https://example.com/"))))
+  (check-true (ruby-entry? '(syntax syntax keyword "class" "https://docs.ruby-lang.org/en/master/syntax/modules_and_classes_rdoc.html#classes")))
+  (check-false (ruby-entry? '(syntax syntax keyword "class" "https://example.com/"))))

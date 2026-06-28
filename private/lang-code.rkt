@@ -6977,6 +6977,24 @@ CSS
   (check-true (contains-link? (java-code "@Override class Example { void run() { String s = null; System.out.println(\"hi\"); } }")))
   (check-true (contains-link? (rust-code "fn main() { let xs: Vec<i32> = vec![1, 2, 3]; }")))
   (check-true (contains-link? (ruby-code "class Greeter; def call(name:) puts name; end; end")))
+  (check-not-false
+   (member "https://docs.ruby-lang.org/en/master/syntax/modules_and_classes_rdoc.html#classes"
+           (collect-target-urls (ruby-code "class Greeter; end"))))
+  (check-not-false
+   (member "https://docs.ruby-lang.org/en/master/String.html#method-i-split"
+           (collect-target-urls (ruby-code "\"a,b\".split(\",\")"))))
+  (check-not-false
+   (member "https://docs.ruby-lang.org/en/master/Array.html#method-i-map"
+           (collect-target-urls (ruby-code "[1, 2].map"))))
+  (check-not-false
+   (member "https://docs.ruby-lang.org/en/master/Hash.html#method-i-fetch"
+           (collect-target-urls (ruby-code "{a: 1}.fetch(:a)"))))
+  (check-not-false
+   (member "https://docs.ruby-lang.org/en/master/syntax/modules_and_classes_rdoc.html#nesting"
+           (collect-target-urls (ruby-code "Net::HTTP"))))
+  (check-not-false
+   (member "https://docs.ruby-lang.org/en/master/syntax/literals_rdoc.html#range-literals"
+           (collect-target-urls (ruby-code "1..3"))))
   (check-true (contains-link? (pascal-code "function Add(x, y: Integer): Integer; begin WriteLn(Format('%d', [x])); end;")))
   (check-true (contains-link? (css-code "a{color:red;}")))
   (check-false (contains-link? (css-code #:mdn-links? #f "a{color:red;}")))

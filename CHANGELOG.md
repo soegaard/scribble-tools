@@ -60,6 +60,9 @@
   `https://docs.ruby-lang.org/en/master/`.
 - Refined Ruby keyword links so constructs such as `class`, `def`, `if`, and
   `rescue` point to their explanatory syntax pages instead of the keyword index.
+- Improved Ruby identifier links with source metadata, safer generic-method
+  guards, receiver-aware method links for common literals, selected operator
+  syntax links, and alias-aware method lookup.
 
 ## 0.2.0 - 2026-03-11
 
