@@ -58,6 +58,8 @@
 - Added Ruby documentation links for keywords, classes/modules, and API
   methods using a generated map from a 2026 local mirror of
   `https://docs.ruby-lang.org/en/master/`.
+- Refined Ruby keyword links so constructs such as `class`, `def`, `if`, and
+  `rescue` point to their explanatory syntax pages instead of the keyword index.
 
 ## 0.2.0 - 2026-03-11
 

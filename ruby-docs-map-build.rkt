@@ -33,6 +33,53 @@
     "rescue" "retry" "return" "self" "super" "then" "true" "undef"
     "unless" "until" "when" "while" "yield"))
 
+(define default-keyword-target
+  (cons "syntax/keywords_rdoc.html" #f))
+
+(define ruby-keyword-targets
+  (hash
+   "__ENCODING__" default-keyword-target
+   "__FILE__" default-keyword-target
+   "__LINE__" default-keyword-target
+   "BEGIN" (cons "syntax/miscellaneous_rdoc.html" "#begin-and-end")
+   "END" (cons "syntax/miscellaneous_rdoc.html" "#begin-and-end")
+   "alias" (cons "syntax/miscellaneous_rdoc.html" "#alias")
+   "and" (cons "syntax/operators_rdoc.html" "#-and")
+   "begin" (cons "syntax/exceptions_rdoc.html" "#exception-handling")
+   "break" (cons "syntax/control_expressions_rdoc.html" "#break-statement")
+   "case" (cons "syntax/control_expressions_rdoc.html" "#case-expression")
+   "class" (cons "syntax/modules_and_classes_rdoc.html" "#classes")
+   "def" (cons "syntax/methods_rdoc.html" "#methods")
+   "defined?" (cons "syntax/miscellaneous_rdoc.html" "#defined")
+   "do" (cons "syntax/calling_methods_rdoc.html" "#block-argument")
+   "else" (cons "syntax/control_expressions_rdoc.html" "#if-expression")
+   "elsif" (cons "syntax/control_expressions_rdoc.html" "#if-expression")
+   "end" default-keyword-target
+   "ensure" (cons "syntax/exceptions_rdoc.html" "#exception-handling")
+   "false" (cons "syntax/literals_rdoc.html" "#boolean-and-nil-literals")
+   "for" (cons "syntax/control_expressions_rdoc.html" "#for-loop")
+   "if" (cons "syntax/control_expressions_rdoc.html" "#if-expression")
+   "in" (cons "syntax/pattern_matching_rdoc.html" "#patterns")
+   "module" (cons "syntax/modules_and_classes_rdoc.html" "#modules")
+   "next" (cons "syntax/control_expressions_rdoc.html" "#next-statement")
+   "nil" (cons "syntax/literals_rdoc.html" "#boolean-and-nil-literals")
+   "not" (cons "syntax/operators_rdoc.html" "#logical-operators")
+   "or" (cons "syntax/operators_rdoc.html" "#-or")
+   "redo" (cons "syntax/control_expressions_rdoc.html" "#redo-statement")
+   "rescue" (cons "syntax/exceptions_rdoc.html" "#exception-handling")
+   "retry" (cons "syntax/exceptions_rdoc.html" "#exception-handling")
+   "return" (cons "syntax/methods_rdoc.html" "#return-values")
+   "self" (cons "syntax/modules_and_classes_rdoc.html" "#self")
+   "super" (cons "syntax/modules_and_classes_rdoc.html" "#inheritance")
+   "then" (cons "syntax/control_expressions_rdoc.html" "#case-expression")
+   "true" (cons "syntax/literals_rdoc.html" "#boolean-and-nil-literals")
+   "undef" (cons "syntax/miscellaneous_rdoc.html" "#undef")
+   "unless" (cons "syntax/control_expressions_rdoc.html" "#unless-expression")
+   "until" (cons "syntax/control_expressions_rdoc.html" "#until-loop")
+   "when" (cons "syntax/control_expressions_rdoc.html" "#case-expression")
+   "while" (cons "syntax/control_expressions_rdoc.html" "#while-loop")
+   "yield" (cons "syntax/methods_rdoc.html" "#block-argument")))
+
 (define (symbol<? a b)
   (string<? (symbol->string a) (symbol->string b)))
 
@@ -92,6 +139,15 @@
                  (path->url-piece rel)
                  (or anchor "")))
 
+(define (keyword-url root-path keyword)
+  (define target (hash-ref ruby-keyword-targets keyword default-keyword-target))
+  (define rel (string->path (car target)))
+  (define anchor (cdr target))
+  (if (file-exists? (build-path root-path rel))
+      (url-for-relpath rel anchor)
+      (url-for-relpath (string->path (car default-keyword-target))
+                       (cdr default-keyword-target))))
+
 (define title-rx #px"<title>(class|module) ([^-<]+) - Documentation")
 (define method-link-rx #px"<a href=\"[^\"]*#(method-([ic])-[^\"]+)\">([^<]+)</a>")
 
@@ -124,11 +180,10 @@
 
 (define (extract-ruby-keyword-entries root)
   (define root-path (simplify-path root #t))
-  (define keyword-path (build-path root-path "syntax" "keywords_rdoc.html"))
-  (if (file-exists? keyword-path)
-      (let ([rel (find-relative-path root-path keyword-path)])
-        (for/list ([kw (in-list ruby-keywords)])
-          (list 'syntax 'keyword kw (url-for-relpath rel))))
+  (define default-path (build-path root-path (string->path (car default-keyword-target))))
+  (if (file-exists? default-path)
+      (for/list ([kw (in-list ruby-keywords)])
+        (list 'syntax 'keyword kw (keyword-url root-path kw)))
       null))
 
 (define (extract-ruby-doc-entries root)
@@ -195,5 +250,5 @@
 (module+ test
   (require rackunit)
 
-  (check-true (ruby-entry? '(syntax keyword "class" "https://docs.ruby-lang.org/en/master/syntax/keywords_rdoc.html")))
+  (check-true (ruby-entry? '(syntax keyword "class" "https://docs.ruby-lang.org/en/master/syntax/modules_and_classes_rdoc.html#classes")))
   (check-false (ruby-entry? '(syntax keyword "class" "https://example.com/"))))

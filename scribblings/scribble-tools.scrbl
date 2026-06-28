@@ -698,6 +698,8 @@ Typesets the concatenated strings as inline Ruby code.
 
 Common Ruby keywords, core classes and modules, and API methods are linked
 to the Ruby documentation at @hyperlink["https://docs.ruby-lang.org/en/master/"]{docs.ruby-lang.org}.
+Keywords prefer the syntax page where the construct is explained; for
+example, @tt{class} links to the Ruby modules-and-classes documentation.
 The bundled Ruby identifier map was generated in 2026 from a local mirror of
 @hyperlink["https://docs.ruby-lang.org/en/master/"]{the Ruby master documentation}.
 
